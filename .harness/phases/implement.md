@@ -128,7 +128,7 @@ A todo moves to `completed/` (same filename) only after its implementation and r
 are verified. Commit that move on the todo branch, run the project profile's local CI
 parity command, and merge the todo branch into the wave branch. Until wave convergence it
 is **implemented — awaiting wave convergence**, not shipped.
-At the boundary: `/redteam` on the wave branch (its `--scope <wave>` check exits 0 there,
+At the boundary: `/redteam` on the wave branch (in standard mode its `--scope <wave>` check exits 0 there; in light mode its one CLEAR wave round is the gate,
 before the merge) → merge the wave branch into `main` by pull request (task-delivery
 § Branches, pull requests and merging) → `/codify` → specs/remaining todos update → re-rank.
 Do not start the next wave until, in standard mode, the previous wave's receipt is committed on

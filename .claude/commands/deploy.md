@@ -79,7 +79,7 @@ Read the config and execute. **Print the 5-step DEPLOY CHECKLIST (Steps 1-5) at 
 1. **Target and drift** — the target is the commit the user named, else `main`'s tip; it must already be on `main`. Run `deploy_check_command` to get the deployed commit SHA. **First deploy** (nothing live yet, no `production` branch): the live-commit comparison, the deploy hold and the rollback target do not apply yet; say so and continue.
 2. **What ships** — `git diff <deployed_commit> <target> -- <production_paths>`, and tell the user in plain words what changes for their users, including anything already on `main` they may not expect (for example other work merged since the last deploy). Call out untested changes, schema migrations, secret/config changes and breaking API changes.
 3. **Wave preview** — refuse while any `04-validate/<scope>-preview.md` for work in this deploy still ends `User answer: pending`, or records a "no" whose fix or scope change is not in the target (`.harness/phases/redteam.md` § 4); ask the user the preview question, or say what is still missing.
-4. **Deploy hold** — if any open fix record in `workspaces/*/fixes/` says `Deploy hold: yes`, production was rolled back because of that bug: refuse to deploy a commit that does not contain its fix, and say so. Merges into `main` are not affected.
+4. **Deploy hold** — if any fix record (open or closed) in `workspaces/*/fixes/` says `Deploy hold: yes`, production was rolled back because of that bug: refuse to deploy a commit that does not contain its fix, and say so. Merges into `main` are not affected.
 5. **Know the way back** — note the currently deployed revision (from the drift check) as the rollback target, and confirm `rollback_command` is declared.
 
 #### Step 2: Pre-Deploy Gates

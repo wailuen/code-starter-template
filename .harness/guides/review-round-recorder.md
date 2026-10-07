@@ -15,7 +15,8 @@ What it detects: a round number out of order; a partial round; a changed reviewe
 a decision record; a debug round reusing a spent lens; a person-only acceptor that is an
 honest mistake (an agent, model, role or placeholder name — `.harness/rules/completion-criterion.md`
 MUST-1). When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
-every round record ever added in the branch's history whose file name is this scope's
+every round record ever added in the branch's history or on the local `main` (where a merged
+record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and
 refuses an unreadable, duplicate or gapped history ("Cannot rebuild the review count for <b>
 from its committed round records: <why>…") or a round number that skips ahead ("round N

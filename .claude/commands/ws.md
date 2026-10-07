@@ -27,8 +27,8 @@ waiting for you." Check each of these:
   may put it live for your users" — until `/deploy --onboard` confirms `main` does not deploy;
   list those merges.
 - **Undeployed changes** — when `deploy/deployment-config.md` exists, the drift from
-  `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly), and any open fix
-  record with `Deploy hold: yes`. Ask the user whether to run `/deploy`.
+  `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly), and any fix record
+  (open or closed) with `Deploy hold: yes`. Ask the user whether to run `/deploy`.
 - **Open S1/S2 bugs** — fix records in `workspaces/*/fixes/` whose `Status:` is not `closed`,
   with what users are affected by.
 - **Harness changes awaiting your OK** — lessons whose latest `.harness/codify-log.md` row is

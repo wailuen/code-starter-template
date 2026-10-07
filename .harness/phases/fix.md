@@ -203,7 +203,9 @@ reporter. A comment or message that reaches someone outside the repository's own
 outside reporter, email, chat) is sent only after the user approves the text
 (`.harness/rules/autonomous-execution.md` § What needs the user). If the bug taught something about the harness itself — a missing test pattern
 in a rule, a misleading phase step — create a journal entry with `tags: [harness]`
-(`/journal new DISCOVERY <slug>`); a lesson about the product gets no `harness` tag. Set
-`Status: closed`, and commit the record and any journal entry on a record-only
+(`/journal new DISCOVERY <slug>`); a lesson about the product gets no `harness` tag. Do not close the record while its
+`Deploy hold:` is `yes` — the hold clears only with the deploy record of the user-confirmed deploy
+that shipped the fix (`/deploy` Step 5), so a record closed as "not deployed" keeps production
+protected. Then set `Status: closed`, and commit the record and any journal entry on a record-only
 `docs/<fix-id>-record-<n>` branch cut from `main`, merged at once. Then, if you created a `harness`-tagged entry, run `/codify`
 (`.harness/phases/codify.md` § When it runs).

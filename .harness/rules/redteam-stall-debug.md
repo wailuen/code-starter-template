@@ -76,7 +76,7 @@ The round budget is an aid against endless repair loops, not a security control.
 each round record (`round-<scope>-<n>.json`) before the next round. When a checkout has no
 state for the branch (the gitignored state file was deleted, or the repository was cloned
 fresh), the recorder rebuilds the count from the round records committed in the branch's
-history, each read as it was first committed, counting a record when its file name
+history or on the local `main` (where a merged record-only branch leaves them), each read as it was first committed, counting a record when its file name
 carries the scope being recorded (`round-<scope>-<n>.json`) or its `branch` is this branch.
 So a renamed or re-cut branch for the same scope keeps its count, and a todo branch cut from
 a wave branch starts at round 1. What the recorder detects: a record that does not parse, a

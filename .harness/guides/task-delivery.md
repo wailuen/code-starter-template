@@ -530,7 +530,8 @@ full commit SHA on it, and real report paths):
 From the repository root run `node .harness/bin/record-review-round.mjs <round.json>`, then
 commit the round file and its reports on the branch. The recorder keeps its budget in local
 state; when that state is missing (a fresh clone, another machine) it rebuilds the count from
-every round record ever added in the branch's history whose file name is this scope's
+every round record ever added in the branch's history or on the local `main` (where a merged
+record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed (an
 unreadable, duplicate or gapped history makes it refuse). So a renamed or re-cut branch for the
 same scope keeps its count, and a todo branch cut from a wave branch starts at round 1. An
