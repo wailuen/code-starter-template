@@ -20,3 +20,7 @@ template beyond that — this is a lightweight backlog, not a spec.
 
 - `.harness/guides/task-delivery.md` § Harness backlog — `todos/` holds product scope only
 - `.harness/roles/todo-manager.md` — flags a misfiled harness item found in `todos/`
+- `.harness/phases/debug.md` § 3 — a stall whose mechanism lies in the harness
+- `.harness/phases/learn.md` step 1 — every backlog item is a lesson until `.harness/codify-log.md` closes it
+- `.harness/phases/codify.md` § Automatic runs — holds a waiting change when no pull request can be opened
+- `.harness/rules/autonomous-execution.md` § Problems found along the way

@@ -16,7 +16,8 @@ node --test ".harness/tests/*.mjs"
 ```
 
 The first command generates `.agents/skills/*/SKILL.md` and
-`.codex/agents/harness-*.toml`. It never writes `.claude/` files. The second fails if
+`.codex/agents/harness-*.toml`, and removes generated files the manifest no longer produces.
+`model_reasoning_effort` must be one of `low`, `medium`, `high` or `xhigh`. It never writes `.claude/` files. The second fails if
 any expected Codex adapter is missing or drifted, even before Codex is enabled.
 `--codex` checks both adapters; `--codex-only` checks only Codex. The existing
 no-flag check still checks Claude and any enabled Codex adapters.
@@ -37,7 +38,9 @@ invent a revision or initialize the user's repository just to create review evid
 ## Session entry and tool mapping
 
 Read every `.harness/rules/*.md` and `.claude/rules/*.md` at session start, following
-shared-rule pointers, then root `.session-notes` if present. Read
+shared-rule pointers, then root `.session-notes` if present, then follow
+`.claude/commands/ws.md` for the workspace state; end a session by following
+`.claude/commands/wrapup.md`. Read
 `.harness/guides/project-profile.md` for concrete project commands and
 `.harness/guides/task-delivery.md` for paths, branches and review rounds.
 
@@ -118,6 +121,26 @@ security-specialist dispatch requirement. Missing capability blocks that gate;
 it never permits relabelling launch evidence. Use a client supporting native
 custom agents for certification. Report unavailable tools instead of inventing them.
 
+## Known limitations
+
+- **Native custom-agent selection.** On 2026-10-07, Codex CLI 0.160.1 exposed spawn parameters
+  `task_name`, `message`, `fork_turns`, `model` and `reasoning_effort`, with no custom-type
+  selector (a live read-only probe and an invocation-only `multi_agent_v2` probe agreed). A
+  client like that cannot dispatch `harness-security-reviewer` natively, so it cannot pass the
+  convergence checker's security-seat requirement, and nearly every wave touches the security
+  surface (`.harness/phases/redteam.md` § 1). Two honest routes: run the wave's `/redteam` from
+  Claude Code on the same repository (the harness files and evidence are shared), or use a
+  Codex client that offers native custom agents. Never rename a generic task to look like a
+  native type, and never weaken the shared convergence checker. Re-check when the client's tool
+  interface changes: in a fresh supported client, select `harness-reviewer` and
+  `harness-security-reviewer` through native dispatch, observe the returned identities and
+  settings, and run a real two-round pinned review through the unchanged checker.
+- **The security seat is honour-based.** The checker recognises it from the agent type in the
+  hand-written launch ledger; no hook records launches. Record the type actually dispatched.
+- **`.claude/` is required.** `.harness/bin/` and `.harness/lib/` load
+  `.claude/hooks/lib/*.js`, so a Codex-only project keeps `.claude/` even if it never runs
+  Claude Code.
+
 Respect the runtime's real concurrency limit; start at most three independent
 children and reduce on throttling. Claude concurrency environment variables do
 not configure Codex. Independent work needs disjoint files AND mutable resources.
@@ -127,19 +150,6 @@ root against the resolved assigned path and verifies the expected branch/commit.
 Stop on mismatch; never fall back to the author's checkout. Set an explicit
 `workdir` or use absolute paths on every tool call: shell `cd` is not persistent.
 Reviewers do not edit the author tree; mutation probes get disposable copies.
-
-## Cold-start specifications
-
-For Codex, resolve the inherited spec-first versus shipped-spec-only conflict as
-follows: approved future behavior and acceptance live in `02-plans/` and the task
-contracts. Initial `specs/_index.md` indexes the actual baseline and links to those
-design documents, clearly distinguishing them from implemented domain truth.
-During analysis, the detailed future-domain descriptions requested by the shared
-phase are written in the plans, with their links in the index. Planning and review
-read those approved designs as the acceptance oracle. On implementation, update
-the affected domain specs with verified behavior in the same delivery change.
-Never invent existing APIs to fill an initial spec or back-fit acceptance after
-implementation. This is a Codex-only interpretation; no Claude rule is changed.
 
 ## Review evidence and closure
 
@@ -164,8 +174,8 @@ Automated fixtures may use clearly labelled synthetic launches only in disposabl
 test repositories; never copy those into a real delivery receipt.
 
 If a project later adds Codex hooks, follow native hook trust and start a fresh
-session; do not bypass trust or alter user-wide settings. Release authorization,
-plan approval and risk acceptance remain governed by the user's actual instructions.
+session; do not bypass trust or alter user-wide settings. What needs the user's confirmation
+is the shared list in `.harness/rules/autonomous-execution.md` § What needs the user.
 
 Official reference checked for this adapter:
 https://learn.chatgpt.com/docs/agent-configuration/subagents

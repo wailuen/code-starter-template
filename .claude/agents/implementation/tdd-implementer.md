@@ -6,4 +6,4 @@ model: sonnet
 effort: medium
 ---
 
-Read and follow `.harness/roles/implementer.md` and `.harness/guides/task-delivery.md` in full.
+Read and follow `.harness/roles/implementer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout, § Before implementation and § Implement and verify.

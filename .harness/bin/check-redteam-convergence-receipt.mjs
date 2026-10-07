@@ -56,19 +56,31 @@
  *   - each counted reviewer: `ran`, `evidence`, and a `launch_id` resolving to a `kind:"launch"`
  *     row in the ledger AS COMMITTED WITH THE RECEIPT, whose `subagent_type` matches and whose
  *     `ts` precedes `verdict_at`; a `security` lens must resolve to a security-specialist row
- *       → `.harness/rules/agents.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
+ *       → `.harness/rules/agent-delegation.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
+ *   - each counted reviewer's `evidence` is the repository-root-relative path of the saved report
+ *     (`workspaces/<p>/04-validate/<scope>-<lens>-r<n>.md`), a NON-EMPTY file tracked AT THE
+ *     RECEIPT'S FIRST COMMIT — never free text
+ *   - every round the receipt lists has its recorder input `04-validate/round-<scope>-<n>.json`
+ *     committed at the receipt's first commit, with the same `round`, `head`, reviewer lenses
+ *     (`expected_reviewers` = the receipt's `lens` values), the same `evidence` per lens, and a
+ *     verdict that agrees (receipt `clean` ⇔ every recorded verdict CLEAR); and no committed
+ *     `round-<scope>-<m>.json` exists with an `m` above the receipt's last round — the receipt
+ *     cannot stop counting before a later, unconverged round
+ *       → `.harness/guides/task-delivery.md` § Review protocol and circuit breaker
  *   - `security_critical` explicit, and never LOWER than what `wave_base..verdict_head` implies.
- *     The surface is INCLUSION BY DEFAULT: every path under the common source roots (src/, lib/,
- *     app/, apps/, web/, cmd/, internal/, pkg/, server/, api/, scripts/), .claude/ (skills and
- *     guides included — the files the rules delegate their procedure to), .harness/ and .github/,
- *     the root build/runtime/dependency manifests of any ecosystem (`.mcp.json`, `package*.json`,
- *     `pyproject.toml`, `requirements*.txt`, `go.mod`, `Cargo.toml`, `Gemfile`, `pom.xml`,
- *     `build.gradle*`, test-runner / tsconfig / lint configs, Dockerfile, docker-compose), and anywhere else a
- *     code/config file under a directory named auth/authn/authz/security/permission(s)/
- *     tenant(s)/secret(s)/credential(s)/token(s)/crypto/rls or whose name contains one of those
- *     keywords. Excluded: `.claude/learning/` (runtime state) and the workspace bookkeeping
- *     paths. A new directory is security surface by default, not by omission
- *       → `.harness/rules/agents.md` § Quality gates
+ *     The surface is INCLUSION BY DEFAULT: EVERY changed path is surface except
+ *       (a) the workspace bookkeeping paths (`workspaces/<p>/{04-validate,journal,todos}/`, and the
+ *           repository-root `.session-notes`, `.session-notes.d/`, `.wave-tracker.d/`),
+ *       (b) `.claude/learning/` (gitignored runtime state),
+ *       (c) the root `README` / `LICENSE` / `CHANGELOG` / `COPYING` / `NOTICE` files, and
+ *       (d) plain documentation and raster images — `*.md`, `*.markdown`, `*.txt`, `*.rst`,
+ *           `*.adoc`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.ico` — OUTSIDE `.claude/`,
+ *           `.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/` (instructions an agent or
+ *           a deploy follows are not plain documentation), and never `requirements*.txt`.
+ *     `AGENTS.md` / `CLAUDE.md` are surface wherever they sit. So a migration, a middleware file,
+ *     `.gitignore`, `.env.example`, `infra/*.tf` or a new top-level directory is surface without
+ *     anyone listing it: a new directory is security surface by default, not by omission
+ *       → `.harness/rules/agent-delegation.md` § Quality gates
  *   - `cap_hit` explicit and false → `completion-criterion.md` MUST-4
  *   - `acceptance_list.path` a tracked regular file inside the workspace, first committed in a
  *     STRICT ancestor of `verdict_head`, unchanged at `verdict_head`, RELEVANT (it names the
@@ -109,11 +121,16 @@
  *     Forging now takes two artifacts that agree, committed in order inside the window — not
  *     zero, not airtight. The live-ledger cross-check is ADVISORY and absent under CI (the live
  *     ledger is gitignored).
- *   - Identity denylist for `ratified_by` / `accepted_by` (agent names, this repo's dispatch
- *     addresses) errs both ways — an invented human passes, "Ai Weiwei" or a human named Claude
- *     is refused. DEFERRED WORK, not a limitation of principle: a roster-backed check
+ *   - Identity denylist for `ratified_by` / `accepted_by` (`.harness/lib/agent-identity.cjs`,
+ *     shared with the round recorder and the task-contract check: generic agent/model words, the
+ *     `harness-` namespace, and every agent and role name in `.harness/manifest.json` and
+ *     `.claude/agents/`) errs both ways — an invented human passes, "Ai Weiwei" or a human named
+ *     Claude is refused. DEFERRED WORK, not a limitation of principle: a roster-backed check
  *     (not built into the harness) closes both. acceptor: PENDING —
  *     user decision (not self-accepted).
+ *   - The round records and reports are written by the same session too; matching them closes an
+ *     honest transcription slip (a NOT_CLEAR round copied as clean, a report that was never
+ *     saved), not deliberate forging of every artifact at once.
  *   - Assessment cost: one assessment per receipt, no chaining; the CI job's per-suite cap and
  *     job timeout should carry stated, measured margins in the project's CI workflow.
  *
@@ -133,6 +150,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assessTodoText } from "./check-browser-walk-receipts.mjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
+import { isAgentIdentity as namesAnAgent } from "../lib/agent-identity.cjs";
 
 export const SCHEMA = "redteam-convergence-receipt/1";
 export const GATING_HALF = "BUG+INVEST-NOW";
@@ -157,30 +175,23 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SCOPE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TODO_ID_RE = /^([a-z]+[0-9]*-[0-9]+[a-z]?)/i;
 const SECURITY_AGENT_RE = /security/i;
-const AGENT_IDENTITY_RE =
-  /\b(?:agent|claude|opus|sonnet|haiku|fable|gpt|llm|model|bot|assistant|orchestrator|implementer|self|ai|n\/a|none|tbd|nobody|team-lead|lead|main)\b/i;
-// Anchored: only a path SEGMENT of these names is bookkeeping.
+// Anchored to the real bookkeeping LOCATIONS: the workspace's 04-validate/, journal/ and todos/,
+// and the repository-root session files. A same-named file or folder anywhere else
+// (`src/.session-notes.d/x.ts`) is ordinary code, never bookkeeping.
 const BOOKKEEPING_RE =
-  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/|(?:.*\/)?\.session-notes(?:\.d\/.*|\.[^/]*)?$|(?:.*\/)?\.wave-tracker\.d\/)/;
-// Security surface: INCLUSION BY DEFAULT with a short exclude list, plus keyword arms anywhere.
-const SURFACE_INCLUDE_RE =
-  /^(?:src|lib|app|apps|web|cmd|internal|pkg|server|api|scripts|\.claude|\.github|\.harness|\.codex|\.agents)\//;
-const SURFACE_EXCLUDE_RE = /^\.claude\/learning\//;
-const ROOT_SURFACE_RE =
-  /^(?:\.mcp\.json|package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|playwright\.config\.[cm]?[jt]s|vitest\.[^/]+|jest\.config\.[^/]+|tsconfig[^/]*\.json|eslint\.config\.[cm]?js|pyproject\.toml|setup\.(?:py|cfg)|requirements[^/]*\.txt|uv\.lock|poetry\.lock|Pipfile(?:\.lock)?|pytest\.ini|tox\.ini|go\.(?:mod|sum)|Cargo\.(?:toml|lock)|Gemfile(?:\.lock)?|pom\.xml|build\.gradle(?:\.kts)?|settings\.gradle(?:\.kts)?|Makefile|Dockerfile|docker-compose[^/]*\.ya?ml|compose[^/]*\.ya?ml)$/;
-const CODE_EXT = "\\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|kts|cs|php|swift|sql|json|ya?ml|sh|toml)";
-const KEYWORD_DIR_RE = new RegExp(
-  `(?:^|/)(?:auth|authn|authz|security|permissions?|tenants?|secrets?|credentials?|tokens?|crypto|rls)/.*${CODE_EXT}$`,
-  "i",
-);
-const KEYWORD_FILE_RE =
-  /(?:^|\/)[^/]*(?:auth|rls|tenant|secret|credential|token|permission|encrypt|sign)[^/]*\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|cs|php|swift|sql)$/i;
+  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/|\.session-notes(?:$|\.d\/)|\.wave-tracker\.d\/)/;
+// Security surface: INCLUSION BY DEFAULT (see the header). Only these are NOT surface.
+const RUNTIME_STATE_RE = /^\.claude\/learning\//;
+const ROOT_DOC_RE = /^(?:README|LICENSE|LICENCE|CHANGELOG|COPYING|NOTICE)(?:\.[A-Za-z]+)?$/;
+const PLAIN_DOC_RE = /\.(?:md|markdown|txt|rst|adoc|png|jpe?g|gif|webp|ico)$/i;
+// Instructions an agent or a deploy follows live here; a Markdown file under them is not plain documentation.
+const INSTRUCTION_DIR_RE = /^(?:\.claude|\.harness|\.github|\.agents|\.codex|deploy)\//;
+const DEPENDENCY_LIST_RE = /(?:^|\/)requirements[^/]*\.txt$/;
 export function isSecuritySurface(p) {
   if (/(?:^|\/)(?:AGENTS|CLAUDE)\.md$/.test(p)) return true;
-  if (BOOKKEEPING_RE.test(p)) return false;
-  if (ROOT_SURFACE_RE.test(p)) return true;
-  if (SURFACE_INCLUDE_RE.test(p) && !SURFACE_EXCLUDE_RE.test(p)) return true;
-  return KEYWORD_DIR_RE.test(p) || KEYWORD_FILE_RE.test(p);
+  if (BOOKKEEPING_RE.test(p) || RUNTIME_STATE_RE.test(p) || ROOT_DOC_RE.test(p)) return false;
+  if (PLAIN_DOC_RE.test(p) && !INSTRUCTION_DIR_RE.test(p) && !DEPENDENCY_LIST_RE.test(p)) return false;
+  return true;
 }
 
 // ---- primitives -------------------------------------------------------------------------------
@@ -203,7 +214,7 @@ const canon = (p) => {
     return p;
   }
 };
-const isAgentIdentity = (v) => !nonEmpty(v) || AGENT_IDENTITY_RE.test(v);
+const isAgentIdentity = (v) => !nonEmpty(v) || namesAnAgent(v);
 const rel = (root, p) => relative(root, p).split("\\").join("/");
 const isAncestor = (a, b, repoRoot) =>
   git(["merge-base", "--is-ancestor", a, b], repoRoot) !== null;
@@ -991,6 +1002,96 @@ function checkRounds(c) {
   }
 }
 
+/**
+ * The receipt's rounds, tied to what the round recorder was given: each reviewer's `evidence` is a
+ * saved, non-empty report, and each listed round has its committed `round-<scope>-<n>.json` that
+ * says the same thing. Both are read at the receipt's FIRST commit, like the ledger.
+ */
+function checkRoundRecords(c) {
+  const { r, add, repoRoot, wsRel, receiptAdd, scope } = c;
+  if (!receiptAdd || !scope || !Array.isArray(r.rounds) || r.rounds.length === 0 ||
+      !r.rounds.every((x) => x && typeof x === "object" && Number.isInteger(x.n)))
+    return;
+  const validateRel = `${wsRel}/04-validate/`;
+  const reportPath = (ev) => {
+    if (!nonEmpty(ev)) return null;
+    const norm = ev.trim().split("\\").join("/");
+    if (isAbsolute(norm) || norm.split("/").some((seg) => seg === ".." || seg === "." || seg === ""))
+      return null;
+    return norm.startsWith(validateRel) ? norm : null;
+  };
+  const revsOf = (x) =>
+    Array.isArray(x.reviewers) ? x.reviewers.filter((v) => v && typeof v === "object") : [];
+  for (const round of r.rounds) {
+    for (const v of revsOf(round)) {
+      const who = `round ${round.n}: ${v.agent || "?"}/${v.lens || "?"}`;
+      const report = reportPath(v.evidence);
+      if (!report)
+        add(
+          "reviewer-evidence-not-a-report",
+          `${who} evidence must be the repository-root-relative path of the saved report under ${validateRel} (e.g. ${validateRel}${scope}-${v.lens || "<lens>"}-r${round.n}.md), got ${JSON.stringify(v.evidence ?? null)}`,
+        );
+      else if (
+        git(["cat-file", "-t", `${receiptAdd}:${report}`], repoRoot) !== "blob" ||
+        !(Number(git(["cat-file", "-s", `${receiptAdd}:${report}`], repoRoot)) > 0)
+      )
+        add(
+          "reviewer-evidence-missing",
+          `${who} evidence ${report} is not a committed, non-empty file at the receipt's first commit ${receiptAdd.slice(0, 12)}`,
+        );
+    }
+    const recordRel = `${validateRel}round-${scope}-${round.n}.json`;
+    const text = showAt(repoRoot, receiptAdd, recordRel);
+    if (text === null) {
+      add(
+        "round-record-missing",
+        `round ${round.n}: ${recordRel} is not committed at the receipt's first commit ${receiptAdd.slice(0, 12)} — every round the receipt lists must be the round the recorder was given`,
+      );
+      continue;
+    }
+    let rec;
+    try {
+      rec = JSON.parse(text);
+    } catch (e) {
+      add("round-record-mismatch", `round ${round.n}: ${recordRel} is not valid JSON: ${e.message}`);
+      continue;
+    }
+    const problems = [];
+    if (!rec || typeof rec !== "object") rec = {};
+    if (rec.round !== round.n) problems.push(`its round is ${JSON.stringify(rec.round)}`);
+    if (rec.head !== round.head) problems.push(`its head is ${JSON.stringify(rec.head)}, the receipt's is ${JSON.stringify(round.head)}`);
+    const recRevs = Array.isArray(rec.reviewers) ? rec.reviewers.filter((x) => x && typeof x === "object") : [];
+    const lenses = revsOf(round).map((v) => v.lens).sort();
+    const expected = Array.isArray(rec.expected_reviewers) ? [...rec.expected_reviewers].sort() : [];
+    if (JSON.stringify(lenses) !== JSON.stringify(expected))
+      problems.push(`its expected_reviewers ${JSON.stringify(expected)} are not the receipt's lenses ${JSON.stringify(lenses)}`);
+    for (const v of revsOf(round)) {
+      const rv = recRevs.find((x) => x.id === v.lens);
+      if (!rv) problems.push(`no recorded verdict for lens ${JSON.stringify(v.lens)}`);
+      else if (reportPath(v.evidence) && reportPath(rv.evidence) !== reportPath(v.evidence))
+        problems.push(`lens ${v.lens} cites ${JSON.stringify(rv.evidence)} there, ${JSON.stringify(v.evidence)} here`);
+    }
+    const recordedClean = recRevs.length > 0 && recRevs.every((x) => x.verdict === "CLEAR");
+    const receiptClean = round.clean === true && round.new_gating_findings === 0;
+    if (recordedClean !== receiptClean)
+      problems.push(`recorded verdicts ${recRevs.map((x) => `${x.id}=${x.verdict}`).join(", ") || "none"} but the receipt says clean=${round.clean}`);
+    if (problems.length)
+      add("round-record-mismatch", `round ${round.n}: ${recordRel} disagrees with the receipt — ${problems.join("; ")}`);
+  }
+  // A later round the receipt leaves out: the receipt stopped counting before the branch did.
+  const lastN = Math.max(...r.rounds.map((x) => x.n));
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const laterRe = new RegExp(`^${escapeRe(validateRel)}round-${escapeRe(scope)}-(\\d+)\\.json$`);
+  for (const p of (git(["ls-tree", "--name-only", receiptAdd, "--", validateRel], repoRoot) || "").split("\n")) {
+    const m = p.match(laterRe);
+    if (m && Number(m[1]) > lastN)
+      add(
+        "round-record-after-receipt",
+        `${p} records round ${m[1]}, after the receipt's last round ${lastN} — a receipt must count every recorded round of its scope`,
+      );
+  }
+}
+
 function checkResiduals(c) {
   const { r, add } = c;
   (Array.isArray(r.residuals) ? r.residuals : []).forEach((x, i) => {
@@ -1160,6 +1261,7 @@ export function assessReceipt({
   deriveSecurity(c);
   checkArtifacts(c);
   checkRounds(c);
+  checkRoundRecords(c);
   checkResiduals(c);
   checkTodos(c);
   return { findings, notes, scope: c.scope };
@@ -1185,33 +1287,31 @@ export function template(scope) {
     gating_half: GATING_HALF,
     acceptance_list: {
       path: "<workspace-relative path to the ratified list — committed before the work, unchanged since, naming this scope or every covered todo>",
-      ratified_by: "<named human or the independent planning reviewer>",
+      ratified_by: "<the name of the person (the user) who approved the acceptance list — never an agent or reviewer>",
     },
-    rounds: [
-      {
-        n: 1,
-        head: "<40-hex>",
-        new_gating_findings: 0,
-        clean: true,
-        reviewers: [
-          {
-            agent: "reviewer",
-            lens: "correctness",
-            ran: true,
-            evidence: "<journal/… § or verdict quote>",
-            launch_id:
-              "<this round's own dispatch — one per reviewer, never reused>",
-          },
-          {
-            agent: "security-reviewer",
-            lens: "security",
-            ran: true,
-            evidence: "<…>",
-            launch_id: "<a security-specialist dispatch of this round>",
-          },
-        ],
-      },
-    ],
+    rounds: [1, 2].map((n) => ({
+      n,
+      head: "<40-hex — the same verdict_head in both counted rounds>",
+      new_gating_findings: 0,
+      clean: true,
+      reviewers: [
+        {
+          agent: "reviewer",
+          lens: "correctness",
+          ran: true,
+          evidence: `workspaces/<project>/04-validate/${scope}-correctness-r${n}.md`,
+          launch_id:
+            "<this round's own dispatch — one per reviewer, never reused>",
+        },
+        {
+          agent: "security-reviewer",
+          lens: "security",
+          ran: true,
+          evidence: `workspaces/<project>/04-validate/${scope}-security-r${n}.md`,
+          launch_id: "<a security-specialist dispatch of this round>",
+        },
+      ],
+    })),
     cap_hit: false,
     residuals: [],
     launches: `04-validate/convergence-${scope}.launches.jsonl`,

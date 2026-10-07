@@ -12,9 +12,11 @@ authorized. Stop to ask only when you are genuinely uncertain and the point is n
 already covered by a user decision (a brief, a ratified plan, a journal `DECISION-`
 entry whose `author:` is `human` or `co-authored`, or something the user said this
 session). An entry an agent wrote on its own (`author: agent`) — including every record an
-automatic `/codify` run writes — is not a user decision. Destructive, hard-to-reverse or
-outward-facing actions still need confirmation unless the user already gave it for that
-action.
+automatic `/codify` run writes — is not a user decision. Genuinely uncertain means you
+can name the evidence for your doubt, and the choice matters: the reasonable picks would
+lead to materially different work or results. Destructive, hard-to-reverse and
+outward-facing actions are listed in § What needs the user; that list decides which of them
+need confirmation.
 
 ## Delivery policy
 
@@ -30,14 +32,63 @@ Agent capacity has context, coordination, dependency and infrastructure limits.
 Parallelize independent work with disjoint mutable resources; more agents are not a
 remedy for an unresolved architectural decision or a contaminated shared test database.
 
-## Structural vs execution gates
+## What needs the user
 
-Plan approval, release authorization, material envelope changes and accepted security
-risks require the user's authority unless already granted. Routine implementation,
-diagnosis, test execution, independent review and in-envelope root-cause fixes proceed
-autonomously. When an architectural choice materially changes behavior, authority,
-resources or accepted risk, prepare the concrete alternatives and surface it promptly.
-Do not queue a necessary decision until a stalled review loop happens to converge.
+This is the one list of actions that need the user. Other files point here and do not
+restate a different list. "The envelope" in this harness means the work the user approved
+(a brief, a ratified plan, a fix they reported, or a request this session) plus the actions
+below that need no confirmation.
+
+**No confirmation needed** (inside approved work):
+
+- local commits;
+- pushing a `feat/`, `fix/`, `hotfix/` or `docs/` branch;
+- opening a pull request;
+- merging a todo branch into its wave branch;
+- merging a wave, fix or closure pull request into `main` after its gate passed — for a
+  wave, the convergence check (`check-redteam-convergence-receipt.mjs --scope`) exited 0;
+  for a fix, one CLEAR review round was recorded; a closure or record-only pull request
+  changes only workspace records;
+- reversible edits inside the approved scope, routine implementation, diagnosis, test runs,
+  independent review and root-cause fixes inside the approved scope.
+
+**Needs the user's confirmation every time**, unless the user authorized that specific
+action in this session:
+
+- plan approval (`.harness/phases/todos.md`), a material change to approved scope, and
+  accepting a known risk or a shipped residual (a security exception, a residual in a
+  convergence receipt);
+- deploying to production, including an S1 hotfix deploy — ask quickly, in plain words;
+- rolling back production;
+- pushing a tag or publishing a release;
+- deleting branches, files or data this session did not create;
+- force-pushing, or rewriting published history;
+- closing an issue as won't-do (`not_planned`);
+- changing repository settings (branch protection, secrets, collaborators, webhooks);
+- anything that costs money;
+- merging a change in the `/codify` ask-first class — any changed file outside the
+  automatic-merge allowlist in `.harness/phases/codify.md`; the run opens the pull request,
+  leaves it open and logs `awaiting user`;
+- merging with `gh pr merge --admin`, which bypasses branch protection. Never use it in an
+  automatic run; use it only when the user asks for it on that pull request.
+
+**When checks prove nothing.** If the repository has no required CI checks, `gh pr checks`
+passing proves nothing. Before merging, run the Local CI parity command from
+`.harness/guides/project-profile.md` § Commands on the pinned head commit, and say in the
+pull request that you did.
+
+`/autonomize` removes check-ins on technical choices. It widens nothing on this list except
+the actions the user explicitly names when they invoke it.
+
+Ask in the shape `.claude/rules/communication.md` § Asking the user to decide sets out.
+Bundle questions that can wait into one message, and keep doing every part of the work that
+does not depend on the answers.
+
+## Open decisions while working
+
+When an architectural choice materially changes behavior, authority, resources or accepted
+risk, prepare the concrete alternatives and surface it promptly. Do not queue a necessary
+decision until a stalled review loop happens to converge.
 
 If a question comes up partway, first do everything that doesn't depend on the answer.
 If one part turns out to be blocked, complete every other part in full and say exactly
@@ -73,8 +124,9 @@ that fits:
   straight into `todos/active/`.
 - **Bug in already-built behavior** → a `/fix` record (`.harness/phases/fix.md`).
 - **Harness defect** (a phase, rule, role, guide or tool of this harness) → an item in
-  `.harness/backlog/`.
-- **INCREMENTAL review finding** that meets the four conditions of
+  `.harness/backlog/` (`harness-NN-<slug>.md`), or a journal entry tagged `harness`
+  (see the `harness` tag in `.claude/rules/journal.md`). Either one is a lesson for `/codify`.
+- **INCREMENTAL review finding** that carries the five deferral fields of
   `.harness/rules/product-completion-first.md` MUST-2 → the deferred-quality list (GitHub
   issues labelled `deferred-quality`, revisited by `/sweep` Sweep 8).
 

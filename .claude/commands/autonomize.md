@@ -1,6 +1,7 @@
 ---
 name: autonomize
 description: "Switch to autonomous execution inside the user's permission envelope for the rest of the session: recommend and carry out the root-cause fix with evidence instead of asking hedging questions, while still confirming destructive, hard-to-reverse or externally visible actions. Use when the user wants work to proceed without check-ins."
+disable-model-invocation: true
 ---
 
 The user invoked `/autonomize`. This is a directive, not a task. Adopt the following posture for the rest of this turn AND every subsequent turn until the session ends:
@@ -39,15 +40,14 @@ After deciding WHAT to do, route HOW to execute it:
 
 Autonomous execution operates inside the user's permission envelope, not outside it. The directive removes hedging on technical choices; it does not remove confirmation on gated actions — actions that cross a boundary the user has not pre-authorized, whether by blast-radius OR by content-sensitivity exposure.
 
-**Still confirm before:**
+**Still confirm before** everything `.harness/rules/autonomous-execution.md` § What needs the user lists. `/autonomize` widens nothing on that list except an action the user explicitly names when invoking it (for example "you may deploy the hotfix"). The routine steps that list says need no confirmation — local commits, pushing a work branch, opening its pull request, merging after its gate passed — proceed without asking, with or without `/autonomize`. Also confirm before:
 
-- **Destructive operations**: `rm -rf`, branch/database deletion, dropping tables, killing processes, overwriting uncommitted changes, force-deleting files in shared trees.
-- **Hard-to-reverse operations**: force-push, `git reset --hard`, amending published commits, dependency removal/downgrade, CI/CD pipeline edits, schema migrations against shared databases.
-- **Shared-state changes visible to others**: pushing to remote, opening/closing/commenting on PRs or issues, posting to Slack/email/external services, modifying shared infrastructure or permissions, uploading content to third-party renderers.
+- **Destructive operations** outside that list's wording: killing processes you did not start, overwriting uncommitted changes, dropping tables or schema migrations against shared databases.
+- **External posts**: posting to Slack, email or other external services, and uploading content to third-party renderers.
 - **Out-of-envelope scope expansion**: work exceeding the user's stated request by more than one shard budget (`.harness/rules/autonomous-execution.md` § Per-session capacity budget) — state the expansion and confirm before continuing.
 - **Sensitivity / classification escalation** (per `.claude/rules/recommendation-quality.md` MUST-8): incorporating higher-sensitivity content into a lower-sensitivity or wider-audience **durable** surface — a secret/credential/PII into a committed file, private local notes into a committed shared file, one tenant's data into a shared/global artifact — **regardless of prior scope approval**, even when the write is mechanically cheap (not destructive, not hard-to-reverse, not externally-visible-yet — a purely-local commit that trips none of the other bullets above). Read-authority over higher-sensitivity content does NOT carry forward to persisting or widening its audience. Confirm the partition (name it, offer the lower-exposure form) before persisting — this is NOT hedging; the escalation is surfaced WHILE still recommending the write.
 
-Confirmation here is NOT hedging. It is the user's pre-declared safety check on actions that cross a boundary they have not yet authorized — whether by blast-radius or by content-sensitivity exposure. Skipping this confirmation violates the user's permission envelope — the Human-on-the-Loop discipline of `.harness/rules/autonomous-execution.md` § Structural vs execution gates.
+Confirmation here is NOT hedging. It is the user's pre-declared safety check on actions that cross a boundary they have not yet authorized — whether by blast-radius or by content-sensitivity exposure. Skipping this confirmation violates the user's permission envelope — the Human-on-the-Loop discipline of `.harness/rules/autonomous-execution.md` § What needs the user.
 
 ## Rigor — verify before you commit
 

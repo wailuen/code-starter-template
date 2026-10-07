@@ -1,6 +1,6 @@
 ---
 name: uiux-designer
-description: "UI/UX specialist for frontend and AI-interface work. Use for information architecture, visual hierarchy, design-system planning, and AI interaction patterns (prompt UX, human-in-the-loop, trust/disclosure)."
+description: "Design-only UI/UX specialist (no code changes): information architecture, visual hierarchy, design-system planning and AI-interaction patterns (prompt UX, human-in-the-loop, trust/disclosure). Building or changing screens and components goes to frontend-specialist."
 tools: Read, Write, Grep, Glob
 model: opus
 effort: medium

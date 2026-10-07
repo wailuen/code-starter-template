@@ -49,7 +49,7 @@ Before the first `git push` that creates a remote branch, run the **Local CI par
 
 ## Branch Protection
 
-Protected repos require PRs to main; GitHub rejects direct pushes. The owner workflow is: branch, commit, push, open a PR, then admin-merge. Merge with a merge commit, never squash or rebase: the convergence receipt pins `verdict_head`, which must stay reachable from `main` (`.harness/guides/task-delivery.md` § Branches, pull requests and merging).
+Protected repos require PRs to main; GitHub rejects direct pushes. The workflow is: branch, commit, push, open a PR, then merge once its gate has passed. Which merges need the user's confirmation — including any use of `gh pr merge --admin`, which bypasses branch protection — is set by `.harness/rules/autonomous-execution.md` § What needs the user. Merge with a merge commit, never squash or rebase: the convergence receipt pins `verdict_head`, which must stay reachable from `main` (`.harness/guides/task-delivery.md` § Branches, pull requests and merging).
 
 **Why:** Direct pushes bypass CI checks and code review, allowing broken or unreviewed code to reach the release branch.
 
@@ -73,7 +73,7 @@ The agent's system prompt provides the template. Always include a `## Related is
 ## Rules
 
 - Atomic commits: one logical change per commit, tests and implementation together.
-- No direct push to main, no force push to main.
+- No direct push to main. No force push to any shared branch without the user's confirmation, and never to main.
 - No secrets in commits (API keys, passwords, tokens, .env files).
 - No large binaries (>10MB single file).
 - Commit bodies answer **why**, not **what** (the diff shows what).
@@ -87,21 +87,21 @@ The agent's system prompt provides the template. Always include a `## Related is
 
 ## Discipline
 
-- **Issue closure:** `gh issue close <N>` includes a commit SHA, PR number or merged-PR link in the comment; never close with no code reference.
+- **Issue closure:** `gh issue close <N>` includes a commit SHA, PR number or merged-PR link in the comment; never close with no code reference. Closing an issue as won't-do (`--reason "not planned"`) needs the user's confirmation (`.harness/rules/autonomous-execution.md` § What needs the user).
 - **Pre-commit hook bypass:** document any hook bypass (including `--no-verify`) in the commit body and record a follow-up (`.harness/rules/autonomous-execution.md` § Problems found along the way); never bypass silently.
 - **Commit-message accuracy:** a commit body describes only changes actually present in the diff. If a message over-claimed (a refactor, deletion or side effect that isn't there), push a follow-up commit that delivers what it said — do not amend.
 
 **Why:** Issues closed without code references break traceability, undocumented workarounds make every session rediscover the same fix, and over-claiming commit bodies poison `git log --grep`.
 
-- **Check CI and merge as separate steps:** (1) read — pin the head SHA (`gh pr view <N> --json headRefOid`) and confirm every required check is `SUCCESS` on that SHA; (2) merge — only then run `gh pr merge <N>`. Do not bundle them (`gh pr checks <N> && gh pr merge <N>`, or `--watch` then merge).
+- **Check CI and merge as separate steps:** (1) read — pin the head SHA (`gh pr view <N> --json headRefOid`) and confirm every required check is `SUCCESS` on that SHA; (2) merge — only then run `gh pr merge <N> --merge`. Do not bundle them (`gh pr checks <N> && gh pr merge <N>`, or `--watch` then merge). If the repository has no required checks, a green `gh pr checks` proves nothing: run the profile's Local CI parity on the pinned head first and say so in the PR (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ```bash
 # DO — READ pinned to head, THEN merge as a separate command
 head=$(gh pr view <N> --json headRefOid -q .headRefOid)
 gh pr checks <N>   # every REQUIRED check SUCCESS on $head?
-gh pr merge <N> --admin --merge
+gh pr merge <N> --merge
 # DO NOT — bundle (watch may be green on the prior commit)
-gh pr checks <N> --watch && gh pr merge <N> --admin --merge
+gh pr checks <N> --watch && gh pr merge <N> --merge
 ```
 
 **Why:** A `--watch` returning green may have resolved against the prior commit's run while a newer duplicate on the current head is still pending or flaked red; separating the read (pinned to the head SHA) from the merge makes the gate verifiable.

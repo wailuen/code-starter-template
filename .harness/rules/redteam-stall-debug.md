@@ -2,7 +2,6 @@
 priority: 10
 scope: path-scoped
 paths:
-  - ".harness/guides/task-delivery.md"
   - ".harness/guides/review-round-recorder.md"
   - ".harness/phases/**"
   - ".claude/commands/**"
@@ -65,7 +64,11 @@ budget (`roundsRecorded`, `reviewersSeen`, `debugRound`, `acceptancesConsumed`,
 `replansConsumed`). State written before the budget existed is seeded from the round
 number, the last recorded lens set and decision record, and — through the CLI — the
 branch's earlier `round-*.json` files beside the one being recorded, so a spent record
-stays spent; the round count can only over-count.
+stays spent; the round count can only over-count. When a checkout has no state for the branch at all
+(the gitignored state file was deleted, or the repository was cloned fresh), the recorder
+rebuilds the budget from the branch's committed `round-<scope>-<n>.json` records and refuses
+any round after 1 whose earlier records are not committed. A missing state file is never a
+fresh budget, so commit each round record before the next round.
 
 Duplicate rounds cannot increment; conflicting or out-of-order rounds are refused;
 errors and partial results never count as clean. Every recorded round prints the
@@ -76,8 +79,13 @@ gate review — the `/redteam` reviewers and the orchestrator who compiles the c
 receipt, read against the dispatch roster and the round files — is the backstop for whether
 a new key should have reused an existing one.
 Writes are serialized by `redteam-round.lock`; a busy or stale lock or corrupt state is
-reported, never reset silently. No hook is wired to the recorder by default; if a
-project wires one, it accepts complete structured round JSON only. Individual prose
+reported, never reset silently. Exit codes: 0 with a `NEXT:` line (`FIX`, `REVIEW`,
+`REPAIR_ENVIRONMENT` or `VERIFY_CONVERGENCE_RECEIPT`) when the round was recorded; a
+refusal records nothing and exits 1, or 2/3 when the refusal is the cap, debug-round or
+REPLAN gate (2 = `REPLAN`/`DEBUG_ROUND`, 3 = `ESCALATE_TO_HUMAN`). After a round is
+recorded, commit its `round-<scope>-<n>.json` before the next round. The recorder runs only through its CLI,
+`.harness/bin/record-review-round.mjs`, which takes complete structured round JSON; there
+is no hook entry point. Individual prose
 verdicts are never round evidence — the orchestrator aggregates them and records the
 round through the CLI.
 
@@ -95,8 +103,9 @@ Past the cap the recorder admits exactly four shapes and refuses everything else
 without recording it:
 
 - **(a) Same-head confirmation** of an immediately preceding first clean round — the
-  closing half of convergence, admitted once. A moved head, including the round's own
-  record commit, is a new cycle. Once the pair has closed, another round with the same
+  closing half of convergence, admitted once. `head` is the commit the reviewers checked
+  out, not the branch tip: committing the round's own record, reports and ledger rows on top
+  does not move it, but any change to the reviewed code is a new cycle. Once the pair has closed, another round with the same
   lenses on the unchanged head reviews nothing and is refused inside or outside the cap.
 - **(b) The branch's single debug round:** `debug: true`, a new decision record in
   `replan`, and `expected_reviewers` disjoint from every reviewer id ever recorded on
@@ -104,7 +113,9 @@ without recording it:
   a lens is refused, and `debug: true` inside the cap is refused.
 - **(c) Human-accepted rounds.** Once the debug round is spent and the branch still has
   not converged, each further round needs `escalation_accepts: {acceptor, record}` — a
-  named human (agent-role words and reviewer lenses are refused) citing a new acceptance
+  named person — the shared denylist in `.harness/lib/agent-identity.cjs` refuses agent
+  and model words, role and agent names, reviewer lenses and placeholders such as
+  "human", "user" or "owner" — citing a new acceptance
   record per round (re-citation refused; the record must exist and must not be the
   agent's own replan record). An acceptance buys that round and, if clean, its same-head
   confirmation — nothing more. REPLAN still binds an accepted round.
@@ -144,7 +155,8 @@ the usual ways around this; none of them is a recorded human acceptance.
 total, so legitimate replanning can itself be the runaway. The fresh-lens check is a
 naming discipline the state can audit (`debugRound`, `reviewersSeen`), not a proof of
 context freshness — the round JSON carries no agent identity — and the acceptor is a
-named string, not a verified human. Both are floors that gate review confirms against
+named string checked against the shared denylist (`.harness/lib/agent-identity.cjs`),
+not a verified human. Both are floors that gate review confirms against
 the dispatch roster.
 
 ## Recorder limits

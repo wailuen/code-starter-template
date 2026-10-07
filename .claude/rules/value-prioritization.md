@@ -2,7 +2,6 @@
 priority: 10
 scope: path-scoped
 paths:
-  - "**/workspaces/**"
   - "**/journal/**"
   - "**/.session-notes"
   - "**/.claude/commands/**"
@@ -84,7 +83,7 @@ advance unless value is ranked first.
 ### 2. Deferred Shards Carry Value-Anchors That Survive `/clear`
 
 When work is split and some shards are scheduled for later (workspace todos, follow-up
-issues, README follow-up bullets, journal DEFER entries, "Carried-forward" lines in
+issues, README follow-up bullets, journal DECISION entries recording a deferral, "Carried-forward" lines in
 `.session-notes`), file each deferred shard with a value-anchor: one sentence, in the
 user's language, on why this shard delivers value to the user, citing a Rule 1 source.
 Technical rationale alone (size, dependency graph, "fits next shard") is not enough, and
@@ -128,8 +127,8 @@ it against what the user has said since.
 - Ask "is this still your value?" only when the anchor is missing, when something the
   user said since contradicts it, or when the item was deferred two or more sessions ago
   with no confirmation since.
-- Items deferred two or more sessions ago without pickup surface as a "still wanted?" item
-  at the next `/sweep` or `/wrapup`.
+- Items deferred two or more sweeps ago without pickup surface as a "still wanted?" item
+  at the next `/sweep` (`.claude/commands/sweep.md`).
 
 ```markdown
 # DO — re-pickup begins with value-anchor check
@@ -153,7 +152,7 @@ the only way to catch decay.
 
 ### 4. Closing Value-Bearing Deferred Work As "Not Planned" Needs The User
 
-Do not close an issue, todo or journal DEFER entry that carries a value-anchor as
+Do not close an issue, todo or journal DECISION entry recording a deferral that carries a value-anchor as
 `not_planned`, `wontfix`, "deferred indefinitely" or "out of scope" without the user's
 explicit approval in the same session. You may recommend closure with a value-decay
 rationale ("the brief moved on", "landed elsewhere via PR #N", "dependency removed"); the

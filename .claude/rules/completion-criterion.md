@@ -7,7 +7,6 @@ paths:
   - "**/.session-notes.d/**"
   - ".claude/commands/**"
   - ".harness/phases/**"
-  - ".harness/guides/task-delivery.md"
 ---
 # Shared completion-criterion rule
 

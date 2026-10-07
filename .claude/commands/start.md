@@ -11,8 +11,8 @@ This is a step-by-step way for YOU to direct an AI to build software. The steps 
 
 1. **Describe what you want** (in your own words, as detailed as you like)
 2. **Make decisions** when choices come up (we'll always explain the options clearly)
-3. **Approve the plan** before building starts
-4. **Review the results** to make sure they match your vision
+3. **Approve the plan** before building starts — approving fixes that stretch of work; changing your mind later is fine, it just means re-planning that part
+4. **Try the result yourself** before it goes live, and say whether it matches what you wanted
 
 The AI handles all the technical work — writing code, testing, security checks, and deployment.
 
@@ -23,21 +23,31 @@ The AI handles all the technical work — writing code, testing, security checks
 | 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Confirm we understood your vision |
 | 2. Planning | `/todos` | Create a complete project roadmap | Approve the plan before building starts |
 | 3. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
-| 4. Testing | `/redteam` | Test everything from a real user's perspective | Review results |
-| 5. Knowledge | `/codify` | Capture what we learned for future sessions — runs on its own after each wave and at `/wrapup` | Nothing, unless a change would loosen a rule, touch security or git safety, change what you approve, give the AI more freedom, or change an AI model setting; those wait for your OK |
+| 4. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
+| 5. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules or what it may do without you; `/ws` shows those |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.
 
 Plus **`/fix`** when something that already works breaks or someone reports a bug,
-**`/deploy`** when you're ready to put the application live, and **`/ws`** anytime to check
-progress. If the project publishes numbered versions (a library, an app-store app), the
-release steps are in `.harness/guides/task-delivery.md` § Releases.
+**`/deploy`** when you're ready to put the application live (the first time, the AI recommends
+where to host it and what it costs, and walks you through anything only you can do, like
+creating an account), and **`/ws`** anytime to see progress and anything waiting for your
+answer. If the project publishes numbered versions (a library, an app-store app), just ask for
+a release; the AI recommends the version number.
+
+Things the AI always asks you first: approving a plan, putting changes live or undoing them,
+spending money, deleting things, and publishing anything. The full list is in
+`.harness/rules/autonomous-execution.md` § What needs the user.
 
 ## Getting Started
 
 Walk the user through these steps:
 
+0. **Check the computer is ready**: run `/doctor`. It checks the tools the project needs (git,
+   Node.js 22 or newer for the workflow's own checks, a GitHub login, and anything the project
+   itself needs, such as Docker for tests) and says how to fix anything missing. The project
+   also needs a GitHub repository to hold its work.
 1. **Create a workspace**: Tell the AI the project's name and what you want (e.g., "start a project called my-project: …"). `/analyze` creates `workspaces/my-project/briefs/` and saves your description as the first brief. You can also create that folder yourself.
 2. **Write a brief**: Create a file in the briefs folder describing what you want to build — in your own words, as detailed as you like. Include who it's for, what problem it solves, and what success looks like. You can also just tell the AI what you want and ask it to write the brief for you.
 3. **Run `/analyze`**: This kicks off the research phase
@@ -79,4 +89,4 @@ Present these naturally, not as a lecture:
 - **Your knowledge is the most valuable input.** You know your users, your market, and your vision better than any AI.
 - **"I don't understand" is always valid.** The AI will rephrase — no judgment.
 - **Approval gates protect you.** Never approve something you don't fully understand. Ask questions first.
-- **The AI remembers across sessions.** Run `/wrapup` before leaving, and your next session starts right where you left off.
+- **The AI remembers across sessions.** Run `/wrapup` before leaving, and your next session starts right where you left off. Those notes stay on this computer; decisions are also saved in the project's journal, which travels with the project.

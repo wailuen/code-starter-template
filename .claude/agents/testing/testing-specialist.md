@@ -19,7 +19,7 @@ When deployed by `/redteam` for test verification, follow this audit mode:
 1. **Do not trust a recorded count** — a todo's `## Verification` block or an earlier round's report may predate new spec modules that have zero tests.
 2. **Re-derive coverage** by asking the test runner to list the tests it would run (the Tier 1/2/3 commands in `.harness/guides/project-profile.md`, with the runner's list/collect-only flag) — never trust a cached count.
 3. **For every new module** the spec created, grep `tests/` for an import of that module. Zero importing tests = HIGH finding regardless of suite-level "tests pass".
-4. **For every § Security Threats** subsection in any spec, grep for a corresponding test (e.g. a test group or file named for the threat). Missing = HIGH.
+4. **For every threat a spec or delivery contract names** (its `boundaries` and security obligations), grep for a corresponding test (e.g. a test group or file named for the threat). Missing = HIGH.
 5. Run only NEW tests written by red team (E2E, regression for findings). If a test is suspected wrong, re-run THAT test specifically.
 
 ## Probe-Driven Verification (MUST when authoring or auditing harnesses)

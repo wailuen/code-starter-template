@@ -20,6 +20,9 @@ naming or presentation gap, not a way to record an unbounded number of rounds.
 - Control characters in a reviewer id or a cited path reach the one-line `NEXT:`
   guidance unescaped, so a hostile id could forge or hide a line on a terminal. A
   committed-file control-byte check, if the project has one, does not cover runtime strings.
+- Local state lives in the git-ignored `.claude/learning/`. When it is missing, the recorder
+  rebuilds the branch's history only from COMMITTED `round-*.json` files; a round recorded
+  but never committed is not counted after that.
 - A branch cut from the same head under a new name starts a fresh budget; the
   recorder verifies the branch exists and the head is on it, not that the work is new.
 - The branch check compares against `refs/heads`, not the invoking checkout's `HEAD`,
@@ -40,10 +43,7 @@ naming or presentation gap, not a way to record an unbounded number of rounds.
 
 ## Verification
 
-No test fixtures for this logic ship with the harness, and no CI is wired up to run them
-by default. The behavior is real — implemented in `.harness/lib/redteam-stall.cjs` and
-exercised by `.harness/bin/record-review-round.mjs` — but untested here. Write fixtures
-covering mixed reviewer verdicts, duplicate/out-of-order rounds, the cumulative cap, the
-debug round, escalation acceptance, and errored-round re-runs before relying on it for a
-real branch. A retry counter cannot prove the semantic correctness of a review or that a
-declared threat model is sufficient; independent review owns those.
+`.harness/tests/` exercises the recorder; run `node --test ".harness/tests/*.mjs"` after any
+change to `.harness/lib/redteam-stall.cjs` or `.harness/bin/record-review-round.mjs`, and add a
+test that fails without the change. A retry counter cannot prove the semantic correctness of a
+review or that a declared threat model is sufficient; independent review owns those.

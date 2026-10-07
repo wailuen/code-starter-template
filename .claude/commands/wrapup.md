@@ -9,7 +9,9 @@ codebase.
 
 **Before running:** if a significant decision, discovery, or risk from this session isn't yet
 in `workspaces/<project>/journal/`, run `/journal new DECISION|DISCOVERY|RISK <topic>` first — `.session-notes` gets
-overwritten every time, so it is not where decisions live.
+overwritten every time, so it is not where decisions live. Tag an entry `harness` only when it is
+about the harness itself (a rule, phase, role, guide, agent or tool); only those become lessons
+for `/codify` (`.harness/phases/learn.md`).
 
 ## What the next session already has for free
 
@@ -33,13 +35,19 @@ If content doesn't fit one of those four, it belongs in the journal or a todo in
 there before running `/wrapup`.
 
 **Deploy drift:** if `deploy/deployment-config.md` exists, run `/deploy --check` and put any
-drift ("N production-touching commits not deployed") under Outstanding work.
+drift ("N production-touching commits not deployed") under Outstanding work, and ask the user
+under Open questions whether to deploy. Do not deploy just because the session is ending.
 
 **Lessons:** run `/learn`. If it reports open lessons and the moment is right
 (`.harness/phases/codify.md` § When it runs — the right moment and what counts), run
 `/codify` before writing the notes. Otherwise don't codify: list the open lessons under
-Outstanding work so the next session runs `/codify` first. List waiting lessons (awaiting the
-user's confirmation) under Outstanding work too, as questions for the user.
+Outstanding work so the next session runs `/codify` first.
+
+**Open questions for the user:** list everything `/ws` § 1 shows as waiting for the user (plan
+approval, wave preview, a review stopped for a decision, undeployed changes, open S1/S2 bugs,
+harness changes awaiting their OK), each in the format in `.claude/rules/communication.md`
+§ Asking the user to decide. `.session-notes` is local to this computer; anything another
+person or machine must see belongs in the journal or a pull request.
 
 ## Format
 

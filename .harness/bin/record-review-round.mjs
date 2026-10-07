@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, basename } from "node:path";
+import { execFileSync } from "node:child_process";
 import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation } from "../lib/redteam-stall.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 
@@ -38,6 +39,25 @@ function legacySeedFrom(file, round, cwd) {
   return { replansConsumed, reviewersSeen: [...reviewersSeen].sort() };
 }
 
+// The branch's round records as COMMITTED on it (`git show refs/heads/<branch>:<path>` for
+// every `round-*.json` in its tree). The recorder replays them only when this checkout holds
+// no state for the branch, so a deleted state file or a fresh clone keeps the spent budget.
+// Working-tree copies are not history: an uncommitted record cannot rebuild anything.
+function committedRoundRecords(cwd) {
+  return (branch) => {
+    const git = (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    const ref = `refs/heads/${branch}`;
+    const records = [];
+    for (const path of git(["ls-tree", "-r", "--name-only", "-z", ref]).split("\0")) {
+      if (!/^round-.*\.json$/.test(basename(path))) continue;
+      let record;
+      try { record = JSON.parse(git(["show", `${ref}:${path}`])); } catch { continue; } // not a round record
+      if (record && typeof record === "object" && record.branch === branch) records.push(record);
+    }
+    return records;
+  };
+}
+
 try {
   if (process.argv.length !== 3) throw new Error("Usage: record-review-round.mjs <round.json>");
   const file = resolve(process.argv[2]);
@@ -45,7 +65,8 @@ try {
   const target = requireMainCheckout(process.cwd());
   if (!target.ok) throw new Error(`Cannot resolve shared review state: ${target.reason}`);
   const cwd = process.cwd();
-  const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd) });
+  const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd),
+    history: committedRoundRecords(cwd) });
   console.log(JSON.stringify({ branch: round.branch, round: round.round, ...outcome }));
   if (outcome.next) console.log(outcome.next);
   process.exitCode = EXIT_CODES[outcome.action] ?? 0;

@@ -4,9 +4,8 @@ Resolve the named project/todo, otherwise the most recently modified real worksp
 (exclude `instructions` and leading-underscore directories). Read briefs and
 `todos/WAVE-SEQUENCE.md`; select the requested current-wave task or the highest-value
 ready task in the lowest incomplete wave. A missing wave sequence returns to `/todos`.
-Resolve `specs/_index.md` at the project root or workspace and read the relevant spec,
-plan section, decisions, todo and current dependency source. Resolve conflicting spec
-roots explicitly. Compare changed briefs with approved scope; mtime alone is not a
+Read `workspaces/<project>/specs/_index.md`, the relevant spec, plan section, decisions, todo
+and current dependency source. Compare changed briefs with approved scope; mtime alone is not a
 semantic change. Ask only if a material unapproved requirement changes the task.
 
 Read `.harness/guides/task-delivery.md`; it governs this phase's task scope, review
@@ -19,7 +18,8 @@ is the wave's first todo (task-delivery § Branches, pull requests and merging).
 ## 1. Readiness and baseline
 
 - Run `node .harness/bin/check-task-contract.mjs <todo.md>`. Hydrate a legacy task's
-  contract from approved scope and independently ratify it before new implementation.
+  contract from approved scope; its `approved_by` names the person who approved that scope,
+  and a contract with no such approval goes back to `/todos` before new implementation.
 - Set one implementer/worktree owner and explicit paths. Parallel agents need disjoint
   writes and mutable infrastructure, not merely different worktree directories.
 - Verify the baseline once. Integration tests run against throwaway real infrastructure
@@ -75,12 +75,18 @@ authority changes outside approval require a decision before closure.
 Before closing any browser-visible task, walk the changed flow in a headed browser
 as a real user, including write→reload→read-back. Follow `.harness/rules/e2e-god-mode.md`.
 Record it as a `### Browser walk receipt` subsection inside the todo's `## Verification`
-section — a `##` heading of its own is not found — with non-empty `Steps:`, `Observed:` and
+section — exactly that heading, once; a second `## Verification` makes the todo contradictory —
+with non-empty `Steps:`, `Observed:` and
 `Disposition:` lines. `Disposition:` starts with `proceed` (the flow works; the only value
 that lets the todo close), `blocked` or `confused`. No browser surface: put exactly one
-`Browser walk: not applicable — <reason>` line inside `## Verification` instead, never both.
-Run `node .harness/bin/check-browser-walk-receipts.mjs <todo.md>`; a blocked/confused
-walk stays active. Suite green, API-only calls, or a conformance declaration do not
+`Browser walk: not applicable — <reason>` line inside `## Verification` instead, never both,
+and walk the product's real interface instead (a command-line tool's commands, an API through
+a real client): record it under `### Walk receipt` with the same `Steps:`, `Observed:` and
+`Disposition:` lines. The checker reads only the browser declaration; the reviewer checks the
+walk receipt (`.claude/rules/user-flow-validation.md`).
+The not-applicable reason must say something real (a word of three or more letters); lines
+inside code fences are ignored. Run `node .harness/bin/check-browser-walk-receipts.mjs <todo.md>`;
+every walk receipt counts, so any blocked/confused walk keeps the todo active. Suite green, API-only calls, or a conformance declaration do not
 replace this walk.
 
 ## 7b. Expectation coverage
@@ -102,7 +108,8 @@ No side-effect surface: `Boundary injection: not applicable — <reason>`. Follo
 ## 4. Close the cycle and enforce the wave boundary
 
 Run integration/log hygiene for the changed surface; update durable documentation for
-actual behavior. Record concise decisions and a handoff: commit, acceptance status,
+actual behavior. Spec reconciliation (an approved-design spec becoming a description of built
+behavior) happens once per wave, after it merges (`.harness/phases/redteam.md` § 4). Record concise decisions and a handoff: commit, acceptance status,
 new/repeated defect causes, test environment, next action and required decisions.
 Use `/redteam`'s structured complete-round recorder for review/fix cycles. Exit 2 means
 reassess before another cycle, never "done" or "start one more review".
@@ -111,11 +118,13 @@ A todo moves to `completed/` (same filename) only after its implementation and r
 are verified. Commit that move on the todo branch, run the project profile's local CI
 parity command, and merge the todo branch into the wave branch. Until wave convergence it
 is **implemented — awaiting wave convergence**, not shipped.
-At the boundary: `/redteam` on the wave branch → merge the wave branch into `main` by pull
-request (task-delivery § Branches, pull requests and merging) → learning capture →
-specs/remaining todos update → re-rank.
-Do not start the next wave until
-`node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <wave>`
-exits 0. The existing launch evidence, two clean rounds on one commit, accepted-residual
-and browser-walk requirements remain. Use `--todo <id>` before claiming a covered todo
-closed. A circuit-breaker stop is never convergence.
+At the boundary: `/redteam` on the wave branch (its `--scope <wave>` check exits 0 there,
+before the merge) → merge the wave branch into `main` by pull request (task-delivery
+§ Branches, pull requests and merging) → `/codify` → specs/remaining todos update → re-rank.
+Do not start the next wave until the previous wave's receipt is committed on `main` and
+`node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` exits 0. Do not
+re-run `--scope` after the merge: later commits on `main` (fixes, `/codify`) make it fail by
+design. The existing launch evidence, two clean rounds on one commit, accepted-residual
+and browser-walk requirements remain. Run
+`node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`
+before claiming a covered todo closed. A circuit-breaker stop is never convergence.

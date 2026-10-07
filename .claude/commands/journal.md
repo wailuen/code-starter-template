@@ -47,7 +47,7 @@ author: [human | agent | co-authored — per the journal.md decision tree]
 project: [workspace name]
 topic: [topic description]
 phase: analyze | todos | implement | redteam | debug | fix | codify | learn | design | validate | sweep | wrapup | deploy
-tags: []
+tags: [list — include `harness` only for a harness lesson, see below]
 relates_to: NNNN-slug of the entry this amends/extends/references (optional; required for AMENDMENT)
 ---
 
@@ -57,7 +57,16 @@ relates_to: NNNN-slug of the entry this amends/extends/references (optional; req
 ```
 
 This frontmatter is the canonical contract `.claude/rules/journal.md` documents — the two MUST
-agree. Set `author:` per the decision tree in `.claude/rules/journal.md`; default to `agent`
+agree.
+
+**The `harness` tag.** A journal entry of any type whose `tags:` include `harness` is a
+harness lesson: `/learn` lists it and `/codify` folds it into the harness
+(`.harness/phases/learn.md`). Tag `harness` only when the entry is about the harness itself
+— a rule, phase, role, guide, agent or tool. Product findings (DISCOVERY, GAP, TRADE-OFF
+about the product, its users or its domain) never carry it. `/codify`'s own summary entries
+are type `DECISION` without the `harness` tag, so a codify run never creates a new lesson.
+
+Set `author:` per the decision tree in `.claude/rules/journal.md`; default to `agent`
 when uncertain, because `human`/`co-authored` DECISION entries count as user decisions.
 
 4. Type-specific structure:

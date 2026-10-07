@@ -147,7 +147,7 @@ function probeBuildByteEquality(buildCmd: string[], expectedMd5: string): ProbeR
 ```typescript
 import ts from "typescript";
 
-// Per zero-tolerance.md Rule 2 — every accepted literal value MUST have a
+// Per zero-tolerance.md Rule 3c — every accepted literal value MUST have a
 // dispatch branch. AST-walk confirms each declaredLiteral is compared
 // against dispatchParam via `===`, or is a `case` label on a `switch`
 // statement whose own subject is dispatchParam.

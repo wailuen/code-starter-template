@@ -1,6 +1,6 @@
 ---
 name: 17-gold-standards
-description: "Mandatory code and documentation gold standards any project adopts and then specializes: single parameterized database-access module, no secrets in code (.env + .env.example), structured logging, explicit config, expected negatives as values, real-infrastructure tests, documentation tiers. Check against these at review time."
+description: "Mandatory code and documentation gold standards any project adopts and then specializes: single parameterized database-access module, no secrets in code (.env + .env.example), structured logging, explicit config, expected negatives as values, real-infrastructure tests, documentation tiers. Use when writing or reviewing data access, configuration, logging, tests or docs."
 ---
 
 # Gold Standards

@@ -1,6 +1,5 @@
 ---
 paths:
-  - ".harness/guides/task-delivery.md"
   - ".harness/guides/review-round-recorder.md"
   - ".harness/phases/**"
   - ".claude/commands/**"

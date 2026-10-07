@@ -1,6 +1,10 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+// Structure check for a todo's `## Delivery contract` block.
+//   node .harness/bin/check-task-contract.mjs <todo.md>
+// Prints {"ready": bool, "errors": [...]}. Exit: 0 ready · 1 not ready, unreadable or usage error.
+import { readFileSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { isAgentIdentity } from "../lib/agent-identity.cjs";
 
 const nonempty = (s) => typeof s === "string" && s.trim().length > 0;
 const strings = (xs, allowEmpty = false) => Array.isArray(xs) &&
@@ -16,6 +20,10 @@ export function validateTaskContract(text) {
   const errors = [];
   for (const field of ["approved_by", "integration"]) {
     if (!nonempty(c[field])) errors.push(`${field} must be explicit`);
+  }
+  // The plan is approved by the user, never by an agent or a reviewer seat (shared denylist).
+  if (nonempty(c.approved_by) && isAgentIdentity(c.approved_by)) {
+    errors.push(`approved_by must name the person who approved the plan, not an agent, role or placeholder: ${JSON.stringify(c.approved_by)}`);
   }
   for (const field of ["owned_paths", "interfaces"]) {
     if (!strings(c[field])) errors.push(`${field} must name at least one item`);
@@ -54,4 +62,7 @@ export function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+// Symlink-safe: compare real paths on both sides, or a call through a symlinked directory
+// (macOS /tmp, a linked worktree) would silently skip main() and exit 0.
+const invokedPath = (() => { try { return process.argv[1] && realpathSync(process.argv[1]); } catch { return null; } })();
+if (invokedPath && invokedPath === realpathSync(fileURLToPath(import.meta.url))) main();

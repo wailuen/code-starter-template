@@ -10,7 +10,6 @@ paths:
   - "**/.session-notes.d/**"
   - ".claude/commands/**"
   - ".harness/phases/**"
-  - ".harness/guides/task-delivery.md"
 ---
 
 # Completion criterion
@@ -21,8 +20,9 @@ The operational protocol is `.harness/guides/task-delivery.md`.
 
 ## MUST-1 — Acceptance precedes implementation and review
 
-Each delivery has independently ratified acceptance criteria, testable by two readers,
-plus an explicit trusted/untrusted boundary and integrated scenario. The implementing
+Each delivery has acceptance criteria the user ratified (`ratified_by` and `approved_by` name
+the user, never a reviewer or agent; `.harness/lib/agent-identity.cjs` refuses those),
+testable by two readers, plus an explicit trusted/untrusted boundary and integrated scenario. The implementing
 agent cannot redefine its own oracle after seeing the result. Use the delivery-contract
 readiness checker. A credible threat (security or correctness) is adjudicated
 immediately: classify it BUG or not-BUG, with evidence, before any other step. Only a
@@ -35,8 +35,8 @@ either harmless by omission. Small, related fixes follow
 
 BUG and ratified INVEST-NOW obligations remain blocking until fixed or a material
 scope/risk decision is explicitly authorized. Severity ranks; category and accepted
-requirements determine disposition. Incremental work follows the tracked-defer conditions
-in `.harness/rules/product-completion-first.md`. Ambiguity requires a decision, not automatic
+requirements determine disposition. Incremental work follows the one deferral rule,
+`.harness/rules/product-completion-first.md` MUST-2. Ambiguity requires a decision, not automatic
 scope expansion or silent deferral. A live incident is surfaced immediately and routed
 to its own response lane, the `/fix` phase (`.harness/phases/fix.md`); never bury it in a
 routine review backlog.
@@ -89,8 +89,10 @@ neighboring test files; don't turn scratch checks into permanent test files.
 
 ## MUST-6 — Residual acceptance is explicit
 
-A shipped residual needs a named human acceptor in a standing role, safety/impact
-rationale, value anchor, full-fix criteria, owner, revisit trigger and calendar backstop.
-Without acceptance it remains a pending decision, not a clean verdict. Preserve these
-fields in the final convergence receipt. Replanning cannot erase findings or acceptance
+Only an INCREMENTAL finding can ship as a residual, and only after the user accepted it.
+The fields it needs, and what the convergence checker refuses, are defined once in
+`.harness/rules/product-completion-first.md` MUST-2 (its "Shipping a deferred item as a
+residual" paragraph): the five deferral fields plus `accepted_by`, the name of the person who
+accepted it. An agent never fills `accepted_by`. Without acceptance the item stays a
+pending decision, not a clean verdict. Replanning cannot erase findings or acceptance
 history. The readiness and retry tools check structure; they do not approve product risk.

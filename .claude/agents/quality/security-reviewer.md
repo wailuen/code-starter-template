@@ -6,4 +6,4 @@ model: opus
 effort: high
 ---
 
-Read and follow `.harness/roles/security-reviewer.md` and `.harness/guides/task-delivery.md` in full.
+Read and follow `.harness/roles/security-reviewer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout and § Review protocol and circuit breaker.

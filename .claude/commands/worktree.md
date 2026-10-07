@@ -18,7 +18,7 @@ same rule twice, under two paths — while a SIBLING-rooted session loads each e
 and baseline (`priority: 0`) rules do NOT ancestor-load. Sibling placement is therefore a quota
 requirement, not a tidiness preference — for a worktree a SESSION ROOTS INTO; a dispatched subagent
 inherits its parent session's corpus instead (measured) and is not itself a double-load.
-Full rationale + measured matrix: `.claude/rules/worktree-isolation.md` Rule 7.
+Full rationale: `.claude/rules/worktree-isolation.md` Rule 7.
 
 Durable session worktrees and transient agent-wave worktrees both live outside the repo:
 `.claude/rules/worktree-isolation.md` Rule 1 retired `isolation: "worktree"` / `EnterWorktree({name})`,
@@ -82,7 +82,7 @@ git worktree list | grep -F "$wt_path"                          # verify it regi
   ```bash
   head=$(gh pr view <N> --json headRefOid -q .headRefOid)
   gh pr checks <N>      # every REQUIRED check SUCCESS, on $head; stop if any is red or pending
-  gh pr merge <N> --admin --merge --delete-branch
+  gh pr merge <N> --merge --delete-branch   # after its gate passed; who confirms: .harness/rules/autonomous-execution.md § What needs the user
   ```
 - The worktree is **durable** — do NOT delete it between tasks (unlike agent-wave worktrees). "Durable" means not deleted BETWEEN tasks; it never means permanent. When fully done: `git worktree remove "$wt_path"` — **never `--force`**. A bare `remove` REFUSES a dirty tree, and that refusal is the safety net working; confirming a clean tree and THEN forcing is the check-then-clobber TOCTOU (`.claude/rules/worktree-isolation.md` Rule 8), because the state can change between the check and the removal, and unstaged + untracked-not-ignored work has NO reflog. There's no forest-wide reap tool in this starter yet — `git worktree list` and removing each tree individually is the current process.
 
@@ -91,7 +91,8 @@ git worktree list | grep -F "$wt_path"                          # verify it regi
 - NEVER create a worktree under `.claude/worktrees/` or anywhere below the repo root — session (Rule 7) or agent-wave (Rule 1) — a nested root duplicates the matching path-scoped rule set, falls inside the repo's `.claude/**` glob range (parent-repo tooling recursion), and clutters the working tree (`.claude/rules/worktree-isolation.md` Rule 7).
 - NEVER `EnterWorktree({name})` for durable session work.
 - The harness keeps no multi-operator coordination state to preserve across worktrees
-  (see `.harness/README.md` § "Not included"). `.claude/learning/` (if it exists) is shared automatically
-  since every worktree shares the same `.git`.
+  (see `.harness/README.md` § "Not included"). `.claude/learning/` (if it exists) is shared automatically:
+  the harness tools resolve it in the main checkout from any worktree
+  (`.claude/hooks/lib/state-resolver.js`).
 - The main repo's parent dir `.<slug>-wt/` (derived location-independently via `git-common-dir`)
   is the recommended default placement, not a hardcoded requirement.

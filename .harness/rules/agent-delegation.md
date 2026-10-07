@@ -38,7 +38,9 @@ namespace on the same shared server does not isolate tests that change server-wi
 Review at a coherent implementation checkpoint, not on every file edit or bookkeeping
 commit. Correctness review is independent of whoever wrote the code. Security- or
 trust-bearing work additionally needs an independent security review — a correctness
-CLEAR is never security evidence. Bring in UX/value, testing, or architecture reviewers
+CLEAR is never security evidence. Every changed path counts as security surface except
+workspace bookkeeping and plain documentation outside the harness folders; the exact
+exclusions live in `isSecuritySurface()` in `.harness/bin/check-redteam-convergence-receipt.mjs`. Bring in UX/value, testing, or architecture reviewers
 for their own actual surface. Existing self-referential artifact review requirements
 still apply.
 
@@ -70,7 +72,7 @@ retry counter can certify it.
 
 ## Cross-wave closure
 
-Before closing a plan spanning three or more waves, do a holistic integration review of
+Before closing a plan spanning more than one wave, do a holistic integration review of
 the merged behavior and cross-wave invariants. Reuse verified unchanged mechanical
 evidence with its source/environment identity; independently test integration and any
 disputed properties. Don't restart unrelated repository-wide audits on every fix.

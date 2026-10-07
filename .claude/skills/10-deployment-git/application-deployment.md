@@ -41,7 +41,7 @@ deploy:
     - "src/**"
     - "frontend/**"
     - "Dockerfile"
-    - "deploy/**"
+    - "deploy/scripts/**"   # deploy scripts, not deploy/deployments/ records
     - "kubernetes/**"
 
   # Shell command to run the actual deploy.
@@ -55,8 +55,10 @@ deploy:
       --query "[?properties.active][0].properties.template.revisionSuffix" \
       -o tsv
 
-  # File where /deploy writes the deployed commit SHA on success.
-  # /deploy --check reads this when the cloud query is unavailable.
+  # Local, gitignored cache where /deploy writes the deployed commit SHA on success.
+  # /deploy --check reads it only when the cloud query is unavailable. It is never
+  # committed and never authoritative: deploy_check_command is the source of truth
+  # (a hotfix base is taken from that command, not from this file).
   deploy_state_file: "deploy/.last-deployed"
 
   # Pre-deploy gates that MUST pass before deploy_command runs.
@@ -71,8 +73,8 @@ deploy:
       command: "<Integration tests (Tier 2) command from the project profile>"
       why: "Prove the code works against real services, not mocks"
     - name: build
-      command: "docker build -t app:test ."
-      why: "Verify Dockerfile is valid before pushing to registry"
+      command: "<Production build command from the project profile>"
+      why: "Verify the production build (e.g. the container image) is valid before pushing it"
 
   # REQUIRED: live URL the user-visible check will fetch.
   live_url: "https://app.example.com"
@@ -114,6 +116,26 @@ deploy:
   # schema migration says so here).
   rollback_check: "bash deploy/scripts/check-rollback.sh <revision-or-commit>"
 
+  # REQUIRED: the address a monitor checks to decide the app is up. It must answer
+  # healthy only when the app actually serves users (not a static page). /deploy
+  # Step 4 confirms it answers healthy for the new revision.
+  health_check_url: "https://app.example.com/healthz"
+
+  # REQUIRED: who is told, and how, when the health check fails — an email or phone
+  # the user actually reads, through the platform's alerting or a monitoring service.
+  # Onboarding sends a test alert the user confirms they received.
+  alert_destination: "email: owner@example.com via <platform alerting or monitoring service>"
+
+  # REQUIRED: what is backed up, how often, where, and how to restore it (with the
+  # restore command or console steps). "none" only when the app stores no data, said so.
+  backups: |
+    what: production database
+    how_often: daily, kept 14 days (platform automated backups)
+    restore: "<platform restore command or console steps>"
+
+  # REQUIRED: where to read production logs, and how long they are kept.
+  logs: "<platform log command or console page>; kept 30 days"
+
   # Optional smoke test run AFTER successful deploy AND user-visible check.
   smoke_test_command: |
     curl -fsSL https://api.example.com/healthz | grep -q '"ok":true'
@@ -153,23 +175,47 @@ Read these files in order; the first match wins:
 
 If multiple match, ASK the human which one is the production target — multi-platform setups are common (e.g., Cloud Run + Cloudflare for assets).
 
-### Step 2: Ask Structured Questions
+### Step 2: Work Out Each Value, Then Ask The User Only What They Can Answer
 
-Required questions (block onboarding until answered):
+Many users are not engineers. Do not ask them for commands, queries or file patterns. Do the
+research in Step 3 first, inspect the repository, and work out a recommended value for each
+item below yourself:
 
-1. **What command runs the production deploy?** (Existing script? Make target? Manual `gcloud run deploy ...`?)
-2. **What query returns the currently-deployed commit?** (Cloud CLI command, container annotation lookup, deployed health endpoint exposing build SHA)
-3. **What paths constitute "production code"?** (Defaults: `src/**`, `frontend/**`, `Dockerfile`, `deploy/**` — adjust to repo structure)
-4. **What gates must pass before each deploy?** (Tests, lint, build, security scan — get the actual commands the project uses)
-5. **Is staging required before production?** (If yes, `staging_required: true` and document the staging deploy command)
-6. **How do we roll back, and how do we prove it worked?** (`rollback_command` returning production to a named earlier revision or commit; `rollback_check` naming the revision check, the `user_visible_check` against the restored revision, and any migration that a rollback cannot undo)
+1. The command that runs the production deploy (an existing script, a Make target, or the
+   platform CLI call).
+2. The query that returns the currently deployed commit (a cloud CLI call, a container
+   annotation, or a health endpoint that exposes the build commit).
+3. The paths that count as "production code" (defaults: `src/**`, `frontend/**`,
+   `Dockerfile`, deploy scripts — adjust to the repository; never the deploy records under
+   `deploy/deployments/`).
+4. The gates that must pass before each deploy — taken from `.harness/guides/project-profile.md`
+   § Commands.
+5. Whether a staging step is needed before production.
+6. How to roll back and how to prove it worked (`rollback_command`, `rollback_check`, and any
+   migration a rollback cannot undo).
+7. `health_check_url` — the address a monitor checks; recommend the app's health endpoint
+   (add one if the app has none) on the production address.
+8. `alert_destination` — who is told, and how, when the health check fails. Recommend the
+   platform's own alerting, or a free or low-cost monitoring service, sending to an email or
+   phone the user reads; ask the user only which address or number, and the monthly cost if
+   any.
+9. `backups` — what is backed up, how often and how to restore it. Recommend the
+   platform's automated database backups with a retention period and the monthly cost;
+   ask the user only how much history they want to keep against that cost.
+10. `logs` — where production logs are read and how long they are kept. Recommend the
+    platform's built-in logs; ask only if longer retention costs money.
+11. Optional: a smoke test, manual rollback notes, where secrets come from at deploy time, and
+    who is told when a deploy succeeds or fails.
 
-Optional (improve config quality):
-
-7. Smoke test command? (Health endpoint, basic API call)
-8. Manual rollback notes for the runbook body (anything `rollback_command` cannot do)
-9. Secret/config management? (Where do env vars come from at deploy time?)
-10. Notification on deploy success/failure? (Slack webhook, email, none)
+Then ask the user only the business questions, each with your recommendation, in the shape
+`.claude/rules/communication.md` § Asking the user to decide sets out. For example: which
+hosting platform and account to use, with the monthly cost of each option ("Host on X for
+about $N a month, or Y for about $M?"); whether to spend extra time and money on a staging
+step; how much backup history to keep against its cost; which email or phone receives
+the alert when the site is down. If there is no hosting account yet, give the
+user plain step-by-step instructions to create one (where to click, what it costs, what to
+paste back and where to paste it safely). Anything the user cannot answer stays your
+recommendation, shown to them in Step 6.
 
 ### Step 3: Research Current Best Practices
 

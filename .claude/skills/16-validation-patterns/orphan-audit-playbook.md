@@ -20,7 +20,7 @@ patterns to the project's language.
 
 ## Detection Protocol
 
-Six detection steps, then a disposition. Runs as part of `/redteam` and `/codify`.
+Six detection steps, then a disposition. `/validate` runs it (`.claude/commands/validate.md`); a reviewer may also run it during `/redteam` when a change adds, removes or rewires public symbols.
 
 ### Step 1 — Classify the artifact before auditing it
 
@@ -156,14 +156,14 @@ Patterns.
 
 ### Disposition
 
-| Finding                                                                                | Severity | Action                                                                    |
-| -------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- |
-| Exported symbol, no production call site, carries a security/audit/correctness promise | HIGH     | Wire it, or recommend deletion and ask the owner; never leave a stub     |
-| Wired symbol with Tier 1 coverage only                                                 | MED      | Add the Tier 2 test that drives the real seam                             |
-| Symbol reachable only from tooling scripts                                             | MED      | Confirm that is the intended surface; record it, or wire the runtime path |
-| Test importing a removed symbol                                                        | BUG      | Delete or port the test in the same commit                                |
-| Deferral test asserting a now-implemented stub                                         | BUG      | Rewrite it into real coverage in the same commit                          |
-| Stale assertion pinning a changed default                                              | BUG      | Update in the same PR as the default change                               |
+| Finding                                                                                | Category / Severity | Action                                                                    |
+| -------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------- |
+| Exported symbol, no production call site, carries a security/audit/correctness promise | BUG / HIGH          | Wire it, or recommend deletion and ask the owner; never leave a stub     |
+| Wired symbol with Tier 1 coverage only                                                 | INVEST-NOW / MEDIUM | Add the Tier 2 test that drives the real seam                             |
+| Symbol reachable only from tooling scripts                                             | INCREMENTAL / MEDIUM | Confirm that is the intended surface; record it, or wire the runtime path |
+| Test importing a removed symbol                                                        | BUG / MEDIUM        | Delete or port the test in the same commit                                |
+| Deferral test asserting a now-implemented stub                                         | BUG / MEDIUM        | Rewrite it into real coverage in the same commit                          |
+| Stale assertion pinning a changed default                                              | BUG / MEDIUM        | Update in the same PR as the default change                               |
 
 For an unwired symbol, recommend deleting it and ask the owner before deleting
 (`.claude/rules/verify-resource-existence.md` MUST-3, `.claude/rules/zero-tolerance.md` Rule 6);

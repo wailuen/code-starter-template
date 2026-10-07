@@ -41,7 +41,7 @@ The inventory is the project profile, not this file:
 - `.harness/guides/project-profile.md` § Mechanical checks — every project-specific guard script
   (secret scanning, forbidden-import / dependency-boundary checks, config-example drift,
   generated-file drift) plus the harness's own checks (`node .harness/bin/check-adapters.mjs`,
-  `node --test .harness/tests/`).
+  `node --test ".harness/tests/*.mjs"`).
 
 Anything not listed there is enforced by review only — say so rather than implying a tool
 checked it. A row still marked `<unset>` is not a gate yet; do not cite it as one.

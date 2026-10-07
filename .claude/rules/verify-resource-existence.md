@@ -72,7 +72,7 @@ attest to itself.
 ```markdown
 # DO — receipt cited
 
-Receipts: journal/.pending/0003 § round-history table.
+Receipts: workspaces/<project>/journal/0003-DECISION-w02-converged.md § Round history.
 
 # DO NOT — self-attest
 

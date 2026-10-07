@@ -3,9 +3,8 @@
 
 Use `workspaces/$ARGUMENTS/` when named; otherwise the most recently modified real
 workspace, excluding `instructions` and every leading-underscore directory. Read its
-briefs and `02-plans/`, and resolve the spec index at the project root or in this
-workspace. If both exist and disagree, resolve authority before planning. If neither
-exists, return to `/analyze`; do not invent domain specifications during task creation.
+briefs, `02-plans/` and `specs/_index.md`. If the workspace has no spec index, return to
+`/analyze`; do not invent domain specifications during task creation.
 Read relevant analysis decisions and any existing active/completed todos.
 
 Plan on a `docs/wNN-plan` branch cut from `main` (`.harness/guides/task-delivery.md`
@@ -36,7 +35,11 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    deleted, and the reason is recorded in a journal `DECISION` entry that names the file.
    One the user wants later stays in `parked/` unchanged.
 2. Declare `workspaces/<project>/todos/WAVE-SEQUENCE.md`, ordered by user value and dependencies. Every
-   requirement has a roadmap owner, including testing, integration and deployment.
+   requirement has a roadmap owner, including testing, integration and deployment. The first
+   wave of a new repository also owns its setup: a CI workflow that runs the project profile's
+   Local CI parity command on every pull request, and branch protection on `main` requiring it
+   (a repository-settings change, so the user confirms it — `.harness/rules/autonomous-execution.md`
+   § What needs the user). Until both exist, no pull request has a required check.
    A one-wave plan states why it fits one convergence surface.
 3. Slice by observable outcome. Prefer one small real caller→component→data-store
    scenario per todo. Split build and wire only with the independently testable interface
@@ -52,8 +55,9 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    sweep, so never use another pattern and never reuse an id. For each task, name the spec sections and user-value anchor. Freeze 1–10 observable
    acceptance criteria, the owned paths, one integrated scenario, ordinary failure cases,
    and explicit trusted/untrusted boundaries. Use the `## Delivery contract` JSON format
-   in task-delivery, with no unresolved questions. Record independently ratified approval;
-   the implementer must not retroactively redefine acceptance to match the code.
+   in task-delivery, with no unresolved questions. Leave `approved_by` empty until the user
+   approves the plan at step 11 (task-delivery § Before implementation); the implementer must
+   not retroactively redefine acceptance to match the code.
 6. Keep each implementation slice within the complexity budget in
    `.harness/rules/autonomous-execution.md`: ≤500 lines of load-bearing logic, ≤5–10 simultaneous
    invariants and ≤3–4 reasoning hops. Count dependencies and verification complexity;
@@ -72,15 +76,48 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 9. Surface the top three value-ranked workstreams with brief/spec anchors, dependencies,
    scope trade-offs, and current-wave acceptance. Journal decisions and unresolved risks
    concisely. Update specs when planning legitimately changes an agreed contract.
-10. Stop for plan approval before implementation. Existing explicit approval remains valid;
-    ask again only for material scope, authority, behavior or accepted-risk changes.
-11. After approval, write the wave's acceptance list to
-    `workspaces/<project>/04-validate/acceptance-wNN.md`: the scope name `wNN`, every
-    current-wave todo id, each todo's acceptance IDs, and who ratified it (a named human or
-    the independent planning reviewer — never the authoring agent). Commit it with the
-    todos; never edit it afterwards — the convergence receipt requires it byte-identical at
-    the verdict commit, so changed acceptance means a new scope. Then merge the plan branch
-    into `main` (§ Branches, pull requests and merging).
+10. Stop for plan approval before implementation. Show the plan in plain language: what the
+    user's users will be able to do after this wave, what is left for later waves, and any
+    external setup the wave needs. Ask the four questions in `.claude/rules/communication.md`
+    § Approval Gates, and say plainly that approving freezes this wave's scope: adding,
+    dropping or changing a feature later means re-planning it under a new scope name (§ Changing
+    or cancelling approved scope), which costs a new planning review. Existing explicit approval
+    remains valid; ask again only for material scope, authority, behavior or accepted-risk
+    changes.
+11. After the user approves, write the wave's acceptance list to
+    `workspaces/<project>/04-validate/acceptance-wNN.md`: the approval record (`approved_by`
+    with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
+    § Workspace file layout), the scope name `wNN`, every current-wave todo id and each todo's
+    acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
+    contract. Never fill either before the user has approved, and never with an agent's name. Commit it with the todos; never edit it afterwards — the convergence receipt
+    requires it byte-identical at the verdict commit, so changed acceptance means a new scope.
+    Then merge the plan branch into `main` (task-delivery § Branches, pull requests and
+    merging).
+
+## Changing or cancelling approved scope
+
+When the user changes direction mid-wave ("drop that feature", "stop, we're doing X instead"):
+
+1. Restate the change in plain words with its impact, trade-off and your recommendation
+   (`.claude/rules/communication.md` § Asking the user to decide), including what happens to
+   work already built. Act only on the user's answer.
+2. Record it in a journal `DECISION` entry with `author: human` that quotes the user's words
+   and names every todo it affects.
+3. A dropped todo that is still wanted later moves (`git mv`) to `todos/parked/` with a first
+   line `Parked: <date> — <reason>`; one the user no longer wants is deleted. Either way the
+   journal entry names the file.
+4. The frozen `acceptance-wNN.md` is never edited. Re-plan the remaining work as a new scope
+   (`wNNb`, then `wNNc`): run steps 7–11 for it on a `docs/wNNb-plan` branch, with a new
+   acceptance list and approval record. Work already merged into the wave branch stays there
+   if it is still wanted; `/redteam` then certifies scope `wNNb`.
+5. Half-built todo branches: a kept todo continues on its branch; a dropped one is not merged.
+   Keep the branch until the user agrees to delete it (deleting work is a user decision), and
+   name it in the journal entry so it stays findable.
+6. Abandoning a whole wave: the wave branch is not merged into `main`. Record the decision as
+   above; the user decides whether its branches are kept or deleted.
+
+A change the user asks for before step 11 is not a scope change: update the plan and ask for
+approval again.
 
 ## Resuming
 

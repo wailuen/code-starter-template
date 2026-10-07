@@ -20,9 +20,29 @@ After a long stretch of work, write the final message for a reader who saw none 
 "Should we integrate the Stripe CardElement with real-time validation?"
 ```
 
+## Asking the user to decide
+
+Every question that needs the user's decision — plan approval, an escalation after the review-round limit, accepting a known remaining risk, a lesson waiting for approval, a deploy or rollback — uses the same five parts, in this order:
+
+1. **What it is** — one plain sentence.
+2. **If yes** — what happens.
+3. **If no** — what happens.
+4. **My recommendation** — the pick and why (`.claude/rules/recommendation-quality.md`).
+5. **How to answer** — one word, e.g. "yes" / "no" or "A" / "B".
+
+```
+Approve the plan for wave 3 (bulk customer import)?
+If yes: I start building it now, in three parts.
+If no: nothing is built; tell me what to change.
+I recommend yes — it covers everything in your brief and nothing extra.
+Answer "yes" or "no".
+```
+
+**Why:** A fixed shape lets the user decide in one read, and makes a missing "if no" or a missing recommendation easy to spot.
+
 ## Approval Gates
 
-At gates (end of `/todos`, before `/deploy`), ask all four — each catches a different failure.
+At plan approval (end of `/todos`), ask all four — each catches a different failure. Other decisions — a deploy, a rollback, an escalation — use the five-part shape in § Asking the user to decide; which actions need asking at all is set by `.harness/rules/autonomous-execution.md` § What needs the user.
 Skip a gate the user has already passed for the same scope; never re-ask an approval already
 given (`.harness/rules/autonomous-execution.md`):
 

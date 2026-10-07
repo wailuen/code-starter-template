@@ -30,7 +30,7 @@ reason) when the project genuinely has no such step.
 | Unit tests (Tier 1) | `<unset>` | Fast, isolated, mocking allowed. |
 | Integration tests (Tier 2) | `<unset>` | Real services (database, queue, cache) — see § Test infrastructure. |
 | End-to-end tests (Tier 3) | `<unset>` | Real app driven like a user (e.g. a browser runner). |
-| Local CI parity | `<unset>` | One command that runs everything CI runs except the production build. Must exit 0 before the first push of a branch. |
+| Local CI parity | `<unset>` | One command that runs everything CI runs except the production build. Must exit 0 before the first push of a branch. Before the project has any code, write `n/a — no code yet`; a documents-only branch then pushes without it and says so in the commit body. |
 | Production build | `<unset>` | Reserved for `/deploy`. |
 | Start the app locally | `<unset>` | Used by headed browser walk-throughs (`.harness/rules/e2e-god-mode.md`) and E2E. |
 | Database migrate (dev) | `<unset>` | Only when the project has a database. |
@@ -46,6 +46,19 @@ Only for a project that publishes versions; otherwise `n/a`. Used by
 | Version source (single file holding the version) | `<unset>` |
 | Changelog / release notes file | `<unset>` |
 | Publish command (package registry, app store upload) | `<unset>` |
+
+## Production
+
+Where the product runs. `/analyze` recommends values with the stack; `/deploy --onboard`
+confirms them with the user and writes the operational detail to `deploy/deployment-config.md`.
+`n/a` for a project that is never deployed (a library, for example).
+
+| Key | Value |
+| --- | --- |
+| Hosting platform and expected monthly cost | `<unset>` |
+| Domain (address users type) | `<unset>` |
+| Production database and its backups | `<unset>` |
+| Who is alerted when production is down, and how | `<unset>` |
 
 ## Test infrastructure
 

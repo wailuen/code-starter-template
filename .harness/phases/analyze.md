@@ -6,6 +6,17 @@
 3. If no workspace exists, create `workspaces/<name>/briefs/` using the project name from the request; ask only when no name can be derived, and capture the user's description as the first brief
 4. Read all files in `workspaces/<project>/briefs/` for user context (this is the user's input surface)
 
+## Existing project
+
+When the harness is adopted into a project that already has code and users, skip the
+product-market research in § 3 unless the user asks for it. Instead: describe what the system
+does today, from the code, in `specs/` (§ 6); fill the project profile from the existing build,
+test and CI scripts (§ 5); check that the repository allows merge commits
+(`.harness/guides/task-delivery.md` § Branches, pull requests and merging, step 5); merge the
+harness's `.gitignore` entries into the project's own; and write the user's intended change as
+the first brief. The output trees in § Output-Completeness Gate still apply — the analysis
+documents the current system and the change.
+
 ## Phase Check
 
 - Output goes into `workspaces/<project>/01-analysis/`, `workspaces/<project>/02-plans/`, and `workspaces/<project>/03-user-flows/`
@@ -69,16 +80,19 @@ Document analysis in `workspaces/<project>/01-analysis/`, plans in `workspaces/<
 If `.harness/guides/project-profile.md` still has `<unset>` values that this analysis can now
 determine — project name, primary language(s), application shape, source/test roots, the
 commands, test infrastructure — propose concrete values alongside the stack recommendation.
+The stack recommendation includes where the product will run (§ Production in the profile):
+a hosting option with its expected monthly cost, whether it needs a domain and a production
+database, and one cheaper or simpler alternative, in plain words the user can choose between.
 Once the user approves the stack, write them into the profile. Leave a row `<unset>` when it
 is genuinely still unknown, and `n/a` (with a reason) when the project has no such step;
 never guess a command. Later phases read commands only from the profile.
 
 ### 6. Create specs/ (MUST — before red team)
 
-Create `specs/` at the project root with detailed domain specification files. Specs are organized by the project's domain ontology (components, modules, features, user needs), NOT by process stages. See `.claude/rules/specs-authority.md`.
+Create `workspaces/<project>/specs/` with detailed domain specification files. Specs are organized by the project's domain ontology (components, modules, features, user needs), NOT by process stages. See `.claude/rules/specs-authority.md`.
 
 1. **Create `specs/_index.md`** — a lean manifest listing every spec file with domain and one-line description
-2. **Create domain spec files** — one per major domain area discovered during analysis. Each file must be detailed enough to be the authority on its topic: every flow, contract, constraint, edge case, and decision.
+2. **Create domain spec files** — one per major domain area discovered during analysis. Each file must be detailed enough to be the authority on its topic: every flow, contract, constraint, edge case, and decision. A spec for behavior not built yet carries the single header line `Status: approved design — not built yet (wave <wNN>)` and nothing else marking it as future (`.claude/rules/spec-accuracy.md` § Exceptions item 4); the wave that builds it removes the line and adds citations to the real code. For an existing project, describe what the system does today, citing the real code; never invent an API to fill a spec.
 3. **Brief traceability** — for each requirement sentence in `briefs/`, confirm a corresponding spec file section exists. Missing mappings are BLOCKING — they become the requirements that silently disappear.
 4. **Execution readiness** — name the trusted/untrusted boundary, real integration path, transaction/lock owners, dependency signatures, ordinary failure cases and isolated test environment. Resolve uncertain mechanisms with a bounded experiment before detailed implementation todos. Architectural suggestions remain revisable when evidence supports a simpler design.
 
@@ -123,7 +137,7 @@ Review against explicit acceptance, with task-delivery's complete-round recorder
 
 ### Journal (MUST — phase-complete gate)
 
-Before reporting `/analyze` complete, create journal entries for journal-worthy findings produced this phase:
+Before reporting `/analyze` complete, create journal entries for journal-worthy findings produced this phase. These are product entries: do not tag them `harness` (only an entry about the harness itself is a harness lesson — `.harness/phases/learn.md`):
 
 - **DISCOVERY** — key findings, patterns, or domain knowledge uncovered during research
 - **GAP** — missing information, unvalidated assumptions, or areas needing follow-up research
@@ -141,11 +155,7 @@ for tree in 01-analysis 02-plans 03-user-flows; do
   find "$W/$tree" -type f -name '*.md' ! -name '.gitkeep' 2>/dev/null | grep -q . \
     || echo "INCOMPLETE: $W/$tree has no non-.gitkeep .md output"
 done
-# specs/ belongs at the repository root (specs-authority.md Rule 1); a legacy
-# workspaces/<project>/specs/ also satisfies this check:
-{ find "$W/specs" -type f -name '*.md' ! -name '.gitkeep' 2>/dev/null
-  find specs -type f -name '*.md' ! -name '.gitkeep' 2>/dev/null; } | grep -q . \
-  || echo "INCOMPLETE: specs/ empty at BOTH $W/specs and repo-root specs/"
+[ -s "$W/specs/_index.md" ] || echo "INCOMPLETE: $W/specs/_index.md missing or empty"
 ```
 
 The `03-user-flows/` tree is compulsory. A change with genuinely no user-facing surface (a pure back-end refactor) does NOT skip it silently — write `03-user-flows/00-no-user-flows.md` stating WHY no flows apply. That documented-rationale file is a real `.md` and satisfies the gate; a silent-empty tree does not.

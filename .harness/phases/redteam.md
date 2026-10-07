@@ -2,13 +2,12 @@
 
 Resolve the named workspace/wave; otherwise choose the latest real workspace excluding
 `instructions` and leading-underscore directories. Read briefs, relevant specs, the
-current wave's delivery contracts and `03-user-flows/`. Resolve root/workspace spec
-authority explicitly. Results belong in `workspaces/<project>/04-validate/`, named as in
+current wave's delivery contracts and `03-user-flows/`. Results belong in `workspaces/<project>/04-validate/`, named as in
 `.harness/guides/task-delivery.md` § Workspace file layout. A wave review runs with the wave
 branch `feat/wNN-<slug>` checked out, scope `wNN`; its rounds are recorded on that branch.
 
 Read `.harness/guides/task-delivery.md` and `.harness/rules/completion-criterion.md`.
-An independently ratified acceptance list must predate review: for a wave it is
+A user-approved acceptance list must predate review: for a wave it is
 `workspaces/<project>/04-validate/acceptance-wNN.md`, committed by `/todos` before the work. New uncovered product
 requirements are surfaced as design/scope decisions immediately; do not silently add
 unbounded obligations to the current task or dismiss a credible security issue.
@@ -20,11 +19,14 @@ infrastructure ownership. Review depth scales with the change's risk; it never m
 missing evidence clean. Security/trust-bearing changes require
 independent correctness and security reviewers; add testing, UX/value or domain seats
 for their actual surface. Do not spawn irrelevant specialists by default. Plan the security
-seat for nearly every wave: the convergence checker treats any change under the common source
-roots (`src/`, `lib/`, `app/`, `apps/`, `web/`, `cmd/`, `internal/`, `pkg/`, `server/`,
-`api/`, `scripts/`), `.claude/`, `.harness/`, `.github/`, root dependency or build manifests,
-and auth/tenant/secret/token-named paths as security surface, and refuses a receipt whose
-`security_critical` is lower than that.
+seat for nearly every wave: the convergence checker treats every changed path as security
+surface except workspace bookkeeping (`04-validate/`, `journal/`, `todos/`, the root
+`.session-notes`), `.claude/learning/`, the root README, LICENSE, CHANGELOG, COPYING and NOTICE,
+and plain documentation (`*.md`, `*.txt`, `*.rst`, `*.adoc`, raster images) outside `.claude/`,
+`.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/`, and refuses a receipt whose `security_critical` is lower than that. The checker
+recognises the security seat only from the agent type in the launch ledger, which the
+orchestrator writes by hand, so it is honour-based: record the type actually dispatched, never a
+relabelled generic agent (`.harness/adapters/codex.md` § Known limitations).
 
 Each reviewer gets a separate checkout pinned to the same commit, the relevant spec
 and contract, and a report path. Never probe by editing the implementer's tree.
@@ -59,7 +61,10 @@ not supply clean evidence. A resumed original dispatch is not a new review round
 - Enumerate tests with the project's actual runner and verify new behavior has meaningful
   coverage. Show defect regressions can fail for the property in question. Classify
   environment contamination separately; a compromised test baseline cannot adjudicate code.
-- For UI changes, run the completed todos through `check-browser-walk-receipts.mjs` and
+- Run the wave boundary walk (`.harness/guides/task-delivery.md` § Wave boundary) over
+  everything the wave landed together and save it at `04-validate/<scope>-boundary-walk.md`.
+  For UI changes, run the completed todos through `check-browser-walk-receipts.mjs` (exit 3
+  means it found no todo to check — that is not a pass) and
   independently walk the affected user journeys in a headed browser. Record verbatim
   steps, observations and disposition, including persistence after reload. Follow
   `.harness/rules/e2e-god-mode.md` — headed, real-user navigation only (click links/
@@ -78,12 +83,15 @@ finding BUG / INVEST-NOW / INCREMENTAL under `.harness/rules/product-completion-
 Severity ranks findings; it does not justify hiding bugs. Out-of-contract discoveries
 remain visible and are adjudicated against product requirements and the threat model.
 
-Save each report verbatim at `workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` and
+Save each report verbatim, with secret values redacted (task-delivery § Review protocol and
+circuit breaker), at `workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` and
 write `workspaces/<project>/04-validate/round-<scope>-<n>.json` in the format in
 task-delivery § Review protocol and circuit breaker, with one verdict and a
 repository-root-relative evidence path per expected reviewer. Run:
 
 `node .harness/bin/record-review-round.mjs <round.json>`
+
+then commit the round file and its reports; the receipt is checked against them.
 
 Only complete rounds count. One lens's CLEAR cannot clear another lens's failure.
 Duplicate delivery cannot add a round. ERROR is never clean. The branch gets three rounds,
@@ -91,7 +99,8 @@ then one debug round with never-used reviewer lenses, then a named human. Exit 2
 or `DEBUG_ROUND`) requires `/debug` reassessment before another repair cycle — `REPLAN`
 fires when a root cause recorded in any earlier non-clear round on this branch comes back
 (clean rounds in between don't reset it), or after four non-clear rounds since the last
-decision record. Exit 3 (`ESCALATE_TO_HUMAN`) means stop and ask the user. This applies to
+decision record. Exit 3 (`ESCALATE_TO_HUMAN`) means stop and ask the user, in the format in
+`.claude/rules/communication.md` § Asking the user to decide. This applies to
 security work too; unresolved defects remain blocking. Cite the decision record in the next
 round's `replan` field. Full rules: task-delivery § Review protocol and circuit breaker.
 
@@ -103,23 +112,45 @@ tests, applicable UI/boundary receipts, and green gating semantic evals where ap
 Incremental findings follow existing tracked residual/acceptance requirements. A
 circuit breaker or reassessment is not convergence and never authorizes shipping bugs.
 
-Write and commit the final receipt using
+Write the final receipt using
 `node .harness/bin/check-redteam-convergence-receipt.mjs --template <scope>`.
 Preserve its wave-base, ratified-acceptance, per-round launch identity, evidence,
-covered-todo, current-commit and named residual-acceptor requirements. Commit the
-DECISION journal receipt and run
+covered-todo, current-commit and named residual-acceptor requirements. Each reviewer's
+`evidence` is the repository-root path of its committed report; each round the receipt lists
+has its committed `round-<scope>-<n>.json` with the same head, lenses, evidence and verdicts;
+and the receipt lists every recorded round of the scope up to the highest. Its
+`acceptance_list.ratified_by` and any `residuals[].accepted_by` are the user's name. Write the DECISION journal entry for the convergence, then commit the
+receipt and that journal entry together in ONE commit (the checker refuses a journal entry
+committed after the receipt), and run
 `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <scope>`.
-Only exit 0 permits a convergence claim. Committed certificates remain immutable;
-subsequent changes use a new certificate scope. The round recorder does not replace
-this final verifier. Then merge the wave branch into `main` by pull request, reading CI on
-the pinned head SHA before a separate merge command, with a merge commit (task-delivery
-§ Branches, pull requests and merging). At a wave boundary, right after the merge, run
+Only exit 0 permits a convergence claim. The round recorder does not replace this final
+verifier.
+
+A passing receipt is immutable; later changes use a new certificate scope. A receipt the
+checker refuses is not a certificate and would block every todo it lists: remove it with
+`git rm` in its own commit whose message quotes the refusal, then write the corrected receipt
+under a new scope name (`wNNb`), copying the launch ledger, and run the check again.
+
+Before merging, show the user the wave (task-delivery § Wave boundary): a plain summary of
+what their users can now do, how to try it themselves, and anything left for later. Commit it
+with the receipt at `04-validate/<scope>-preview.md`, ending with the line
+`User answer: pending`; when the user answers, replace that line with their words and the
+date on a `docs/<scope>-preview` branch merged into `main`. Ask
+whether it matches what they wanted (`.claude/rules/communication.md` § Asking the user to
+decide). If the user is not there, merge the certified wave anyway (merging is reversible and
+internal), leave the preview as the first open question for `/ws` and `/wrapup`, and do not
+deploy the wave until the user has answered. Then merge the wave branch into `main` by pull request, reading CI on the pinned head
+SHA before a separate merge command, with a merge commit (task-delivery § Branches, pull
+requests and merging; no user confirmation needed once the check above exited 0 —
+`.harness/rules/autonomous-execution.md` § What needs the user). Right after the merge, run
 `/codify` — on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md` §
-When it runs) — then spec/todo reconciliation and value re-ranking before the next wave.
+When it runs) — then spec/todo reconciliation (for each spec this wave built, remove its
+`Status: approved design` line and cite the real code, `.claude/rules/spec-accuracy.md`
+§ Exceptions item 4) and value re-ranking before the next wave.
 
 ## Conditional checks
 
 The harness carries no fork/upstream relationship (see `.harness/README.md` § Not
 included), so there is no inherited-artifact skip class to apply. For parity migrations run the original
 and replacement on the same cases. For plans spanning multiple waves, retain the
-holistic integration review in `.harness/rules/agents.md` before plan closure.
+holistic integration review in `.harness/rules/agent-delegation.md` before plan closure.

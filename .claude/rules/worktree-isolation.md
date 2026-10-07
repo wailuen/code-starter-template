@@ -4,10 +4,8 @@ scope: path-scoped
 paths:
   - ".claude/agents/**"
   - ".claude/commands/**"
-  - ".claude/skills/**"
   - ".harness/phases/**"
   - "**/*worktree*"
-  - "**/workspaces/**"
 ---
 
 # Worktree Isolation Rules
@@ -38,9 +36,9 @@ Two forms do not work as the assertion: `git -C <worktree> …` (never establish
 # DO — pre-made SIBLING, no isolation flag, STEP-0 assertion MANDATED in the prompt
 wt = "/Users/me/repos/.myrepo-wt/shard-abc"      # sibling of the repo, NEVER under it
 Agent(prompt=f"""Working directory: {wt}
-STEP 0 (FIRST action) — run the assertion fence above VERBATIM; compare RESOLVED paths,
-and on mismatch REFUSE to proceed; do NOT fall back to the main checkout.
-Every path you write MUST resolve inside {wt}; an absolute path rooted elsewhere is BLOCKED.
+First, run the check above exactly as written and compare the resolved paths; if they
+do not match, stop and report — do not fall back to the main checkout.
+Write only inside {wt}; never write to an absolute path rooted anywhere else.
 """)
 
 # DO NOT — the retired flag (lands at <repo>/.claude/worktrees/agent-<id>); a sibling path
@@ -205,11 +203,11 @@ Agent(isolation="worktree", prompt="Implement the invite-email flow")
 
 ### 7. Session/Operator Worktrees Live In A Sibling Outside The Repo — Never Nested Under `.claude/worktrees/`
 
-Rules 1–6 govern the transient **agent-wave** worktree (since Rule 1, an orchestrator-made sibling too). A durable **session/operator** worktree — one a human or session roots into across a task — is a different artifact. Create it outside the repo working tree, as a sibling in the main repo's parent dir (`<main-repo-parent>/.<repo-slug>-wt/<name>`), never under the repo's own `.claude/worktrees/` or anywhere below the repo root. The canonical mechanism is **`/worktree`**; a hand-rolled `git worktree add` follows the same placement. Root the session by launching the CLI with the sibling as cwd (robust), or — Claude Code only — `EnterWorktree({path: <sibling>})` on first entry. Do not use `EnterWorktree({name})` for durable session work (it creates under `.claude/worktrees/` — the nesting trap). Every task: branch off `origin/<default>`, PR to main, admin-merge, return.
+Rules 1–6 govern the transient **agent-wave** worktree (since Rule 1, an orchestrator-made sibling too). A durable **session/operator** worktree — one a human or session roots into across a task — is a different artifact. Create it outside the repo working tree, as a sibling in the main repo's parent dir (`<main-repo-parent>/.<repo-slug>-wt/<name>`), never under the repo's own `.claude/worktrees/` or anywhere below the repo root. The canonical mechanism is **`/worktree`**; a hand-rolled `git worktree add` follows the same placement. Root the session by launching the CLI with the sibling as cwd (robust), or — Claude Code only — `EnterWorktree({path: <sibling>})` on first entry. Do not use `EnterWorktree({name})` for durable session work (it creates under `.claude/worktrees/` — the nesting trap). Every task: branch off `origin/<default>`, PR to main, merge once its gate passes (who confirms which merge: `.harness/rules/autonomous-execution.md` § What needs the user), return.
 
 **Placement matters for any worktree a session roots into, and the reason is context cost, not tidiness.** A nested root duplicates the matching path-scoped rule set (a session rooted at a nested worktree loads the same path-scoped rule twice — once from its own `.claude/rules/`, once inherited from the ancestor repo — while a sibling-rooted session loads each exactly once). `CLAUDE.md` and unconditional rules do not ancestor-load this way; only path-scoped ones do.
 
-**Scope bound — the double-load reason does not extend to a dispatched subagent.** A dispatched subagent inherits the dispatching session's corpus wholesale and receives no path-scoped injection of its own, so a wave does not itself double-load. For hand-rolled agent-wave worktrees nobody roots a session at, grounds (b) and (c) below govern, not duplication.
+**Dispatched subagents get path-scoped rules too.** A path-scoped rule also loads into a dispatched subagent when it reads a matching file, so a subagent working in a nested worktree can receive the same rule twice, just as a session can. For hand-rolled agent-wave worktrees, grounds (b) and (c) below also apply.
 
 ```bash
 # DO — sibling worktree in the MAIN repo's parent, derived location-independently from the SHARED
@@ -218,7 +216,7 @@ main_top=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")  
 wt_root="$(dirname "$main_top")/.$(basename "$main_top")-wt"                   # e.g. ../.myrepo-wt
 git worktree add -b feat/x "$wt_root/x" origin/main     # sibling, OUTSIDE the repo
 cd "$wt_root/x" && claude   # launch rooted (or first-entry EnterWorktree({path:...}))
-# ...work... → gh pr merge <N> --admin --merge --delete-branch → return, re-cut off origin/main
+# ...work... → gh pr merge <N> --merge --delete-branch → return, re-cut off origin/main
 
 # DO NOT — nest a session-rooted worktree inside the repo
 git worktree add .claude/worktrees/x    ;  EnterWorktree({name: "x"})   # both land under .claude/worktrees/
