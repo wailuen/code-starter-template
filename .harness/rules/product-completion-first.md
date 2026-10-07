@@ -4,18 +4,16 @@ scope: path-scoped
 cli_delivery: skill-channel
 paths:
   - ".claude/commands/**"
-  - ".claude/rules/**"
   - ".harness/phases/**"
-  - ".harness/rules/**"
-  - ".harness/guides/task-delivery.md"
   - "**/todos/**"
 ---
 
 # Product-Completion-First — Triage Gate Findings By Category, Not Severity
 
 `.harness/guides/task-delivery.md` and `.harness/rules/completion-criterion.md` govern
-scope decisions and retry limits. A BUG stays blocking; a newly proposed INVEST-NOW
-obligation is adjudicated before it expands the task. "Fix now" in this rule always
+scope decisions and retry limits. A BUG stays blocking. An INVEST-NOW finding is fixed now
+when it fits the current todo's accepted scope and budget; one that would expand the task is
+recorded and adjudicated by the owner before it is built (MUST-2). "Fix now" in this rule always
 operates inside the completion-criterion MUST-4 circuit breaker: a repeated root cause
 triggers reassessment, including for security work, rather than another repair round.
 
@@ -41,7 +39,7 @@ budget", never "we don't have time" (`.claude/rules/time-pressure-discipline.md`
 | Category                    | Definition                                                                                                                                                                                                                                                        | Disposition                                                                                                                                                      |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **BUG**                     | Prevents successful testing/closure of an in-scope item — a failing test/build/type check, a shipped path that is wrong/insecure/lossy, a contract/API break, a gate-integrity or self-ref-enforcement defect, an unmet success-criterion on a _shipped_ feature. | **Fix now — regardless of severity.** At wave convergence, converges to 2 clean rounds.                                                                                               |
-| **INVEST-NOW ISSUE**        | Does not itself block testing/closure of the current item, BUT has material impact on later stages such that fixing now is the correct investment (deferring compounds cost — foundational / architectural / shared-substrate that later work builds on).         | **Fix now**, and it is the **judgment bucket** → classify with an impact rationale and surface at the gate (`/sweep`) for the owner's direction. Never silently deferred. |
+| **INVEST-NOW ISSUE**        | Does not itself block testing/closure of the current item, BUT has material impact on later stages such that fixing now is the correct investment (deferring compounds cost — foundational / architectural / shared-substrate that later work builds on).         | **Fix now if it fits the current todo's accepted scope and budget**, and report it at the gate. If it would expand the task, record it and surface it for the owner's decision before building. It is the **judgment bucket**: classify with an impact rationale, never silently deferred. |
 | **INCREMENTAL IMPROVEMENT** | "Could do" quality — polish, prose/naming, defense-in-depth _beyond an already-working guard_, tail-quality _off_ shipped paths, redundant coverage, refactor-for-elegance. No forward impact; does not block testing/closure.                                    | **Defer** to the deferred-quality tracking list with a value-anchor. Does not reset the redteam clean-round counter.                                             |
 
 ## MUST Rules
@@ -71,39 +69,56 @@ Finding: LOW-severity null-deref on a shipped auth path.
 complete product. Gating on it defers real bugs and grinds harmless polish through full
 convergence rounds.
 
-### 2. BUG And INVEST-NOW Are Immediate; INCREMENTAL Defers Only With Four Conditions
+### 2. BUG And INVEST-NOW Are Immediate; INCREMENTAL Defers Only With The Deferral Fields
 
-Fix BUG and INVEST-NOW findings in-cycle to convergence. Surface INVEST-NOW judgment calls
-at the gate with impact, implications and symmetric pros/cons
-(`.claude/rules/recommendation-quality.md` MUST-1/2/3) for the owner's direction rather
-than deciding them silently.
+Fix BUG findings in-cycle to convergence. Fix an INVEST-NOW finding in-cycle when it fits
+the current todo's accepted scope and budget, and report it at the gate. When it would
+expand the task, record it (as a todo, with its impact rationale) and surface it at the gate
+with impact, implications and symmetric pros/cons (`.claude/rules/recommendation-quality.md`
+MUST-1/2/3) for the owner's decision before building it — never decide it silently, and never
+defer it silently.
 
-An INCREMENTAL finding may go to the deferred-quality tracking list (GitHub issues labelled
-`deferred-quality`) only with all four of:
+This is the one deferral rule; other files point here. An INCREMENTAL finding may go to
+the deferred-quality tracking list (GitHub issues labelled `deferred-quality`) only with
+all five deferral fields:
 (i) a blocking-safety note (which shipped/success path it does not touch), (ii) a
 value-anchor citing a user-anchored source (`.claude/rules/value-prioritization.md`
 MUST-1 and MUST-2), (iii) full-fix acceptance criteria, (iv) a revisit trigger
-(`after-milestone:<name>` | `on-demand`). These generalize
+(`after-milestone:<name>` | `on-demand`), and (v) a calendar backstop date
+(`YYYY-MM-DD`) by which it is revisited even if the trigger never fires — so `on-demand`
+still carries a date. The agent files these itself without stopping to ask; until the user
+accepts the item it is a pending decision, surfaced at `/sweep` (MUST-4). These generalize
 `.claude/rules/zero-tolerance.md` Rule 1b. Commit to one disposition: "implement X or
 document it as a known limitation" is not a disposition
 (`.claude/rules/value-prioritization.md` MUST-4).
 
+**Shipping a deferred item as a residual.** A convergence receipt may list a deferred item
+under `residuals` only after the user has accepted it. Each residual then carries
+`category: INCREMENTAL`, the five fields above (`blocking_safety_note`, `value_anchor`,
+`full_fix_criteria`, `revisit_trigger`, `backstop`), and `accepted_by` set to the name of
+the person who accepted it — never an agent name, and never filled in before they say yes.
+`check-redteam-convergence-receipt.mjs` (`checkResiduals`) refuses a residual missing any of
+these, a non-INCREMENTAL category, a backstop that is not a calendar date, or an
+`accepted_by` that fails the shared identity check for person-only fields — the same check
+used for `ratified_by`, `approved_by` and the recorder's `escalation_accepts` and
+`replan_accepts[].acceptor` (`.harness/rules/completion-criterion.md` MUST-1). A BUG or INVEST-NOW finding can never ship as a residual.
+
 ```markdown
-# DO — incremental defers with the four conditions; bug/invest-now fixed now
+# DO — incremental defers with the five fields; bug/invest-now fixed now
 
 INCREMENTAL: extra defense-in-depth on an already-guarded path.
 Defer → deferred-quality list: (i) does not touch the shipped validation path;
 (ii) value-anchor: "polish per brief §UX-quality"; (iii) acceptance: add the second
-guard + test; (iv) revisit: after-milestone:walking-skeleton.
+guard + test; (iv) revisit: after-milestone:walking-skeleton; (v) backstop: 2026-12-01.
 
 # DO NOT — silent defer, OR bug relabelled incremental, OR the OR-escape
 
 "Deferring the failing-test fix as incremental." (a failing test is a BUG)
-"Defer the polish (tracked separately)." (no value-anchor, no revisit trigger)
+"Defer the polish (tracked separately)." (no value-anchor, no revisit trigger, no backstop)
 "Implement the fix OR add a smoke-test asserting current behavior." (OR-escape)
 ```
 
-**Why:** A deferral without the four conditions is deferral-as-forgetting: the item
+**Why:** A deferral without the five fields is deferral-as-forgetting: the item
 leaves the queue and its rationale is lost at the next `/clear`. The conditions make it a
 tracked hold on the same work. Relabelling a BUG or INVEST-NOW item "incremental" ships
 the defect the category gate exists to catch.
@@ -168,7 +183,7 @@ catches it. Without the revisit, the deferred list is a place items go to rot
   polish.
 - Defer a BUG or INVEST-NOW finding as "incremental". **Why:** it ships the defect under a
   converged banner.
-- Defer an INCREMENTAL finding without the four conditions. **Why:** that is silent
+- Defer an INCREMENTAL finding without the five deferral fields. **Why:** that is silent
   deferral, not a tracked hold.
 - Ship the deferred-quality list without the `/sweep` revisit. **Why:** a list that makes
   deferral easier with no revisit is net-negative; the two ship together.

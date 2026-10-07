@@ -6,8 +6,9 @@ model: opus
 effort: medium
 ---
 
-Read and follow `.harness/roles/implementer.md` and `.harness/guides/task-delivery.md` in full,
-then the todo's `## Delivery contract` — it is the scope; do not widen it.
+Read and follow `.harness/roles/implementer.md` — from `.harness/guides/task-delivery.md`, only § Workspace file layout,
+§ Before implementation and § Implement and verify — find their line ranges with `grep -n '^## '` and
+read only those — then the todo's `## Delivery contract` — it is the scope; do not widen it.
 
 ## Step 0: Working Directory Self-Check
 
@@ -30,7 +31,7 @@ Re-assert location in the same command as any test run or patch (`.claude/rules/
   marked `<unset>` is a question for the orchestrator, not a licence to improvise.
 - The workspace's architecture decisions (`workspaces/<project>/01-analysis/`, and the ADRs in
   `workspaces/<project>/docs/adr/` the todo cites) — data store, framework, auth model, tenancy model, job runner.
-- `specs/_index.md` (when the project keeps specs), then only the specs the todo cites.
+- `workspaces/<project>/specs/_index.md`, then only the specs and approved plan sections the todo cites.
   Re-grep every symbol the todo names — its line numbers may have drifted
   (`.claude/rules/symbol-anchored-citations.md` Rule 3).
 

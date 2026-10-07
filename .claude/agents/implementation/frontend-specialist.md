@@ -6,8 +6,10 @@ model: opus
 effort: medium
 ---
 
-Read and follow `.harness/roles/implementer.md` and `.harness/guides/task-delivery.md` in full,
-then the todo's `## Delivery contract` — it is the scope; do not widen it.
+Read and follow `.harness/roles/implementer.md` — from `.harness/guides/task-delivery.md`, only § Workspace file layout,
+§ Before implementation, § Implement and verify and § Screen red-team before the owner sees it —
+find their line ranges with `grep -n '^## '` and
+read only those — then the todo's `## Delivery contract` — it is the scope; do not widen it.
 
 ## Step 0: Working Directory Self-Check
 

@@ -23,19 +23,19 @@ agent explicitly via the Agent tool, using the `subagent_type` below:
 | independent / correctness reviewer                    | `reviewer`                   | `.claude/agents/quality/reviewer.md` |
 | security reviewer / security-bearing review           | `security-reviewer`          | `.claude/agents/quality/security-reviewer.md` |
 | analyst / failure-point analysis / requirements breakdown | `analyst`                 | `.claude/agents/analysis/analyst.md` |
-| implementer — test-first, new behavior                | `tdd-implementer`            | `.claude/agents/implementation/tdd-implementer.md` |
+| implementer — new behavior that is neither server-side nor UI (CLI, library, script, data job) | `tdd-implementer` | `.claude/agents/implementation/tdd-implementer.md` |
 | implementer — fixing a build/type error only, no new behavior | `build-fix`           | `.claude/agents/implementation/build-fix.md` |
 | implementer — server side: APIs, data access, migrations, auth, background jobs | `backend-specialist` | `.claude/agents/implementation/backend-specialist.md` |
 | implementer — user interface: screens, components, client state, E2E walk-throughs | `frontend-specialist` | `.claude/agents/implementation/frontend-specialist.md` |
-| todo status/hygiene ("what's left in wave N", mark done) | `todo-manager`            | `.claude/agents/management/todo-manager.md` |
+| todo status ("what's left in wave N", parked proposals) — read-only | `todo-manager` | `.claude/agents/management/todo-manager.md` |
 | GitHub issue/PR filing, CI status, issue hygiene       | `gh-manager`                 | `.claude/agents/management/gh-manager.md` |
 | documentation / cross-reference / terminology validator | `gold-standards-validator` | `.claude/agents/quality/gold-standards-validator.md` |
 | test architecture, E2E generation, infra compliance    | `testing-specialist`         | `.claude/agents/testing/testing-specialist.md` |
-| UI/UX, information architecture, AI-interaction UX     | `uiux-designer`              | `.claude/agents/design/uiux-designer.md` |
+| UI/UX design only (no code): information architecture, AI-interaction UX | `uiux-designer` | `.claude/agents/design/uiux-designer.md` |
 
 For a small task inside one of these lenses, doing it directly is usually faster than
 delegating — dispatch a subagent for genuinely independent, sizeable work, not every review
-comment (`.harness/rules/agents.md` § Ownership and delegation).
+comment (`.harness/rules/agent-delegation.md` § Ownership and delegation).
 
 Use the stack specialists (backend, frontend) for implementation todos in their area and
 `tdd-implementer` for work that fits neither. A project with a distinct specialty (a mobile

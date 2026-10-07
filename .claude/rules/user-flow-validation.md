@@ -12,11 +12,14 @@ paths:
   - "pkg/**"
   - "tests/**"
   - "scripts/**"
-  - "**/workspaces/**"
-  - ".claude/{rules,commands,skills,agents}/**"
   - ".claude/hooks/**"
   - ".claude/bin/**"
-  - ".harness/**"
+  - ".harness/bin/**"
+  - ".harness/lib/**"
+  - ".harness/phases/implement.md"
+  - ".harness/phases/redteam.md"
+  - ".harness/phases/fix.md"
+  - ".harness/phases/codify.md"
   - ".github/workflows/**"
 ---
 
@@ -112,8 +115,7 @@ When a gate verifies a deliverable by driving it — a release first-act gate, a
 ## Enforcement
 
 No hook checks this automatically — no Stop hook checks a "done" claim for a receipt, and `.harness/bin/check-browser-walk-receipts.mjs`
-(real, and run from `.harness/phases/implement.md` and `.harness/phases/redteam.md`) only checks that a todo's `## Verification` section has
-*some* browser-walk declaration, not that the walk actually happened. Catching a violation of
+(run from `.harness/phases/implement.md` and `.harness/phases/redteam.md`) checks only the declaration: one exact `## Verification` heading (two is `contradictory`), lines inside code fences or indented as code (four spaces or a tab) ignored, every `### Browser walk receipt` judged (any `blocked` or `confused` disposition is `walk-blocked`), a not-applicable reason of at least two words and eight letters ("backend", "no UI" and "CLI only" fail; "backend only" passes), and exit 3 (`UNRUN`) on an empty folder. It does not check that the walk actually happened. Catching a violation of
 this rule depends on the agent applying it and on review. A project that adds a hook for it
 should name it here.
 

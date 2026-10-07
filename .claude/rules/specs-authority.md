@@ -4,7 +4,6 @@ scope: path-scoped
 paths:
   - "**/specs/**"
   - "**/specs/_index.md"
-  - "**/workspaces/**"
   - "**/briefs/**"
   - "**/02-plans/**"
   - "**/todos/**"
@@ -14,7 +13,7 @@ paths:
 
 The `specs/` directory is the single source of domain truth for a project: detailed spec files organized by the project's own ontology — components, modules, user needs, domains. Phase commands read targeted spec files before acting and update them when domain truth changes.
 
-`specs/` is not a process artifact (that's `workspaces/`). It is the detailed record of WHAT the system is and does, not HOW we are building it. Plans, todos, and journals keep their existing roles.
+`specs/` lives at `workspaces/<project>/specs/`, but it is not a process artifact like the rest of the workspace. It is the detailed record of WHAT the system is and does, not HOW we are building it. Plans, todos, and journals keep their existing roles.
 
 Origin: an analysis of six ways intent and implementation drifted apart across the phase workflow.
 
@@ -22,7 +21,7 @@ Origin: an analysis of six ways intent and implementation drifted apart across t
 
 ### 1. Every Project Has A `specs/` Directory With `_index.md`
 
-`/analyze` creates `specs/` at the project root with an `_index.md` manifest listing every spec file and a one-line description. Phases read `_index.md` to find relevant files, then read only those.
+`/analyze` creates `workspaces/<project>/specs/` with an `_index.md` manifest listing every spec file and a one-line description. Phases read `_index.md` to find relevant files, then read only those. Paths written `specs/...` in this rule are relative to `workspaces/<project>/`.
 
 ```markdown
 # DO — lean lookup table
@@ -105,8 +104,8 @@ Every spec edit triggers a re-derivation sweep against the full sibling-spec set
 
 ```bash
 # DO — edit one spec, grep ALL siblings for references, re-derive assertions
-ls specs/ml-*.md                          # enumerate full sibling set
-grep -l "TrainingResult" specs/ml-*.md    # find downstream consumers
+ls workspaces/<project>/specs/ml-*.md                          # enumerate full sibling set
+grep -l "TrainingResult" workspaces/<project>/specs/ml-*.md    # find downstream consumers
 # Re-derive for EACH matching sibling, not just the edited file
 
 # DO NOT — narrow scope
@@ -136,7 +135,7 @@ Spec §5.9 says: "the schema exports 41 fields (40 + a later addition)"
 
 ### 6. Deviations From Spec Require Explicit Acknowledgment
 
-When implementation deviates from a spec: (a) update the spec with the new truth, (b) log the deviation with its rationale, (c) flag user-visible changes for the user's approval.
+When implementation deviates from a spec: (a) update the spec with the new truth, (b) log the deviation with its rationale, (c) flag user-visible changes for the user's approval (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ```markdown
 # DO
@@ -194,7 +193,7 @@ without the other creates silent drift)
 
 **Why:** Workspace specs describe semantics while canonical artifacts encode implementation; restating implementation in specs creates parallel sources of truth that drift silently. Referencing keeps the canonical artifact the single source of truth and keeps specs focused on what they uniquely contribute — semantics, invariants, and rationale.
 
-**Exception:** Educational DO / DO NOT examples in `.claude/rules/` are not covered — those teach by restating. This rule applies only to workspace specs (under `workspaces/<project>/specs/`), not canonical rule files.
+**Exception:** Educational DO / DO NOT examples in `.claude/rules/` are not covered — those teach by restating. This rule applies only to project specs (under `workspaces/<project>/specs/`), not canonical rule files.
 
 ## MUST NOT
 

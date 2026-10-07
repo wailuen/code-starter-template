@@ -27,7 +27,7 @@ finding as "incremental" is BLOCKED.
 
 ## Workflow
 
-Run all 8 sweeps below. Aggregate findings into the management decision report (§ Output) —
+Run all 10 sweeps below. Aggregate findings into the management decision report (§ Output) —
 each finding carries category, severity (rank only), disposition, and a pointer (file:line, PR#,
 issue#).
 
@@ -82,7 +82,7 @@ what an abandoned branch looks like once main catches up
 
 ### Sweep 4: Redteam gaps against specs
 
-If `specs/_index.md` (or `workspaces/*/specs/`) doesn't exist yet, record "N/A — no specs
+If no `workspaces/*/specs/_index.md` lists a spec file yet, record "N/A — no specs
 authored yet" and move on. Otherwise: for each spec file, extract its literal acceptance
 assertions (function signatures, API shapes, endpoints, security tests) and verify each against
 the actual source with `grep`, the project's type/static check (project profile § Commands), or a quick syntax-tree check — the same protocol the analyst agent uses
@@ -146,10 +146,32 @@ Group by revisit trigger (`after-milestone:<name>` | `on-demand`). Surface a "st
 for anything deferred two or more sweeps ago. Recommend a disposition per item — implement,
 re-defer with a fresh value-anchor, or close with the user's sign-off — never auto-close.
 
+### Sweep 9: Dependency and security updates
+
+Run periodically — at least once a month on a project with users — even when nothing else is
+outstanding. Run the project profile's "Dependency outdated check" and "Dependency security
+audit" commands (`.harness/guides/project-profile.md` § Commands; a row still `<unset>` is
+itself a finding), and check the platform's base-image or runtime notices. Note in the report
+that the update check ran, with the date: `/ws` reads it to say when the next one is due.
+
+Surface: dependencies with a known security advisory (a BUG when the vulnerable code path is
+reachable, otherwise INVEST-NOW), runtimes or base images past end of support, certificates or
+domains close to expiry, and major-version upgrades waiting. Updating a dependency is a normal
+`/fix` (for an advisory) or a todo proposal (for an upgrade that changes behavior); removing or
+downgrading one needs the user (`.harness/rules/autonomous-execution.md` § What needs the user).
+
+### Sweep 10: Harness lessons and backlog
+
+Classify lessons exactly as `.harness/phases/learn.md` step 1 does. Surface open lessons (the
+next `/codify` folds them in), waiting ones as questions for the user, deferred ones whose
+revisit condition is now met; list in-progress lessons (in an open codify pull request) with
+that pull request, not as open.
+
 ## Output
 
 Write the report to `workspaces/<project>/04-validate/sweep-<date>.md` (if a workspace is
-active) or `SWEEP-<date>.md` at repo root. `/sweep` is a management decision report, not a
+active) or `SWEEP-<date>.md` at repo root, and commit it on a `docs/sweep-<date>` branch merged
+by pull request (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). `/sweep` is a management decision report, not a
 status dump. It carries, in order:
 
 1. **Completion status** — which milestones are complete and visible, each citing a durable receipt.
@@ -158,7 +180,9 @@ status dump. It carries, in order:
 4. **Decision points** — INVEST-NOW-vs-defer judgment calls, each with implications and honest
    pros/cons and a recommended disposition (`.claude/rules/recommendation-quality.md` MUST-1/2/3)
    — never a bare menu, never silently self-decided.
-5. **Recommendation** — recommended next steps for the user to approve.
+5. **Recommendation** — recommended next steps for the user to approve, with an estimate of
+   how many autonomous work cycles the open queue needs
+   (`.harness/rules/product-completion-first.md` MUST-4).
 
 Each finding row: `[CATEGORY][SEVERITY][Sweep N] <title>` + location + disposition + evidence.
 Before committing, scrub any local absolute path (`/Users/<you>/...`) from the report.
@@ -167,13 +191,15 @@ Before committing, scrub any local absolute path (`/Users/<you>/...`) from the r
 
 Before reporting `/sweep` complete:
 
-1. All 8 sweeps ran and their findings are accumulated (an empty result from a sweep whose
+1. All 10 sweeps ran and their findings are accumulated (an empty result from a sweep whose
    precondition doesn't hold yet — no workspace, no specs, no tags — is a clean N/A, not skipped).
 2. Trivial fixes applied inline are reclassified `FIXED` with the commit SHA in the row's
    Disposition column (not only in `git log`) — the SHA is what lets a later `/redteam` verify
    closure.
-3. Non-trivial fixes are filed as workspace todos or GitHub issues, referencing delivered code
-   where it exists.
+3. Non-trivial findings are filed where `.harness/rules/autonomous-execution.md` § Problems
+   found along the way says for their kind — a `/fix` record, a todo proposal in
+   `todos/parked/`, a harness backlog item, or a `deferred-quality` issue — never straight into
+   `todos/active/`.
 4. Report committed.
 5. Optional: get the user's sign-off on the recommended next-session scope.
 

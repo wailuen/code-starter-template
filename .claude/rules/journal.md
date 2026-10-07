@@ -11,9 +11,11 @@ paths:
 
 ## Naming & Format
 
-Sequential naming: `NNNN-TYPE-topic.md`. Check the highest existing number in the journal
-directory before creating a new entry — always use highest + 1, gaps are fine, never reuse a
-number.
+Sequential naming: `NNNN-TYPE-topic.md`. Before creating an entry, find the highest existing
+number in the journal directory on the current branch, on `main`, and on every unmerged local
+branch (`git ls-tree --name-only <branch> -- <journal-dir>/` for each); use the highest + 1.
+Gaps are fine; never reuse a number. Checking only the current branch lets two branches mint
+the same number and collide on merge.
 
 ```yaml
 ---
@@ -23,17 +25,30 @@ author: human | agent | co-authored
 project: [project name]
 topic: [brief description]
 phase: analyze | todos | implement | redteam | debug | fix | codify | learn | design | validate | sweep | wrapup | deploy
-tags: [list]
+tags: [list — include `harness` only for a harness lesson, see below]
 relates_to: NNNN-slug of the entry this amends/extends/references (optional; required for AMENDMENT)
 ---
 ```
+
+**The `harness` tag.** A journal entry of any type whose `tags:` include `harness` is a
+harness lesson: `/learn` lists it and `/codify` folds it into the harness
+(`.harness/phases/learn.md`). Tag `harness` only when the entry is about the harness itself
+— a rule, phase, role, guide, agent or tool. Product findings (DISCOVERY, GAP, TRADE-OFF
+about the product, its users or its domain) never carry it. `/codify`'s own summary entries
+are type `DECISION` without the `harness` tag, so a codify run never creates a new lesson.
 
 This is the canonical contract the `/journal` command (`.claude/commands/journal.md`) emits —
 the two must agree, so change both together. The harness has no cryptographic operator identity and no per-session
 provenance ledger to verify `author:` against — set it honestly by judgment.
 
-**Author decision tree**: `human` — user stated the conclusion before the AI did. `agent` — AI
-surfaced it unprompted. `co-authored` — it evolved through exchange (default when uncertain).
+**Author decision tree**: `human` — user stated the conclusion before the AI did.
+`co-authored` — a message from the user in this session shaped the conclusion (cite or quote
+it in the entry). `agent` — everything else, including entries the AI wrote with no user
+input, every automatic `/codify` record and review receipts; use `agent` when uncertain.
+The label matters: a `DECISION` entry marked `human` or `co-authored` counts as a user
+decision that later work may rely on without asking again
+(`.harness/rules/autonomous-execution.md`), so never mark an entry `co-authored` unless the
+user's own words shaped it.
 
 ## Entry Types
 

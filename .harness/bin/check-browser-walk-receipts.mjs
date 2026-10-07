@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 /**
  * check-browser-walk-receipts.mjs — did a todo DECLARE its browser-walk disposition before it
- * closed? Invoked at `.harness/phases/implement.md` § 7a (per todo, before it moves to
+ * closed? Invoked at `.harness/phases/implement.md` § 3a (per todo, before it moves to
  * `completed/`) and `.harness/phases/redteam.md` § 2 (over the wave's completed todos).
  *
  * PROPOSITION — exact, over a parsed document section: inside the todo's `## Verification`
  * section, EITHER a `### Browser walk receipt` block whose `Steps:` / `Observed:` /
  * `Disposition:` fields are all non-empty and whose Disposition is one of `proceed` / `blocked` /
  * `confused` (`.claude/rules/user-flow-validation.md` MUST-2), OR exactly one
- * `Browser walk: not applicable — <reason>` line with a non-empty reason, is present — never
- * both, never neither.
+ * `Browser walk: not applicable — <reason>` line with a real reason (at least two words and eight
+ * letters), not indented as a code block (four spaces or a tab), is present —
+ * never both, never neither. The heading must be exactly `## Verification` and appear once;
+ * anything inside a fenced code block (``` or ~~~) is an example and is ignored; when the section
+ * has several receipt blocks, every one is judged, so a later `blocked` / `confused` walk is not
+ * hidden behind an earlier `proceed`.
  *
  * NOT ASSERTED, deliberately: whether the walk was headed, navigated as a real user, or honest;
  * whether an N/A reason is true. Those are semantic and belong to the reviewer at `/redteam` —
@@ -21,20 +25,23 @@
  * `.harness/tests/shared-adapters.mjs` pins both, plus a declaration that says both at once.
  *
  * Exit: 0 every file declared · 1 one or more findings · 2 usage error · 3 UNRUN — no todo
- * file resolved, which is explicitly NOT a pass.
+ * path given, or the paths given hold no `.md` file (an empty directory), which is explicitly
+ * NOT a pass.
  */
 
 import { readFileSync, readdirSync, statSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const VERIFICATION_HEADING_RE = /^##\s+Verification\b/;
+const VERIFICATION_HEADING_RE = /^##\s+Verification\s*$/;
 const LEVEL2_HEADING_RE = /^##\s/;
 const LEVEL3_HEADING_RE = /^###\s/;
 const RECEIPT_HEADING_RE = /^###\s+Browser walk receipt\b/i;
 // `**Steps:**` (colon inside the bold) and `**Steps**:` (outside) are both common; accept either.
+// At most three leading spaces: four spaces or a tab make an indented code block — an example,
+// not a declaration. After that, list / quote / emphasis markers are allowed.
 const NOT_APPLICABLE_RE =
-  /^[\s>*_`-]*(?:\*\*)?Browser walk(?::\*\*|\*\*:|:)\s*not applicable\s*(?:[—–-]+\s*)?(.*)$/i;
+  /^ {0,3}(?:[>*_`-][\s>*_`-]*)?(?:\*\*)?Browser walk(?::\*\*|\*\*:|:)\s*not applicable\s*(?:[—–-]+\s*)?(.*)$/i;
 const FIELD_RE =
   /^[\s>*_`-]*(?:\*\*)?(Steps|Observed|Disposition)(?::\*\*|\*\*:|:)\s*(.*)$/;
 const DISPOSITION_RE = /^(proceed|blocked|confused)\b/i;
@@ -42,6 +49,29 @@ const DISPOSITION_RE = /^(proceed|blocked|confused)\b/i;
 // complete, honest receipt of a walk that found it broken — declared (never silent), but not done.
 const DISPOSITION_OK_RE = /^proceed\b/i;
 const REQUIRED_FIELDS = ["Steps", "Observed", "Disposition"];
+// A not-applicable reason must say something: at least two words and eight letters in all
+// ("command-line tool, no screen" passes; ".", "N/A", "the" and "no UI" do not).
+const isRealReason = (reason) =>
+  (reason.match(/\p{L}{2,}/gu) || []).length >= 2 && (reason.match(/\p{L}/gu) || []).length >= 8;
+const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
+
+// Fenced blocks are examples, never declarations: blank their lines (keeping line positions)
+// before any heading or field is matched. An unclosed fence blanks the rest of the file.
+function stripFences(lines) {
+  const out = [];
+  let fence = null;
+  for (const line of lines) {
+    const m = line.match(FENCE_RE);
+    if (fence) {
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && /^\s{0,3}[`~]+\s*$/.test(line)) fence = null;
+      out.push("");
+    } else if (m) {
+      fence = m[1];
+      out.push("");
+    } else out.push(line);
+  }
+  return out;
+}
 
 function sliceSection(lines, startIdx, endRe) {
   const out = [];
@@ -74,18 +104,25 @@ function parseReceiptFields(blockLines) {
 export function assessTodoText(text) {
   if (typeof text !== "string")
     return { status: "no-verification-section", detail: "not a string" };
-  const lines = text.split(/\r?\n/);
-  const vIdx = lines.findIndex((l) => VERIFICATION_HEADING_RE.test(l));
-  if (vIdx === -1) {
+  const lines = stripFences(text.split(/\r?\n/));
+  const vIdxs = lines.flatMap((l, i) => (VERIFICATION_HEADING_RE.test(l) ? [i] : []));
+  if (vIdxs.length === 0) {
     return {
       status: "no-verification-section",
-      detail: "no `## Verification` section",
+      detail: "no `## Verification` section (the heading must be exactly that)",
     };
   }
-  const section = sliceSection(lines, vIdx, LEVEL2_HEADING_RE);
+  if (vIdxs.length > 1) {
+    return {
+      status: "contradictory",
+      detail: `${vIdxs.length} \`## Verification\` sections — keep exactly one`,
+    };
+  }
+  const section = sliceSection(lines, vIdxs[0], LEVEL2_HEADING_RE);
 
   const naLines = section.filter((l) => NOT_APPLICABLE_RE.test(l));
-  const rIdx = section.findIndex((l) => RECEIPT_HEADING_RE.test(l));
+  const rIdxs = section.flatMap((l, i) => (RECEIPT_HEADING_RE.test(l) ? [i] : []));
+  const rIdx = rIdxs.length ? rIdxs[0] : -1;
 
   if (rIdx !== -1 && naLines.length > 0) {
     return {
@@ -108,15 +145,25 @@ export function assessTodoText(text) {
       };
     }
     const reason = (naLines[0].match(NOT_APPLICABLE_RE)[1] || "").trim();
-    if (!reason)
+    if (!isRealReason(reason))
       return {
         status: "incomplete",
-        detail: "not-applicable line has no reason",
+        detail: `not-applicable line has no real reason${reason ? `: ${JSON.stringify(reason.slice(0, 40))}` : ""}`,
       };
     return { status: "not-applicable", detail: reason };
   }
 
-  const block = sliceSection(section, rIdx, LEVEL3_HEADING_RE);
+  // Every receipt block is judged; the first that is not a complete `proceed` decides.
+  let ok = null;
+  for (const idx of rIdxs) {
+    const result = assessReceiptBlock(sliceSection(section, idx, LEVEL3_HEADING_RE));
+    if (result.status !== "receipt") return result;
+    ok ??= result;
+  }
+  return ok;
+}
+
+function assessReceiptBlock(block) {
   const fields = parseReceiptFields(block);
   const missing = REQUIRED_FIELDS.filter((f) => !(fields[f] || "").trim());
   if (missing.length) {
@@ -182,6 +229,12 @@ export function main(argv) {
     return 3;
   }
   const { files, unresolvable } = resolveTodoFiles(args);
+  if (files.length === 0 && unresolvable.length === 0) {
+    process.stdout.write(
+      `UNRUN: no todo (.md) file found in ${args.join(" ")} — this is NOT a pass\n`,
+    );
+    return 3;
+  }
   let findings = 0;
   for (const a of unresolvable) {
     findings++;

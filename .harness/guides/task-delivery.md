@@ -16,13 +16,19 @@ invisible Unicode, timing races) on a surface with no real user or data yet; mig
 CI-gate hardening found mid-review but not blocking anything; test-harness reliability
 improvements. Keep the automated checks that already run (tenant-isolation gates, secret
 scanning, linting — whatever `.harness/guides/project-profile.md` § Mechanical checks lists) —
-they're free and already built; just stop spending new session time deepening them. **This does
+they're free and already built; just stop spending new session time deepening them. "Without
+asking" means without stopping to ask: still record each deferral with the five fields of
+`.harness/rules/product-completion-first.md` MUST-2 (its value anchor for CI-gate and
+test-harness work is "keeps the checks that protect the product reliable"), or file it as a
+`.harness/backlog/` item when it is about the harness itself. **This does
 NOT license skipping the confirming second round the convergence gate requires** (§ Review
-protocol and circuit breaker below; `.harness/lib/redteam-stall.cjs`): two clean rounds on the SAME,
-unchanged commit are still necessary to converge, and landing one more voluntary commit after a
-clean round — however small — resets that counter to zero, not one. "Defer freely" means stop
+protocol and circuit breaker below; `.harness/lib/redteam-stall.cjs`): in standard mode, two clean rounds on the SAME,
+unchanged commit are still necessary for a wave to converge (light mode: one, § Light mode), and a change to the reviewed code after a clean
+round — however small — resets that counter to zero, not one. Bookkeeping commits (review
+reports, round records, launch rows, journal and todo files) do not; keep each round's `head` =
+the commit the reviewers checked out. "Defer freely" means stop
 hunting for new problems once a round is clean; it does not mean the confirming round is optional
-or that further commits after a clean verdict are free.
+or that further code changes after a clean verdict are free.
 
 **Do NOT defer — handle now — anything that fails this one test: would skipping it force an
 architecture change or a large rewrite once more is built on top?** Concretely, handle now:
@@ -56,9 +62,23 @@ product with no browser surface, the pass is the same real-user walk through its
 interface (CLI, API client, app). This is what catches a feature
 that works alone but breaks when composed with what shipped beside it (a nav link pointing at
 a route that got renamed, a session state two features assume differently). Zero open critique
-from that pass is the gate — findings get fixed (or explicitly, individually deferred with the
-user's sign-off if they're genuinely minor) before the next wave's work begins. This composes
+from that pass is the gate: BUG and INVEST-NOW findings are fixed before the next wave's work
+begins. A genuinely minor (INCREMENTAL) finding may be deferred as
+`.harness/rules/product-completion-first.md` MUST-2 describes; it is listed under "left for
+later" in the wave preview, where the user ratifies or overrides it. Record the pass at
+`04-validate/<scope>-boundary-walk.md` (steps, observations, disposition per flow) and cite it,
+with the preview, in a new DECISION journal entry written after the receipt — in light mode,
+after the wave's CLEAR round (the receipt has no field for it, and an entry already committed is
+never edited);
+`/redteam` § 2 runs it. This composes
 with, and does not replace, the per-todo review/walk each shard already does.
+
+The user then sees the wave: `/redteam` § 4 gives them a plain summary of what changed for
+their users and a way to try it themselves (a local address, a preview deploy, or a command to
+run), and asks whether it matches what they wanted — before the merge when they are present,
+otherwise as the first open question, and always before the wave is deployed. A "no" is a
+defect for `/fix` or a scope decision (`.harness/phases/todos.md` § Changing or cancelling
+approved scope), never something to deploy over.
 
 ## Before a wave starts: ask for the real external setup its end-to-end signoff will need
 
@@ -74,6 +94,11 @@ as any other setup request — what it's for, and that it's needed before this w
 be genuine — and proceed with a disclosed mock/dev-mode stand-in only if the user says the real
 credential isn't available yet, never silently.
 
+Write each request so a non-technical user can complete it alone: the site to open, each
+click, which value to copy, and where to put it safely (the git-ignored `.env`, or the
+deployed environment's secret store from `.harness/guides/project-profile.md` § Configuration
+— never in chat, a commit or an issue), plus any cost or free-tier limit.
+
 ## Harness backlog — `todos/` holds product scope only
 
 `workspaces/<project>/todos/{active,completed}/` holds ONLY genuine product-scope work
@@ -85,8 +110,9 @@ two silently inflates the product backlog with items the user never asked for an
 compete for review attention with the work they actually want. A harness/tooling
 self-maintenance item discovered mid-review (`/debug`, `/implement`, `/redteam`) goes to
 `.harness/backlog/harness-NN-<slug>.md` instead — a flat, incrementing, cross-project
-numbering (check the highest existing number there before assigning a new one; do not
-restart per project and do not reuse a number). See `.harness/backlog/README.md`.
+numbering: take one above the highest number ever used in git history, including items since
+deleted (`git log --all --diff-filter=A --name-only --format= -- .harness/backlog/`); do not
+restart per project and never reuse a number. See `.harness/backlog/README.md`.
 
 A genuine PRODUCT idea that was found or preserved (e.g. an abandoned WIP branch worth
 keeping discoverable) but is not on the approved plan and not scheduled goes to
@@ -107,59 +133,120 @@ This is the execution contract for `/analyze`, `/todos`, `/implement`, `/redteam
 `/debug` and `/fix`. Product security and acceptance obligations remain blocking. A
 retry limit changes the approach; it never makes broken code done.
 
+## Light mode
+
+For a small project — one person, a prototype or hobby, no real users' data and no money
+moving — the project profile can say `delivery_mode: light`. `/analyze` recommends the mode in
+plain words when it proposes the stack, and the user picks it there, before `/todos` plans the
+first wave; the first plan's approval record quotes that choice. Until the user has chosen,
+standard applies. Light mode changes only this:
+
+- No analysis or planning review rounds. The analysis pull request merges into `main` once the
+  user has approved the stack and mode, the plan pull request once they have approved the plan;
+  the acceptance list still carries their approval record.
+- No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
+  walk receipts and `## Verification`.
+- The wave gate is ONE review round that must be CLEAR, with a security reviewer when any
+  security surface changed (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
+  receipt and no `--sweep` job in CI.
+- A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
+  `/implement` say so and do not run the convergence checker.
+- `/codify`'s wave trigger fires when the wave branch merges.
+- Review reports, round records and journal entries ride on the wave or fix branch. Records that
+  gate a deploy — the wave preview and the user's answer, deployment records, the deploy hold
+  and fix records — still go to `main` at once on their own record-only branch, exactly as in
+  standard mode, because `/deploy` reads them on `main`.
+
+Everything else is unchanged: tests, `.harness/rules/autonomous-execution.md` § What needs the
+user, the security rules, `/fix` and `/deploy`. The phases say "in light mode, see
+task-delivery § Light mode" where they differ.
+
+Switching from light to standard is a plan change the user approves. At the switch, set
+`grandfather_pin` in `.harness/manifest.json` to `main`'s tip (so light-mode todos are not
+re-audited), then add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2).
+
 ## Workspace file layout
 
 The tools read these exact paths; other names are not found.
 
 | Artifact | Path (under `workspaces/<project>/`) | Written by |
 | --- | --- | --- |
+| Spec index and domain specs | `specs/_index.md`, `specs/<domain>.md` | `/analyze`; reconciled with built behavior after each wave merges (`/redteam` § 4) |
+| Architecture decision record | `docs/adr/NNNN-<slug>.md` | `/analyze` (analyst) |
 | Wave plan | `todos/WAVE-SEQUENCE.md` | `/todos` |
 | Todo (being worked) | `todos/active/wNN-MM-<slug>.md` | `/todos` |
 | Todo (implemented) | `todos/completed/wNN-MM-<slug>.md` | `/implement` (moved, same name) |
 | Parked product idea | `todos/parked/<slug>.md` | anyone; promotion needs plan approval |
-| Wave acceptance list | `04-validate/acceptance-<scope>.md` | `/todos`, at plan approval; never edited afterwards |
-| Review report | `04-validate/<scope>-<lens>-r<n>.md` | orchestrator, verbatim from the reviewer |
+| Wave acceptance list, with the user's approval record | `04-validate/acceptance-<scope>.md` | `/todos`, at plan approval; never edited afterwards |
+| Review report | `04-validate/<scope>-<lens>-r<n>.md` | orchestrator, from the reviewer, secrets redacted |
 | Round record | `04-validate/round-<scope>-<n>.json` | orchestrator, after every expected report is in |
 | Decision record | `04-validate/replan-<scope>-<n>.md` | `/debug` |
 | Convergence receipt + launch ledger | `04-validate/convergence-<scope>.json`, `04-validate/convergence-<scope>.launches.jsonl` | `/redteam` |
+| Wave boundary walk | `04-validate/<scope>-boundary-walk.md` | `/redteam` § 2 |
+| Wave preview for the user | `04-validate/<scope>-preview.md` | `/redteam` § 4; the user's answer replaces `User answer: pending` |
+| Sweep report | `04-validate/sweep-<date>.md` | `/sweep` |
 | Bug-fix record | `fixes/<fix-id>-<slug>.md` | `/fix` |
 | Journal entry | `journal/NNNN-TYPE-<slug>.md` | `/journal` |
+
+Outside the workspace: a `/codify` run with no workspace yet saves its review report and round
+record under `.harness/reviews/` with the same file names; deployment records live in
+`deploy/deployments/` (`/deploy`).
+
+The acceptance list starts with the user's approval record, written only after the user
+approves (`.harness/phases/todos.md` § Workflow step 11):
+
+```markdown
+approved_by: <the user's name>
+approved_on: <YYYY-MM-DD>
+approval: "<the user's approving words, quoted>"
+```
 
 Todo ids: the convergence checker reads a todo's id from its filename with
 `^([a-z]+[0-9]*-[0-9]+[a-z]?)` (case-insensitive), so `w03-07-invite-flow.md` has id
 `w03-07`. Use `wNN-MM-<slug>` — wave `NN`, item `MM`, both zero-padded — and never reuse an
 id inside a workspace. A completed todo whose name does not parse fails
-`check-redteam-convergence-receipt.mjs --sweep` with `todo-id-unparseable`.
+`check-redteam-convergence-receipt.mjs --sweep workspaces` with `todo-id-unparseable`.
 
 Scopes: a wave's scope is `wNN`, a todo's checkpoint scope is its id `wNN-MM`, a planning
 review's scope is `wNN-plan`, an analysis review's scope is `analysis-<slug>` (the slug of
 its `docs/<slug>` branch, so a later analysis never overwrites an earlier one's round and
-report files), a codify review's scope is `codify-<slug>`, and a fix's scope is its fix id. The acceptance list for scope
+report files), a codify review's scope is `codify-<slug>` (and `codify-<slug>-ask` for its ask-first part), and a fix's scope is its fix id (a batch of S4 fixes uses the first one's). The acceptance list for scope
 `wNN` names `wNN` and every todo id in the wave; it is committed before the wave's work and
 must be byte-identical at the verdict commit, so a change of acceptance means a new scope
-name, not an edit.
+name, not an edit (`.harness/phases/todos.md` § Changing or cancelling approved scope).
 
 ## Branches, pull requests and merging
 
-The round recorder keeps one round budget per branch (§ Review protocol and circuit
-breaker), so each kind of review runs on its own branch and cannot spend another's rounds.
+The round recorder counts the rounds recorded for the same scope or on the same branch
+(§ Review protocol and circuit breaker), so each kind of review runs on its own branch and
+scope and does not spend another's rounds. Production runs the `production` branch (or a
+release tag), which only `/deploy` moves; merging into `main` never deploys.
 
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
-| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`) | `main` |
-| Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`) | `main`, after plan approval |
-| Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 |
-| One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`) | the wave branch, after a CLEAR round and its receipts |
-| Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main` | fix review (`<fix-id>`) | `main` |
-| S1 hotfix (`/fix`) | `hotfix/<fix-id>-<slug>` | the deployed commit (`deploy/.last-deployed`), else `main` | fix review (`<fix-id>`) | deploy the branch head with `/deploy` and verify it live first, then `main` (`.harness/phases/fix.md` § 7) |
-| Harness change (`/codify`) | `docs/codify-<slug>` | `main` | codify review, when dispatched (`codify-<slug>`) | `main` |
+| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round (light mode: after the user approved the stack and mode) |
+| Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
+| Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |
+| One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |
+| Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
+| Production | `production` | moved only by `/deploy`, to a commit already on `main` (rolled back by `/deploy --rollback`) | none | never merged; the host deploys it |
+| Fix record — opened, updated, closed (`/fix`, `/deploy --rollback`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
+| Deploy onboarding (`/deploy --onboard`) | `docs/deploy-onboard` | `main` | one CLEAR review (`deploy-onboard`) | `main` |
+| Deployment record (`/deploy`) | `docs/deploy-<date>` | `main` | none (record only) | `main` |
+| Sweep report (`/sweep`) | `docs/sweep-<date>` | `main` | none (record only) | `main` |
+| Wave preview answer (`/redteam` § 4) | `docs/<scope>-preview` | `main` | none (record only) | `main` |
+| Spec reconciliation after a wave (`/redteam` § 4) | `docs/wNN-spec-reconcile` | `main` | none (spec text; the next wave's review reads it) | `main` |
+| Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when `check-codify-allowlist.mjs` exits 0 (`.harness/phases/codify.md` § Automatic runs) |
+| Harness change (`/codify`), ask-first part | `docs/codify-<slug>-ask` | `main` | codify review (`codify-<slug>-ask`); its round record names this branch, but the report and record files are committed on the next row's branch, so this head stays the reviewed commit | `main`, when the user says yes, at its reviewed head |
+| Review evidence for the ask-first part | `docs/codify-<slug>-ask-review` | `main` | none (carries the `-ask` review report and round record) | `main`, at once (it passes `check-codify-allowlist.mjs`) |
+| User's answer to a waiting harness change | `docs/codify-<slug>-answer` | `main` | none (appends log rows quoting the user's answer, nothing else) | `main`, in the session the user answered |
 | Release prep | `release/v<X.Y.Z>` | `main` | none (metadata only) | `main` |
 
 A `/fix` branch is reviewed by one CLEAR round and merges straight into `main`; it does not
 pass through a wave's two-clean-round convergence check, because a fix record lives outside
 `todos/` and outside any wave. That is intended: a fix is narrow and has its own failing
-regression test. An S1 hotfix, reviewed under emergency pressure, additionally gets a
-follow-up `/redteam` todo proposal (`.harness/phases/fix.md` § 7).
+regression test. An S1 fix, reviewed under emergency pressure, additionally gets a follow-up
+`/redteam` todo proposal (`.harness/phases/fix.md` § 7).
 
 For every branch:
 
@@ -174,17 +261,35 @@ For every branch:
    ```bash
    head=$(gh pr view <N> --json headRefOid -q .headRefOid)
    gh pr checks <N>      # every REQUIRED check is SUCCESS, and the run is for $head
-   gh pr merge <N> --admin --merge   # separate command, only after the read above
+   gh pr merge <N> --merge   # separate command, only after the read above
    ```
 
-   Never merge over a red or pending required check; fix it on the same branch and push.
+   Never merge over a red or pending required check; fix it on the same branch and push. If
+   the repository has no required checks, `gh pr checks` passing proves nothing: run the
+   project profile's Local CI parity command on a checkout of `$head` first, and say in the
+   pull request that this was the gate; while the profile row is `n/a — no code yet`, say that
+   instead. Whether a merge needs the user is set in `.harness/rules/autonomous-execution.md`
+   § What needs the user — a merge whose gate passed does not, except while the project
+   profile's `main_deploys_live` is still `unknown` and the product may already be live (as
+`.harness/rules/autonomous-execution.md` § What needs the user defines it);
+   `--admin` always does, and never in an automatic run.
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
-   `verdict_head`, which must stay reachable from `main`.
-6. Run the convergence check with `--scope` while the wave branch is checked out, before it
-   merges. After the merge, `--todo <id>` and `--sweep` judge each receipt as of its own commits.
+   `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
+   allow merge commits before the first wave (a repository-settings change, so ask the user).
+6. Standard mode: run the convergence check with `--scope` while the wave branch is checked out, before it
+   merges; that exit 0 is the wave's gate. After the merge, `main` moves on (fixes, `/codify`,
+   spec updates), so `--scope` is no longer the question; judge each receipt as of its own
+   commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`.
+   After a pull request merges on GitHub, run `git fetch origin` and update the local `main`
+   before cutting the next branch.
 7. Keep `main` out of an open wave branch where possible. If you must merge `main` in, do it
    before the wave's first review round, because the receipt's `wave_base` is computed with
-   `git merge-base main <verdict_head>`.
+   `git merge-base main <verdict_head>`. If a `/fix` lands on `main` after review started and
+   the wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge
+   into `main` (that would be unreviewed code): merge `main` into the wave branch, which moves
+   the reviewed head, so the wave needs new clean rounds on the new head (two in standard mode, one in light mode) from its
+   remaining budget. Tell the user the delay in plain words; if the budget cannot cover it,
+   take it to `/debug`.
 
 ## Releases
 
@@ -192,16 +297,28 @@ Only for a project that publishes versions (a library, a command-line tool, a mo
 an application that tags what it deploys). The project profile names the version source,
 changelog and publish command (§ Release).
 
-1. Cut `release/v<X.Y.Z>` from `main`. It carries metadata only — no code (`.claude/rules/git.md`
+No command owns a release; the user asks for one in plain words ("release a new version") and
+the orchestrator follows these steps.
+
+1. Recommend the version number in plain words from what merged since the last tag
+   (`git log <last-tag>..main`): bug fixes only → patch (`1.4.0` → `1.4.1`); new features that
+   change nothing existing → minor (`1.5.0`); anything that breaks how people already use it →
+   major (`2.0.0`), naming what breaks. The user picks.
+2. Cut `release/v<X.Y.Z>` from `main`. It carries metadata only — no code (`.claude/rules/git.md`
    § Release-Prep PRs Use The `release/v*` Branch Convention).
-2. Bump the version in the profile's version source and in every file that repeats it
+3. Bump the version in the profile's version source and in every file that repeats it
    (`.claude/rules/zero-tolerance.md` Rule 5).
-3. Add release notes to the changelog from what merged since the last tag
-   (`git log <last-tag>..main`), written for the people who use the product.
-4. Push, open the pull request and merge as in § Branches, pull requests and merging.
-5. Tag the merge commit on `main` (`git tag -a v<X.Y.Z> <merge-sha>`) and push the tag. A
-   pushed tag is public: confirm with the user first unless they already approved the release.
-6. Publish with the profile's publish command, or ship with `/deploy`.
+4. Add release notes to the changelog, written for the people who use the product.
+5. Push, open the pull request and merge as in § Branches, pull requests and merging.
+6. Tag the merge commit on `main` (`git tag -a v<X.Y.Z> <merge-sha>`). If the host deploys from
+   release tags, pushing the tag IS a deploy: ask the user to run `/deploy`, which pushes it in
+   Step 3. Otherwise push the tag and publish with the profile's publish command. Pushing a tag
+   and publishing are public and need the user's confirmation
+   (`.harness/rules/autonomous-execution.md` § What needs the user).
+
+A bad published version: never delete or overwrite a published version. With the user's
+confirmation, mark it bad where the registry allows (deprecate, yank, or halt a staged store
+rollout), then ship the fix as a new patch version through `/fix` and these steps.
 
 ## Before implementation
 
@@ -223,7 +340,7 @@ Put one fenced JSON object under `## Delivery contract` in the todo. Example:
 
 ```json
 {
-  "approved_by": "independent planning reviewer or user",
+  "approved_by": "<the user's name>",
   "owned_paths": ["src/example/", "tests/integration/example/"],
   "acceptance": [
     {
@@ -256,9 +373,16 @@ Put one fenced JSON object under `## Delivery contract` in the todo. Example:
 `test_environment.isolation` is one of `none` (the tests touch no shared mutable
 infrastructure), `isolated-cluster` or `exclusive-cluster` (§ Implement and verify).
 
+`approved_by` is the name of the person who approved the plan this contract belongs to — the
+user, the same name as the acceptance list's approval record (§ Workspace file layout). Fill it
+only after the user approved the plan (`.harness/phases/todos.md` § Workflow step 11), never
+before. Write the name as the user gave it. The tools check this and the other person-only
+fields for honest mistakes only (`.harness/rules/completion-criterion.md` MUST-1).
+
 Run `node .harness/bin/check-task-contract.mjs <todo.md>` before implementation.
 It checks structural readiness, not truth, security sufficiency, or human approval.
-The independent planning reviewer ratifies the actual scenarios and trust assumptions.
+The independent planning reviewer checks the actual scenarios and trust assumptions; the user
+approves the plan.
 For existing todos, add the contract when next resumed; do not rewrite the entire
 backlog or back-date approval. Preserve previous verification and open findings.
 
@@ -372,7 +496,10 @@ as well as adversarial input. A reviewer may expand the investigation but cannot
 expand the task's accepted implementation obligations. Adjudicate boundary disputes now.
 
 The orchestrator saves each report verbatim at
-`workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md`, then aggregates EVERY expected
+`workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` — except secrets: before committing a
+report, replace any secret value it quotes (key, token, password, private key) with its file and
+line, kind, length and first four characters, and run the project's secret scan if
+`.harness/guides/project-profile.md` § Mechanical checks lists one. Then it aggregates EVERY expected
 reviewer's result for ONE pinned commit in `workspaces/<project>/04-validate/round-<scope>-<n>.json`.
 `root_causes` is the set of root-cause keys of the round's BUG and INVEST-NOW findings; it is
 empty on a clean round and required on a NOT_CLEAR one. Example (use the real branch, a real
@@ -400,7 +527,20 @@ full commit SHA on it, and real report paths):
 }
 ```
 
-From the repository root run `node .harness/bin/record-review-round.mjs <round.json>`. Write
+From the repository root run `node .harness/bin/record-review-round.mjs <round.json>`, then
+commit the round file and its reports on the branch. The recorder keeps its budget in local
+state; when that state is missing (a fresh clone, another machine) it rebuilds the count from
+every round record ever added in the branch's history or on the local `main` (where a merged
+record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
+(`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed (an
+unreadable, duplicate or gapped history makes it refuse). So a renamed or re-cut branch for the
+same scope keeps its count, and a todo branch cut from a wave branch starts at round 1. An
+uncommitted round record is a lost round. The budget is an anti-loop aid, not a security
+control: rewriting local history (a reset, or a new scope on a new branch) can restart the
+count, and rewriting history already needs the user
+(`.harness/guides/review-round-recorder.md` lists what it detects).
+Delete a round file the recorder refused instead of committing it. A branch that exists only
+on the remote must be created locally first (`git switch <branch>`). Write
 every cited path (`evidence`, `replan`, `escalation_accepts.record`) relative to the
 repository root, as above. The recorder looks for it from the round file's own directory and
 from the current directory only, so `04-validate/<file>.md` (relative to the workspace) is
@@ -412,27 +552,37 @@ It is a retry-control instrument; the convergence-receipt checker still decides 
 Its last lines start with `NEXT:` and list the branch's known root causes and budget — read them.
 How many clean rounds a scope needs: one complete CLEAR round for a todo checkpoint (scope
 `wNN-MM`), a `/fix` branch (`<fix-id>`), a planning review (`wNN-plan`), an analysis review
-(`analysis-<slug>`) and a codify review (`codify-<slug>`); two consecutive clean rounds on one
-unchanged commit only for wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
+(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`) and a light-mode
+wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
+wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
 prints `dispatch round N+1`; at a one-round checkpoint do not dispatch it.
 
 Exit codes: `0` — keep going (`FIX`, `REVIEW`, `REPAIR_ENVIRONMENT`, or
 `VERIFY_CONVERGENCE_RECEIPT` after two clean rounds on one unchanged commit); `1` — the round
 was refused or invalid and nothing was recorded; `2` — `REPLAN` or `DEBUG_ROUND`; `3` —
-`ESCALATE_TO_HUMAN`.
+`ESCALATE_TO_HUMAN`. Exit 2 and 3 can mean either a recorded round (its JSON line is printed on
+stdout — commit it) or a refusal at the cap, debug or `REPLAN` gate (stderr explains it;
+nothing recorded). A round was recorded only when the recorder printed its JSON line. Committing a round's record, reports or launch rows
+does not reset the clean-round count while `head` stays the same; only a new reviewed head does.
 
-The budget is per branch (`.harness/lib/redteam-stall.cjs`):
+`ESCALATE_TO_HUMAN` and a residual that needs acceptance are questions for the user: ask them
+in the format in `.claude/rules/communication.md` § Asking the user to decide — what accepting
+means for their users, what the alternatives (split the work, drop it, one more round) cost,
+and your recommendation — never as a recorder message or a file path.
+
+The budget counts rounds of the same scope or branch (`.harness/lib/redteam-stall.cjs`):
 
 - **Three rounds per branch.** A branch gets three counted rounds in total
-  (`TOTAL_ROUND_CAP = 3`) — clean, non-clear or charged-error alike — and nothing resets that
-  count, a decision record included. A third round that is not clean returns exit 2 /
+  (`TOTAL_ROUND_CAP = 3`) — clean, non-clear or charged-error alike — and no decision record
+  resets that count. A third round that is not clean returns exit 2 /
   `DEBUG_ROUND` (a clean third round that is the first in its streak returns `REVIEW`). Repair the findings; the branch's only remaining ordinary round is then its
   single debug round: `"debug": true`, a new decision record in `replan`, and
-  `expected_reviewers` ids never used on this branch (for example `correctness-debug`). If
+  `expected_reviewers` ids named `<lens>-debug` (`correctness-debug`, `security-debug`), never used on this branch. If
   the debug round does not converge, the recorder returns exit 3 / `ESCALATE_TO_HUMAN`: stop.
   Each further round needs `"escalation_accepts": {"acceptor", "record"}` — a named human and
   a new acceptance record of theirs for every round. Past the cap the recorder also admits,
-  once, the same-head confirmation that follows a first clean round.
+  once, the same-head confirmation that follows a first clean round; after a clean debug round
+  that confirmation reuses the `-debug` reviewer ids and omits `"debug": true`.
 - **Recurrence.** A non-clear round returns exit 2 / `REPLAN` when one of its root-cause keys
   was recorded in ANY earlier non-clear round on this branch — clean rounds in between do not
   reset it — or was marked closed by an earlier `replan_closes`. Keys a decision record
@@ -448,14 +598,28 @@ The budget is per branch (`.harness/lib/redteam-stall.cjs`):
 `REPLAN` (and `DEBUG_ROUND`) mean: before another repair/review cycle, `/debug` writes a
 decision record at `workspaces/<project>/04-validate/replan-<scope>-<n>.md` — cause of
 non-convergence, current open defects, alternative designs, chosen change of approach,
-updated scope/acceptance, test/environment correction, and next falsifying experiment.
+updated scope/acceptance (a change to approved scope follows `.harness/phases/todos.md` § Changing or
+cancelling approved scope), test/environment correction, and next falsifying experiment.
 Choose redesign, split, repair environment, or justified continuation with a changed
 verification approach. The next round cites that file in `replan`. A decision record is
-consumed by the first round that cites it; a later reassessment needs a new file. A fresh
+consumed by the first round that cites it, except that an errored round's re-run may cite it
+again; a later reassessment needs a new file. A fresh
 reviewer with the same fix instructions is not a reassessment. Do not wait for convergence
 to surface a required architectural choice. Proceed autonomously within the approved
 envelope; ask only when the choice changes product behavior, authority, or accepted risk.
 See `.harness/rules/redteam-stall-debug.md`.
+
+The convergence receipt is tied to these files: each reviewer's `evidence` is the
+repository-root path of that round's saved report, committed no later than the receipt; every
+round the receipt lists has its committed `round-<scope>-<n>.json` with the same head, lenses,
+evidence and verdicts; and the receipt ends at the scope's highest recorded round. The checker also reads every committed round
+record of the same scope or branch: it refuses `cap_hit: false` when they show the cap was
+passed without the debug round or an escalation (`cap-hit-understated`); a copied, duplicate or
+gapped record, counted rounds that do not start at round 1, or a record deleted and re-added
+with different content (`round-records-invalid`); a record whose `branch` differs from the
+receipt's (`round-record-mismatch`); and any scope record added or changed after the receipt's
+commit, its pin (`round-record-after-receipt` — a recorded round is never rewritten). Commit every
+report and round record before committing the receipt.
 
 Two complete clean rounds on the same unchanged commit remain necessary for convergence. A
 cap, missing evidence, replan, or unresolved bug is never success. Keep the launch ledger,

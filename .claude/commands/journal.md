@@ -33,10 +33,9 @@ Parse `$ARGUMENTS`:
 
 1. Parse the TYPE and topic from arguments. Valid types: DECISION, DISCOVERY, TRADE-OFF, RISK, CONNECTION, GAP, AMENDMENT.
 
-2. Check the highest existing entry number in `workspaces/<project>/journal/` (`ls` it and sort, or the number
-   you already counted in the Status action) — the new entry's number is highest + 1. This repo
-   runs solo, so there's no reservation/locking system to coordinate concurrent writers; a
-   plain directory listing is authoritative.
+2. Check the highest existing entry number in `workspaces/<project>/journal/` on the current branch, on `main` and on every unmerged local branch (`git ls-tree -r <branch> --name-only -- workspaces/<project>/journal/`)
+   — the new entry's number is highest + 1. The harness has no reservation or locking system,
+   so this all-branches check is what keeps a number from being used twice.
 
 3. Create the file at `workspaces/<project>/journal/NNNN-TYPE-topic.md` (the convergence-receipt checker looks for journal entries there, not at the repo root) with this structure:
 
@@ -48,7 +47,7 @@ author: [human | agent | co-authored — per the journal.md decision tree]
 project: [workspace name]
 topic: [topic description]
 phase: analyze | todos | implement | redteam | debug | fix | codify | learn | design | validate | sweep | wrapup | deploy
-tags: []
+tags: [list — include `harness` only for a harness lesson, see below]
 relates_to: NNNN-slug of the entry this amends/extends/references (optional; required for AMENDMENT)
 ---
 
@@ -58,7 +57,17 @@ relates_to: NNNN-slug of the entry this amends/extends/references (optional; req
 ```
 
 This frontmatter is the canonical contract `.claude/rules/journal.md` documents — the two MUST
-agree. Set `author:` honestly by judgment; default to `co-authored` when uncertain.
+agree.
+
+**The `harness` tag.** A journal entry of any type whose `tags:` include `harness` is a
+harness lesson: `/learn` lists it and `/codify` folds it into the harness
+(`.harness/phases/learn.md`). Tag `harness` only when the entry is about the harness itself
+— a rule, phase, role, guide, agent or tool. Product findings (DISCOVERY, GAP, TRADE-OFF
+about the product, its users or its domain) never carry it. `/codify`'s own summary entries
+are type `DECISION` without the `harness` tag, so a codify run never creates a new lesson.
+
+Set `author:` per the decision tree in `.claude/rules/journal.md`; default to `agent`
+when uncertain, because `human`/`co-authored` DECISION entries count as user decisions.
 
 4. Type-specific structure:
    - **DECISION**: Sections for Decision, Alternatives Considered, Rationale, Consequences

@@ -67,7 +67,8 @@ Load both skills, then check the change against them:
 Deploy these agents for validation:
 
 - **security-reviewer** — security audit (always include it: every change is checked for security)
-- **gold-standards-validator** — Compliance check against project standards
+- **reviewer** — compliance of the code against the project's standards and the gold standards
+- **gold-standards-validator** — documentation terminology, placeholders and cross-references
 - **testing-specialist** — verify the real-infrastructure policy for Tier 2-3 tests and test organization
 
 ## Related Commands

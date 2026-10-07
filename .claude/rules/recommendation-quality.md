@@ -104,8 +104,8 @@ trusting every later recommendation.
 
 **Do not invent a con for balance.** A con must change what the user should do. This
 matters most at a clean gate-stop (end of shard, `/wrapup`, converge-then-gate): stopping
-there is the correct, complete action (`.harness/rules/autonomous-execution.md`
-§ Structural vs execution gates), not a compromise, so state it plainly.
+there for the user's answer is the correct, complete action, not a compromise, so state
+it plainly.
 
 ```markdown
 # DO — clean gate-stop stated plainly, no fabricated con
@@ -182,7 +182,7 @@ Deciding is not recommending: "no agent-decided default" forbids a silent assump
 into code or output; it does not forbid a loud, ratifiable recommendation.
 
 For a packet spanning two or more specialist domains, have each recommendation produced by
-the relevant domain specialist (`.harness/rules/agents.md` § Ownership and delegation); the
+the relevant domain specialist (`.harness/rules/agent-delegation.md` § Ownership and delegation); the
 orchestrator synthesizes rather than guessing every row in one pass.
 
 Packet row shape: recommendation + spec basis + honest con + "RATIFY / OVERRIDE".
@@ -197,12 +197,22 @@ Confidence (can I stand behind this on evidence?) is a separate question from bl
 confidence — thin evidence, an unfamiliar domain, a pattern-match passing as a verified
 convention — say so explicitly and name the evidence that would raise it.
 
+Low confidence here means the same thing as "genuinely uncertain" in
+`.harness/rules/autonomous-execution.md`: you can name the evidence for your doubt, and the
+choice matters — the reasonable picks would lead to materially different work or results.
+A pick where every reasonable option gives the user the same result is not a low-confidence
+pick in this sense; make it and label it in your summary.
+
 Whether to stop for ratification:
 
 - **Escalate before acting** when the point is not already covered by a user decision (a
-  brief, a ratified plan, a journal `DECISION-` entry, or something the user said this
-  session). Recommend the pick (MUST-1/2/3), state the confidence, name what would raise
-  it, and ask a yes/no or single decision point (MUST-5).
+  brief, a ratified plan, a journal `DECISION-` entry whose `author:` is `human` or
+  `co-authored`, or something the user said this session; an `author: agent` entry, such
+  as an automatic `/codify` record, does not count). Recommend the pick (MUST-1/2/3), state the confidence, name what would raise
+  it, and ask a yes/no or single decision point (MUST-5). While you wait, keep doing every part
+  of the work that does not depend on the answer, and bundle questions that can wait into
+  one message (`.harness/rules/autonomous-execution.md` § What needs the user), so an
+  unattended run does not stall on the question.
 - **Proceed** when a user decision already covers the point — never re-ask an approval the
   user already gave (`.harness/rules/autonomous-execution.md`). Put the pick and its
   confidence in your summary so the user can overturn it.
@@ -236,7 +246,8 @@ the user able to overturn it.
 When an action would put more-sensitive material into a less-protected or wider-audience
 durable place, confirm before persisting: name the boundary being crossed, offer the
 lower-exposure form, and ask for confirmation — even when the write is cheap, local and
-in scope. Still recommend the write you believe is right (or its scrubbed form).
+in scope. Still recommend the write you believe is right (or its scrubbed form). This is one
+of the confirmations listed in `.harness/rules/autonomous-execution.md` § What needs the user.
 
 Examples (judge sensitivity qualitatively; there is no fixed table): a secret, credential
 or personal data into a commit body, journal entry or doc; private local config or notes

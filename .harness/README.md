@@ -30,7 +30,7 @@ Claude-only commands (`.claude/commands/`; in Codex, read the file and follow it
 | `/wrapup` | Write `.session-notes` at the repository root for the next session. |
 | `/sweep` | Repo-wide audit of outstanding work before calling a cycle done. |
 | `/journal` | Create, list or search `workspaces/<project>/journal/` entries. |
-| `/deploy` | Onboard, deploy, check drift, or roll back (`deploy/deployment-config.md`). |
+| `/deploy` | Onboard, deploy, check drift, roll back, or decommission (`deploy/deployment-config.md`). |
 | `/validate` | Check a change against the project's standards. |
 | `/test` | Testing quick reference. |
 | `/design` | UI/UX standards quick reference. |
@@ -43,13 +43,15 @@ in `guides/task-delivery.md`.
 
 ## Starting a new project
 
-1. Copy `.claude/` and `.harness/` into the new repository.
+1. Copy `.claude/`, `.harness/` and the `.gitignore` entries into the new repository (and
+   `AGENTS.md`, `.agents/` and `.codex/` if you use Codex). Keep `.claude/` even with Codex
+   only: the tools in `bin/` and `lib/` load `.claude/hooks/lib/`.
 2. Fill in `guides/project-profile.md` — language, source/test roots, and the commands for
    lint, type check, the three test tiers, local CI parity and build. `/analyze` proposes
    values once the stack is chosen; rules and roles read every concrete command from there.
 3. Run `node .harness/bin/check-adapters.mjs` (adapters match the manifest) and
-   `node --test ".harness/tests/*.mjs"` (harness self-tests). Both need Node.js 22+ — the
-   harness's own tooling is JavaScript regardless of the project's language.
+   `node --test ".harness/tests/*.mjs"` (harness self-tests). Both need Node.js 22+ and git
+   2.31+ — the harness's own tooling is JavaScript regardless of the project's language.
 4. Fill in the project line in `.claude/CLAUDE.md` (Claude Code loads it automatically, the
    same as a root `CLAUDE.md`) and, if you use Codex, in the root `AGENTS.md` (Codex only looks
    at the repository root). They are the session entry points: they point at this file, the
@@ -57,10 +59,11 @@ in `guides/task-delivery.md`.
    first. If the project already has its own root `CLAUDE.md` or `AGENTS.md`, merge the two
    instead of keeping both.
 5. Optional — Codex: `node .harness/bin/check-adapters.mjs --write --codex` generates
-   `.agents/skills/` and `.codex/agents/`; from then on the checker verifies them too.
+   `.agents/skills/` and `.codex/agents/`; from then on the checker verifies them too. Read
+   `adapters/codex.md` § Known limitations before relying on Codex for `/redteam`.
 6. Optional — a project adopting the harness mid-life can set `grandfather_pin` in
    `manifest.json` to main's tip at adoption, so already-completed todos are not re-audited by
-   `check-redteam-convergence-receipt.mjs --sweep`. Leave it `null` on a new project.
+   `check-redteam-convergence-receipt.mjs --sweep workspaces`. Leave it `null` on a new project.
 
 ## Shared invariants
 
@@ -84,10 +87,11 @@ to CommonJS so a project-level `"type": "module"` cannot change how Node loads t
 
 | Tool | Purpose |
 | --- | --- |
-| `bin/check-adapters.mjs` | Verifies (or with `--write`, regenerates) the generated Claude/Codex adapter files from `manifest.json`. |
-| `bin/check-task-contract.mjs` | Validates a todo's `## Delivery contract` block before implementation. |
-| `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete `/redteam` round and enforces the round budget / reassessment rules. |
-| `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace <dir> --scope <scope>`), whether a todo is closed (`--todo <id>`), sweeps every completed todo (`--sweep`), and prints a receipt skeleton (`--template <scope>`). |
+| `bin/check-adapters.mjs` | Verifies (or with `--write`, regenerates) the generated Claude/Codex adapter files from `manifest.json`. Exit 0 match, 1 drift or invalid manifest, 2 usage. A stale generated Codex file (exactly the generator's template text) counts as drift and `--write` removes it; any other file there is left alone with a note. `--write` refuses to write outside the repository or through any symlink, before writing anything. |
+| `bin/check-task-contract.mjs` | Validates a todo's `## Delivery contract` block before implementation, including that `approved_by` names a person. Exit 0 ready; 1 not ready, unreadable or usage. |
+| `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete review round of any scope (todo, wave, fix, plan, analysis, codify) and enforces the round budget / reassessment rules. |
+| `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace workspaces/<project> --scope <scope>`), whether a todo is closed (`--workspace workspaces/<project> --todo <id>`), sweeps every completed todo (`--sweep workspaces`), and prints a receipt skeleton (`--template <scope>`). |
+| `bin/check-codify-allowlist.mjs` | `<base-ref> <head-ref>`: exit 0 only if an automatic `/codify` change stays inside the allowlist (`phases/codify.md` § Automatic runs); 1 findings, 2 usage or git error. |
 | `bin/check-browser-walk-receipts.mjs` | Checks a todo declares its browser walk (or why it does not apply). |
 
 ## Not included

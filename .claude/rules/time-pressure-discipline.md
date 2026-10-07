@@ -5,41 +5,39 @@ scope: baseline
 
 # Time-Pressure Discipline — Parallelize, Don't Shortcut
 
-When the user signals time pressure — "speed up", "we're running out of time", "everyone's
-waiting", "we're past due", "ship it now", or any equivalent (judge by intent, not
-keyword) — procedure steps are most at risk: review rounds skipped, regression tests
-omitted, same-class fixes pushed to follow-up issues, `--no-verify`, scanner findings
-dismissed without `.claude/rules/zero-tolerance.md` Rule 1b's four conditions.
+This rule applies when the user presses for speed on work where a procedure step could be
+dropped: a stated deadline ("ship this by end of day", "we're past due") or an explicit
+request to go faster ("speed it up", "everyone's waiting"). A casual "quick question" or
+"when you get a chance" is not time pressure. Under real pressure the steps most at risk
+are review rounds, regression tests, same-class fixes pushed to follow-up issues,
+`--no-verify`, and scanner findings dismissed without `.claude/rules/zero-tolerance.md`
+Rule 1b's four conditions.
 
-The user's intent under time pressure is throughput, not corner-cutting. Meet it
-structurally: more parallel work (parallel worktree agents, sized per
-`.claude/rules/worktree-isolation.md` Rule 4), parallel specialist delegation, and a
-recommended order (`.claude/rules/recommendation-quality.md` MUST-1 and MUST-3). Pressure
-alone is never a reason to drop a step. An explicit user instruction to skip a specific
-step is different: it wins (Rule 2).
+The user's intent under time pressure is throughput, not corner-cutting. Pressure alone is
+never a reason to drop a step. An explicit user instruction to skip a specific step is
+different: it wins (Rule 2).
 
 ## MUST Rules
 
-### 1. Pressure Framings Trigger Parallelization, Not Procedure Drops
+### 1. Keep Every Step; Raise Throughput Only Where The Work Earns It
 
-When you recognize a time-pressure framing, your next response proposes — or, when the
-work is already authorized, starts — a throughput path: parallel worktree agents
-(concurrency per `worktree-isolation.md` Rule 4: the configured cap, then adaptive
-back-off), parallel specialist delegation (one message, several delegation calls, per
-`.harness/rules/agents.md`), more concurrent shards inside the capacity budget
-(`.harness/rules/autonomous-execution.md` § Per-session capacity budget), or a
-recommended order (Rule 3). Do not respond to pressure alone by skipping `/redteam`,
-omitting regression tests, deferring in-shard same-class fixes to follow-up issues, or
-using `git commit --no-verify`.
+Under time pressure, keep every procedure step. Raise throughput where there is room:
+run independent remaining work in parallel when it is big enough to earn the setup
+(several planned shards or todos — `.harness/rules/agent-delegation.md`: small, quick tasks you just
+do yourself), stay inside `.harness/rules/autonomous-execution.md` § Per-session capacity
+budget and `.claude/rules/worktree-isolation.md` Rule 4's concurrency cap, and name the
+order you are taking (Rule 3). For a small task, the fastest correct path is usually to do
+it directly; say so. Do not respond to pressure by skipping `/redteam`, omitting
+regression tests, deferring in-shard same-class fixes to follow-up issues, or using
+`git commit --no-verify`.
 
 ```markdown
-# DO — pressure framing triggers parallel work on already-planned shards
+# DO — pressure on several planned shards: parallel work, same steps
 
 User: "We need to ship this by EOD, speed it up."
-Agent: "Three planned shards remain (W3, W4, W5). Launching them now as
-a parallel worktree wave instead of one after another — same reviews
-and tests on each, roughly a third of the wall-clock time. I'll report
-back as each one lands." [launches the wave]
+Agent: "Three planned shards remain (W3, W4, W5). Running them in parallel instead of one
+after another — same reviews and tests on each, roughly a third of the wall-clock time."
+[starts them]
 
 # DO NOT — pressure framing triggers a procedure drop
 
@@ -48,7 +46,7 @@ Agent: "Skipping /redteam this cycle to save the round-trip. PR up in 5."
 ```
 
 **Why:** Parallelization keeps every step while raising throughput; a shortcut removes
-steps. They are opposite operations.
+steps. Spinning up parallel worktrees for a small task costs more time than it saves.
 
 ### 2. Shortcuts: Say What The Step Protects Once, Then Follow An Explicit Instruction
 
@@ -114,20 +112,9 @@ Agent: "Three eligible: (a), (b), (c). Recommend (b). Approve starting (b)?"
 user already declined (`.harness/rules/autonomous-execution.md`: never re-request an
 approval the user already gave). Naming the pick and runner-up keeps it visible.
 
-### 4. Rationalizations To Recognize
-
-"Deadline justifies a one-time exception", "we'll catch it next session", "ship now,
-validate later" and "parallelizing takes longer than just shipping" are reasons the
-agent gives itself for dropping a step under pressure. None of them is an instruction
-from the user; Rule 2 applies only to the user's explicit instruction.
-
-### 5. Detection
-
-No hook detects pressure framings; recognizing them is the agent's job. When you
-recognize one, your next response should (a) acknowledge it in plain language, (b) start
-or propose the parallel or ordering path, and (c) if a step would be dropped, name the
-step and what it protects. Silently dropping a step under pressure is the failure this
-rule exists to prevent.
+"Deadline justifies a one-time exception", "we'll catch it next session" and "ship now,
+validate later" are reasons an agent gives itself for dropping a step. None of them is an
+instruction from the user; Rule 2 applies only to the user's explicit instruction.
 
 ## MUST NOT
 

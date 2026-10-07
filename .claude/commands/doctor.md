@@ -28,6 +28,7 @@ the always-required tools below.
 | git identity  | `git config user.name && git config user.email` | Set, so commits carry real authorship |
 | line endings  | `git config core.autocrlf`                  | Not `true` on a repo that expects LF — fighting normalization causes noisy diffs |
 | GitHub CLI    | `gh --version && gh auth status`            | Present and authenticated — needed for `/deploy`, `/sweep`, PR workflow |
+| GitHub remote | `git remote get-url origin && gh repo view --json nameWithOwner` | The project has a GitHub repository to push to and open pull requests against |
 | Project runtime(s) | the version command for each language/runtime in the profile's § Identity (e.g. `python3 --version`, `go version`, `node --version`) | Present, at the version the project expects |
 | Project toolchain | the first word of each filled-in profile § Commands row (package manager, test runner, migration tool) — `command -v <tool>` | Installed and on the PATH |
 | Test infrastructure | whatever the profile's § Test infrastructure says provisions throwaway services (e.g. `docker --version`) | Present, so Tier 2/3 tests can run |

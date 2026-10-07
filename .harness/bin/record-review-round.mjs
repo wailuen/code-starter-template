@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation } from "../lib/redteam-stall.cjs";
+import { dirname, join, resolve, basename } from "node:path";
+import { execFileSync } from "node:child_process";
+import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 
 // 2 = reassess before another round (REPLAN, or the cap's single debug round);
@@ -38,6 +39,36 @@ function legacySeedFrom(file, round, cwd) {
   return { replansConsumed, reviewersSeen: [...reviewersSeen].sort() };
 }
 
+// Every round record ever ADDED in the branch's history (all commits reachable from it), as
+// first committed, oldest first. The recorder keeps only those of this scope or this branch
+// (redteam-stall.cjs rebuildFromHistory). Paths are read with core.quotePath off, so a
+// non-ASCII workspace name is matched as written.
+const ROUND_RECORD_RE = /(?:^|\/)(?:04-validate|\.harness\/reviews)\/round-[^/]+\.json$/;
+function committedRoundRecords(cwd) {
+  return (branch) => {
+    const git = (args) => execFileSync("git", ["-c", "core.quotePath=false", ...args],
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    // The branch's own history plus the local `main`: a scope's round records can sit on a
+    // record-only branch that already merged (a codify `-ask` review's records live on
+    // `docs/codify-<slug>-ask-review`, never on the `-ask` branch). Records of other scopes and
+    // branches on `main` are filtered out by rebuildFromHistory, so a todo branch still does not
+    // inherit a wave's rounds.
+    const refs = [`refs/heads/${branch}`];
+    if (branch !== "main") {
+      try { git(["rev-parse", "--verify", "--quiet", "refs/heads/main"]); refs.push("refs/heads/main"); } catch { /* no local main */ }
+    }
+    const log = git(["log", "--reverse", "--no-renames", "--diff-filter=A", "--format=%x00%H", "--name-only", ...refs]);
+    const records = [];
+    for (const chunk of log.split("\0").filter(Boolean)) {
+      const [commit, ...paths] = chunk.split("\n").filter((l) => l.length);
+      for (const path of paths) {
+        if (ROUND_RECORD_RE.test(path)) records.push({ path, commit, text: git(["show", `${commit}:${path}`]) });
+      }
+    }
+    return records;
+  };
+}
+
 try {
   if (process.argv.length !== 3) throw new Error("Usage: record-review-round.mjs <round.json>");
   const file = resolve(process.argv[2]);
@@ -45,7 +76,8 @@ try {
   const target = requireMainCheckout(process.cwd());
   if (!target.ok) throw new Error(`Cannot resolve shared review state: ${target.reason}`);
   const cwd = process.cwd();
-  const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd) });
+  const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd),
+    history: committedRoundRecords(cwd), scope: scopeOfRecordPath(basename(file)) });
   console.log(JSON.stringify({ branch: round.branch, round: round.round, ...outcome }));
   if (outcome.next) console.log(outcome.next);
   process.exitCode = EXIT_CODES[outcome.action] ?? 0;

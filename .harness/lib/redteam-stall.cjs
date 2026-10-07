@@ -7,20 +7,18 @@ const path = require("node:path");
 const { createHash, randomUUID } = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const { assertStateDirContained, readFileHardened, writeFileHardened } = require("../../.claude/hooks/lib/state-io.js");
+const { isAgentIdentity } = require("./agent-identity.cjs");
 // FIRING_THRESHOLD bounds CONSECUTIVE non-clear rounds since the last reassessment
 // and resets on every fresh decision record. TOTAL_ROUND_CAP bounds the branch's
-// CUMULATIVE round count and never resets: a branch has been observed reaching
-// round 21 without FIRING_THRESHOLD ever firing, because six genuine decision
-// records each legitimately reset the consecutive counter. Both gates apply; whichever fires first.
+// CUMULATIVE round count and never resets, because genuine decision records each
+// legitimately reset the consecutive counter and a branch could otherwise run without
+// end. Both gates apply; whichever fires first.
 const FIRING_THRESHOLD = 4;
 const TOTAL_ROUND_CAP = 3;
 // An errored dispatch may be re-run this many times without spending budget; the
 // next consecutive failure is charged like any round, so an instrument that keeps
 // failing bleeds the branch into the cap instead of retrying forever.
 const ERROR_RERUN_LIMIT = 2;
-// Role/placeholder words that name an agent seat or nobody, never a human.
-const RESERVED_ACCEPTORS = new Set(["team-lead", "lead", "orchestrator", "agent", "assistant", "claude", "codex",
-  "gemini", "bot", "main", "human", "user", "owner", "reviewer", "debug"]);
 const STATE_FILE = "redteam-stall-state.json";
 const nonempty = (s) => typeof s === "string" && s.trim().length > 0;
 
@@ -55,6 +53,9 @@ function normalizeRound(input) {
     if (!Array.isArray(replan_accepts) || !replan_accepts.every((a) => a && nonempty(a.key) && nonempty(a.acceptor))) {
       throw new Error("replan_accepts must be an array of {key, acceptor}");
     }
+    // Accepting a recurring root cause is a human's call, like accepting an escalation.
+    const agent = replan_accepts.find((a) => isAgentIdentity(a.acceptor) || expected_reviewers.includes(a.acceptor.trim()));
+    if (agent) throw new Error(`replan_accepts acceptor must be a named human, not an agent role or reviewer lens (${agent.acceptor})`);
   }
   if (debug !== undefined && debug !== true) throw new Error("debug must be true when present; an ordinary round omits it");
   if (debug && !replan) throw new Error("A debug round must also cite a new decision record in replan; the flag alone is not a reassessment");
@@ -64,7 +65,8 @@ function normalizeRound(input) {
       throw new Error("escalation_accepts must be {acceptor, record}: the named human who accepted the escalation and their acceptance record");
     }
     const acceptor = escalation_accepts.acceptor.trim();
-    if (RESERVED_ACCEPTORS.has(acceptor.toLowerCase()) || expected_reviewers.includes(acceptor)) {
+    // One denylist shared with the convergence checker and the task-contract check.
+    if (isAgentIdentity(acceptor) || expected_reviewers.includes(acceptor)) {
       throw new Error(`escalation_accepts.acceptor must be a named human, not an agent role or reviewer lens (${acceptor})`);
     }
     if (replan !== undefined && escalation_accepts.record === replan) {
@@ -80,12 +82,12 @@ function normalizeRound(input) {
     ...(escalation_accepts ? { escalation_accepts: { acceptor: escalation_accepts.acceptor.trim(), record: escalation_accepts.record } } : {}) };
 }
 
-// A clean round only closes the loop if the reviewed head never moved: any new
-// commit — including the round's own record commit — silently re-opens it.
-// A duration audit measured that silence as the largest real-world cost of the
-// same-head rule: a round can be
-// clean and still not be "the second one" the convergence receipt needs, and
-// nothing said so out loud. describeNext() is that missing announcement.
+// A clean round only closes the loop if the reviewed head never moved: a round whose
+// `head` differs from the previous round's restarts the clean count. `head` is the
+// commit the reviewers checked out, not the branch tip, so committing the round's own
+// record, report and ledger rows on top (bookkeeping) changes nothing as long as the next
+// round's `head` stays the reviewed commit. A round can be clean and still not be "the
+// second one" the convergence receipt needs; describeNext() says so out loud.
 function describeNext({ action, cleanRounds, head, streakReset, capReached, reviewersSeen, debugRound, replanRequired, charged, consecutiveErrors }) {
   const shortHead = head.slice(0, 12);
   if (action === "VERIFY_CONVERGENCE_RECEIPT") {
@@ -99,7 +101,8 @@ function describeNext({ action, cleanRounds, head, streakReset, capReached, revi
   }
   if (action === "DEBUG_ROUND") {
     return `NEXT: the ${TOTAL_ROUND_CAP}-round cap is reached without convergence. Repair the findings, then the ONLY round this branch can still record is its single /debug round: ` +
-      `debug: true, a new decision record in replan, and expected_reviewers never used on this branch (already used: ${reviewersSeen.join(", ")}). ` +
+      `debug: true, a new decision record in replan, and expected_reviewers never used on this branch, named <lens>-debug (e.g. correctness-debug, security-debug; already used: ${reviewersSeen.join(", ")}). ` +
+      "Its same-head confirmation round, if it is clean, omits debug: true. " +
       "If that round does not converge, the branch escalates to a named human." +
       (replanRequired ? " REPLAN also fires; the decision record must address it." : "");
   }
@@ -119,17 +122,15 @@ function describeNext({ action, cleanRounds, head, streakReset, capReached, revi
     const cap = capReached
       ? ` The ${TOTAL_ROUND_CAP}-round cap is reached: a same-head confirmation is the ONLY ordinary round left; if the head moves, the next round needs the branch's debug round${debugRound == null ? "" : " (already used)"} or a named human's escalation_accepts.`
       : "";
-    return `NEXT: dispatch round N+1 against ${shortHead} UNCHANGED — any new commit (including this round's own record commit) resets cleanRounds to 0. Currently cleanRounds ${cleanRounds}/2. Only wave convergence needs this second round: a todo checkpoint or a /fix branch is done after one complete CLEAR round, so do not dispatch it there.${warning}${cap}`;
+    return `NEXT: dispatch round N+1 with head ${shortHead} UNCHANGED — the reviewers check out that same commit. A change to the reviewed code (a new head) resets cleanRounds to 0; committing this round's record, reports and ledger rows does not, as long as head stays ${shortHead}. Currently cleanRounds ${cleanRounds}/2. Only a standard-mode wave convergence (/redteam, scope wNN) needs this second clean round: a light-mode wave, a todo checkpoint, a /fix branch, a planning review, an analysis review or a codify review is done after one complete CLEAR round, so do not dispatch it there.${warning}${cap}`;
   }
-  return `NEXT: repair the findings, then dispatch a fresh round against the new head. Currently cleanRounds ${cleanRounds}/2 (any new commit keeps it at 0 until two consecutive clean rounds share one unchanged commit).`;
+  return `NEXT: repair the findings, then dispatch a fresh round against the new head. Currently cleanRounds ${cleanRounds}/2 (it stays at 0 until two consecutive clean rounds share one unchanged head).`;
 }
 
-// The recurrence check used to compare only ADJACENT rounds' root causes, by
-// EXACT string, which is blind to a class resurfacing after a clean round or
-// under a differently-worded key. This is the affordance half of the fix (found
-// by diagnosing an 11-round branch's round pattern): print the branch's
-// full known-root-cause history on every record so an author cannot mint a
-// fresh key for a class the branch has already named without seeing it listed.
+// Recurrence is judged by key, so a class resurfacing under a differently-worded key
+// would slip past it. Print the branch's full known-root-cause history on every record
+// so an author cannot mint a fresh key for a class the branch has already named
+// without seeing it listed.
 function formatKeyHistory(keyHistory, closedBy, accepted) {
   const keys = Object.keys(keyHistory).sort();
   if (!keys.length) return "Known root causes on this branch: none yet.";
@@ -248,9 +249,8 @@ function advanceRound(previous, input, { legacySeed } = {}) {
   }
   if (round.replan && Object.hasOwn(budget.replansConsumed, round.replan) && !(rerun && previous.lastRoundRecord.replan === round.replan)) {
     // A decision record is consumed by the round that first cites it. Re-citing
-    // the SAME path on a later round silently suppressed recurrence detection
-    // for that whole interval (observed: rounds 4, 5 and 7 all re-cited a
-    // decision record rounds 3/6 had already consumed) — refuse it instead.
+    // the SAME path on a later round would silently suppress recurrence detection
+    // for that whole interval — refuse it instead.
     // Judged against the whole branch, not the adjacent round: a record spent
     // two rounds ago is no fresher, and the cap's debug round needs a NEW one.
     throw new Error(`replan ${round.replan} was already consumed by round ${budget.replansConsumed[round.replan]}; a new reassessment needs a new decision record`);
@@ -357,7 +357,13 @@ function resolveCitation(cited, { roots, checkoutRoot, require = true }) {
 function assertBranchAndHead(round, cwd) {
   const git = (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   try { git(["rev-parse", "--verify", "--quiet", `refs/heads/${round.branch}`]); }
-  catch { throw new Error(`branch ${round.branch} is not a branch of this repository; name the real branch under review`); }
+  catch {
+    // A branch that exists only on a remote is real but has no local ref to verify against.
+    let remote = "";
+    try { remote = git(["for-each-ref", "--format=%(refname:short)", `refs/remotes/*/${round.branch}`]).trim().split("\n")[0]; } catch { /* no remotes */ }
+    if (remote) throw new Error(`branch ${round.branch} exists only as ${remote}; create the local branch first (git switch ${round.branch}), then record the round`);
+    throw new Error(`branch ${round.branch} is not a branch of this repository; name the real branch under review`);
+  }
   try { git(["merge-base", "--is-ancestor", round.head, `refs/heads/${round.branch}`]); }
   catch { throw new Error(`head ${round.head} is not a commit on branch ${round.branch}`); }
 }
@@ -433,11 +439,69 @@ function writeState(repoDir, state) {
   finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
 }
 
-// Every entry point — CLI and hook alike — verifies the branch and head against git
-// and resolves the cited files here, before any state is touched: a citation must
-// name a non-empty file inside the checkout the round was recorded from (relative
-// to the round file's directory or the working directory), and is stored under its
-// real location.
+// The scope a round record belongs to, from its file name `round-<scope>-<n>.json` (null if not that shape).
+function scopeOfRecordPath(p) {
+  const m = path.posix.basename(String(p)).match(/^round-(.+)-(\d+)\.json$/);
+  return m ? m[1] : null;
+}
+
+// The state file is gitignored and local to one checkout. When it holds nothing for this
+// branch (deleted, a fresh clone, another machine), the count is rebuilt by replaying, in
+// round order, the committed round records that belong to this review: a record whose file
+// names the SAME SCOPE, or whose `branch` is THIS BRANCH. So a branch renamed or re-cut for the
+// same scope keeps its count, while a todo branch cut from a wave branch does not inherit the
+// wave's rounds. `history` is a list of {path, commit, text}: every record ever added in the
+// branch's history, as first committed (the CLI collects it), so deleting or editing a record
+// later changes nothing.
+//
+// What this does NOT do: the budget is an aid against endless review loops, not a security
+// control. Rewriting local history (a reset, a new branch from `main` under a new scope name)
+// can still start a fresh count; rewriting history already needs the user
+// (`.harness/rules/autonomous-execution.md` § What needs the user).
+//
+// Refused with nothing recorded: a record of this scope that does not parse or is not a
+// complete round, two different records for one round number, counted records that do not
+// start at round 1, and a new round that is not the next one after them.
+function rebuildFromHistory(round, history, ctx, legacySeed, scope) {
+  const fail = (why) => new Error(`Cannot rebuild the review count for ${round.branch} from its committed round records: ${why}. ` +
+    `Restore .claude/learning/${STATE_FILE} if it was lost, or repair the records`);
+  const byRound = new Map();
+  for (const entry of history || []) {
+    const entryScope = scopeOfRecordPath(entry.path);
+    let parsed = null;
+    try { parsed = JSON.parse(entry.text); } catch { /* judged below */ }
+    const ours = (scope && entryScope === scope) || (parsed && typeof parsed === "object" && parsed.branch === round.branch);
+    if (!ours) continue;
+    let record;
+    try { record = canonicalizeRound(normalizeRound(parsed), { ...ctx, require: false }); }
+    catch (error) { throw fail(`${entry.path} as added in ${String(entry.commit).slice(0, 12)} is not a complete round record (${error.message})`); }
+    const fingerprint = JSON.stringify(record);
+    const seen = byRound.get(record.round);
+    if (seen && seen.fingerprint !== fingerprint) throw fail(`two different committed records claim round ${record.round} (${seen.path}, ${entry.path})`);
+    if (!seen) byRound.set(record.round, { record, fingerprint, path: entry.path });
+  }
+  const rounds = [...byRound.keys()].sort((a, b) => a - b);
+  if (rounds.length && rounds[0] !== 1) throw fail(`the earliest committed record is round ${rounds[0]}, not round 1`);
+  let state;
+  for (const n of rounds) {
+    try { state = advanceRound(state, byRound.get(n).record, { legacySeed }).nextState; }
+    catch (error) { throw fail(`round ${n}: ${error.message}`); }
+  }
+  const last = state ? state.lastRound : 0;
+  if (round.round !== last + 1 && !(state && round.round === last && byRound.get(last).fingerprint === JSON.stringify(round))) {
+    throw new Error(`round ${round.round} refused: there is no review state for ${round.branch} in this checkout, and the committed records of ` +
+      `this scope or branch ${last ? `already hold rounds 1-${last} (deleted or edited records included), so the next round is ${last + 1}` : `hold no rounds, so the first round is 1`}. ` +
+      `Restore .claude/learning/${STATE_FILE} if it was lost`);
+  }
+  return { state, replayed: rounds.length };
+}
+
+// Every entry point verifies the branch and head against git and resolves the cited
+// files here, before any state is touched: a citation must name a non-empty file
+// inside the checkout the round was recorded from (relative to the round file's
+// directory or the working directory), and is stored under its real location.
+// `options.history` (a function returning the branch's committed round records) lets a
+// checkout with no state rebuild it; without it, only round 1 can start a branch.
 function recordRound(repoDir, input, options = {}) {
   const roots = [options.roundDir, options.cwd].filter(Boolean);
   const ctx = { roots: roots.length ? roots : [repoDir], checkoutRoot: findCheckoutRoot(roots[0] || repoDir) };
@@ -445,7 +509,10 @@ function recordRound(repoDir, input, options = {}) {
   assertBranchAndHead(normalized, options.cwd || options.roundDir || repoDir);
   const round = canonicalizeRound(normalized, ctx);
   // The CLI/lead is the normal writer. The lock also prevents lost updates if two
-  // leads or hook invocations overlap. Busy and stale locks are LOUD, never resets.
+  // leads overlap. Busy and stale locks are LOUD, never resets. Containment is checked
+  // BEFORE the directory is created, so a symlinked `.claude` never gets a directory
+  // made outside the repository first.
+  stateDirectory(repoDir);
   fs.mkdirSync(path.join(repoDir, ".claude", "learning"), { recursive: true });
   const dir = stateDirectory(repoDir);
   const lock = path.join(dir, "redteam-round.lock");
@@ -453,37 +520,23 @@ function recordRound(repoDir, input, options = {}) {
   if (!claimed.ok) throw new Error("Review recorder is locked; retry after its writer exits. For a stale lock, verify its PID is dead before removing only redteam-round.lock.");
   try {
     const state = readState(repoDir);
-    const outcome = advanceRound(state.branches[round.branch], round, options);
+    let previous = state.branches[round.branch];
+    let rebuilt = null;
+    if (!previous) {
+      const history = typeof options.history === "function" ? options.history(round.branch) : [];
+      const result = rebuildFromHistory(round, history, ctx, options.legacySeed, options.scope);
+      previous = result.state;
+      if (result.replayed) rebuilt = result.replayed;
+    }
+    const outcome = advanceRound(previous, round, options);
     if (!outcome.duplicate) {
       state.branches[round.branch] = outcome.nextState;
       writeState(repoDir, state);
     }
+    if (rebuilt) outcome.next = `Review state for ${round.branch} was missing here; rebuilt from ${rebuilt} committed round record(s).\n${outcome.next}`;
     return outcome;
   } finally { fs.unlinkSync(lock); }
 }
 
-// Compatibility hook accepts only a whole structured round, never one lens's
-// prose. The normal workflow uses record-review-round.mjs after aggregation.
-function parseRoundMessage(message) {
-  let value;
-  try { value = JSON.parse(message); } catch { return null; }
-  return value?.type === "redteam-round" ? normalizeRound(value) : null;
-}
-
-const FINDING_MESSAGES = {
-  REPLAN: "REPLAN: a root cause recurred (even across a clean round, or after a decision record claimed it closed) or four non-clear rounds since the last reassessment. Run /debug architectural reassessment before another repair cycle.",
-  DEBUG_ROUND: `DEBUG_ROUND: this branch used its ${TOTAL_ROUND_CAP}-round budget without converging. The only round it can still record is its single debug round: debug: true, a new decision record in replan, reviewers never used on this branch.`,
-  ESCALATE_TO_HUMAN: `ESCALATE_TO_HUMAN: this branch used its ${TOTAL_ROUND_CAP}-round budget and its debug round without converging. Stop; a named human must accept each further round (escalation_accepts {acceptor, record}).`,
-};
-
-function assessRedteamStall(toolInput, repoDir, cwd) {
-  if (toolInput?.to !== "team-lead") return { finding: null };
-  const round = parseRoundMessage(toolInput.message);
-  if (!round) return { finding: null };
-  const result = recordRound(repoDir, round, { cwd });
-  return { finding: result.action in FINDING_MESSAGES ? { branch: round.branch,
-    count: result.nextState.consecutiveNotClear, message: FINDING_MESSAGES[result.action] } : null };
-}
-
 module.exports = { FIRING_THRESHOLD, TOTAL_ROUND_CAP, ERROR_RERUN_LIMIT, normalizeRound, advanceRound, readState, writeState,
-  recordRound, parseRoundMessage, assessRedteamStall, findCheckoutRoot, resolveCitation };
+  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath };

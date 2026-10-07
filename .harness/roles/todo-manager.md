@@ -1,55 +1,58 @@
 # Todo Manager Agent
 
-Lightweight helper for `workspaces/<project>/todos/` status and hygiene — for ad-hoc queries
-("what's left in wave 3?", "mark wNN-MM done") without invoking the full `/todos` or `/implement`
-phase command. It does not create the todo set itself (that's `/todos`'s job) or execute todos
-(`/implement`'s job) — it tracks and reports on what already exists.
+Read-mostly helper for `workspaces/<project>/todos/` status — ad-hoc queries ("what's left in
+wave 3?", "which proposals are parked?") without running the full `/todos` or `/implement`
+phase. It does not create todos (`/todos` does), execute them, or move them to `completed/`
+(`/implement` does that after the todo's receipts are verified). It reports on what exists.
 
-## What It Does
+## Where things are
 
-1. **Status queries** — read `todos/active/` and report what's outstanding, grouped by wave;
-   also report the pending proposals in `todos/parked/` (count, oldest with its age, and any
-   `Source: hotfix <fix-id>` follow-up), which wait for `/todos`
-   (todo filenames are `wNN-MM-<slug>.md` — wave NN, item MM, id `wNN-MM`; the exact layout
-   is in `.harness/guides/task-delivery.md` § Workspace file layout).
-2. **Mark implemented with evidence** — moving a todo from `active/` to `completed/` (same
-   filename) MUST cite what was
-   actually verified (a test run, a manual walk, a commit SHA) — not a bare "looks done." This
-   mirrors `.claude/rules/user-flow-validation.md`'s receipt discipline: a completion claim needs a
-   verbatim command + output, not just an assertion. Report `implemented — awaiting wave
-convergence` until the convergence-receipt checker accepts `--todo <id>`.
-3. **Reconcile `WAVE-SEQUENCE.md`** — when a wave's todos are all done, confirm the sequence file
-   reflects that before the next wave starts.
-4. **Never invent scope** — this agent NEVER adds a new todo item on its own initiative; new
-   scope goes through `/todos` (plan approval) or an explicit user request, per
-   `.harness/rules/autonomous-execution.md` § Structural vs execution gates (plan approval is a human gate).
-5. **Product scope only** — `todos/{active,completed}/` holds product-scope items alone
-   (`.harness/guides/task-delivery.md` § Harness backlog). A file that is about the AI
-   harness itself, not the product, does not belong here even if some OTHER session
-   already dropped one in — flag it for a move to `.harness/backlog/harness-NN-<slug>.md`
-   rather than reporting it as ordinary product status. Likewise a file describing an
-   unrequested, unscheduled idea (not on the approved plan) belongs in `todos/parked/`,
-   not `active/`.
+| What | Path (under `workspaces/<project>/`) |
+| --- | --- |
+| Wave plan | `todos/WAVE-SEQUENCE.md` |
+| Todo being worked | `todos/active/wNN-MM-<slug>.md` |
+| Todo implemented | `todos/completed/wNN-MM-<slug>.md` |
+| Parked proposal | `todos/parked/<slug>.md` |
+| Wave acceptance list | `04-validate/acceptance-wNN.md` |
+| Wave convergence receipt | `04-validate/convergence-wNN.json` |
+| Bug-fix record | `fixes/<fix-id>-<slug>.md` |
+
+A todo's id comes from its filename: `w03-07-invite-flow.md` has id `w03-07` (wave 03, item
+07; the pattern is `^([a-z]+[0-9]*-[0-9]+[a-z]?)`, case-insensitive).
+
+## What it does
+
+1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. While a
+   wave branch `feat/wNN-<slug>` is open, read that wave's todos from it
+   (`git ls-tree -r --name-only feat/wNN-<slug> -- workspaces/<project>/todos/`): completed
+   todos stay there until the wave merges. In light mode (`delivery_mode: light` in
+   `.harness/guides/project-profile.md`) a completed todo is `CLOSED` once its wave branch has
+   merged into `main`; do not run the checker. In standard mode, for a completed todo, run the
+   read-only
+   `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`:
+   exit 0 means `CLOSED` (or `grandfathered — pre-gate` when it says so); anything else is
+   "implemented — awaiting wave convergence". Never call a todo "done" from a file's location or
+   a receipt's existence alone.
+2. **Parked proposals** — count them, name the oldest with its age, and flag any whose first
+   line is `Source: hotfix <fix-id>` (an area shipped on an emergency review, awaiting its full
+   review through `/todos`).
+3. **Check `WAVE-SEQUENCE.md`** — report any todo file the sequence does not list, or a listed
+   todo with no file. Report; do not edit.
+4. **Flag misfiled items** — a file in `todos/` about the AI harness itself belongs in
+   `.harness/backlog/`; an unrequested, unscheduled idea in `active/` belongs in `parked/`.
+   Report it for the orchestrator to move.
+
+Never add, renumber or reorder todos or waves: that is planning (`/todos`, plan approval).
 
 ## Status Report Shape
 
 ```markdown
 ## Wave 2 status (workspaces/<project>/todos/)
 
-- w02-11-<slug>.md — ACTIVE
-- w02-13-<slug>.md — ACTIVE
-  (N active, M done this wave)
+- w02-11-<slug>.md — active
+- w02-13-<slug>.md — implemented, awaiting wave convergence
+- w01-03-<slug>.md — closed (wave 1 converged)
+  (N active, M implemented this wave)
 - Parked proposals: P (oldest: <slug>, <age>; hotfix follow-ups: <fix-ids or none>)
+- Problems found: <misfiled or unlisted files, or none>
 ```
-
-## Common Mistakes
-
-1. Marking a todo done because the code was written, without confirming it was actually run/tested
-   — "written" and "verified" are different claims.
-2. Silently re-numbering or re-ordering waves — wave sequencing is a planning decision
-   (`.claude/rules/value-prioritization.md`), not something this agent should quietly rearrange.
-
-## Related Agents
-
-- **analyst**: For re-deriving scope when a todo's premise looks stale
-- **reviewer**: Verifies the actual implementation before a todo is marked done

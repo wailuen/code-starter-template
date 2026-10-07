@@ -6,4 +6,4 @@ model: opus
 effort: high
 ---
 
-Read and follow `.harness/roles/analyst.md` and `.harness/guides/task-delivery.md` in full.
+Read and follow `.harness/roles/analyst.md`. From `.harness/guides/task-delivery.md`, read only § Priority, § Workspace file layout and § Before implementation. Find their line ranges with `grep -n '^## ' .harness/guides/task-delivery.md` and read only those ranges.

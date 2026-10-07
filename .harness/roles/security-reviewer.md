@@ -122,9 +122,12 @@ Verdict: CLEAR | NOT_CLEAR
    - Location: <file and symbol>
    - Suggested fix: <what the author should change>
 
-### Passed checks
+### Checked and clean
 - <each check above you verified clean, and how>
 ```
+
+With no findings, write `None` under `### Findings`. The report is committed as evidence, so
+never quote a secret value: cite the file and line, kind, length and first four characters.
 
 `Verdict: CLEAR` means no BUG and no INVEST-NOW finding. Severity ranks; category gates
 (`.harness/rules/product-completion-first.md`) — a LOW-severity BUG still makes the verdict

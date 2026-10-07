@@ -1,15 +1,18 @@
 ---
 name: wrapup
-description: "Write .session-notes so the next session resumes without re-discovering context."
+description: "End a session: run /learn (and /codify when it is due), then write .session-notes so the next session resumes without re-discovering context."
 ---
 
-The only deliverable is a `.session-notes` file at the repo root that lets a fresh session
+The main deliverable is a `.session-notes` file at the repo root that lets a fresh session
 start producing work within a couple of minutes of reading it, without re-exploring the
-codebase.
+codebase. Before writing it, wrapup runs `/learn` and, when it is due, `/codify` (§ Lessons
+below), which can open and merge a harness pull request.
 
 **Before running:** if a significant decision, discovery, or risk from this session isn't yet
 in `workspaces/<project>/journal/`, run `/journal new DECISION|DISCOVERY|RISK <topic>` first — `.session-notes` gets
-overwritten every time, so it is not where decisions live.
+overwritten every time, so it is not where decisions live. Tag an entry `harness` only when it is
+about the harness itself (a rule, phase, role, guide, agent or tool); only those become lessons
+for `/codify` (`.harness/phases/learn.md`).
 
 ## What the next session already has for free
 
@@ -32,8 +35,21 @@ new session to read `.session-notes` first).
 If content doesn't fit one of those four, it belongs in the journal or a todo instead — put it
 there before running `/wrapup`.
 
-**Deploy drift:** if `deploy/deployment-config.md` exists, run `/deploy --check` and put any
-drift ("N production-touching commits not deployed") under Outstanding work.
+**Deploy drift:** if `deploy/deployment-config.md` exists, follow `.claude/commands/deploy.md` § Check Mode
+(read-only) and put any
+drift ("N production-touching commits not deployed") under Outstanding work, and ask the user
+under Open questions whether to deploy. Do not deploy just because the session is ending.
+
+**Lessons:** run `/learn`. If it reports open lessons and the moment is right
+(`.harness/phases/codify.md` § When it runs — the right moment and what counts), run
+`/codify` before writing the notes. Otherwise don't codify: list the open lessons under
+Outstanding work so the next session runs `/codify` first.
+
+**Open questions for the user:** list everything `/ws` § 1 shows as waiting for the user (plan
+approval, wave preview, a review stopped for a decision, undeployed changes, open S1/S2 bugs,
+harness changes awaiting their OK), each in the format in `.claude/rules/communication.md`
+§ Asking the user to decide. `.session-notes` is local to this computer; anything another
+person or machine must see belongs in the journal or a pull request.
 
 ## Format
 
@@ -91,7 +107,7 @@ for the next session to orient, not a history.
   written from memory goes stale the moment the next commit lands. Point at the command that
   produces the real number instead (`git diff --stat`, the test command).
 - **"Read first" is the one section that must be present.** Without it, the next session has no
-  entry point. If you can't produce a useful list, point at `.claude/CLAUDE.md` as the entry point and
+  entry point. If you can't produce a useful list, point at `.claude/CLAUDE.md` (or `AGENTS.md` in a Codex session) as the entry point and
   say why nothing more specific applies yet.
 
 `.session-notes` is a pointer file, not a report — its job is to save the next session's

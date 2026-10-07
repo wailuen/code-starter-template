@@ -224,9 +224,9 @@ test("anthropic completion", async () => {
 | Go         | `if os.Getenv("API_KEY") == "" { t.Skip("requires API_KEY") }` at the top of the test | `t.Skip()` inside an `if err != nil` after the call |
 | JUnit 5    | `assumeTrue(System.getenv("API_KEY") != null)` before the call       | `assumeTrue(response.ok())` after the call |
 
-## Detection Protocol (Used At `/redteam`)
+## Detection Protocol
 
-Run these greps at every `/redteam`, against the project's test roots. Any match is a HIGH finding; review manually and either fix or exception-document. The patterns shown are for JavaScript/TypeScript and Python runners; write the equivalent for the project's runner and fire it at a known-bad fixture first.
+Run these greps against the project's test roots (`.harness/guides/project-profile.md` § Identity) when adding or reviewing skipped tests — for example from `/validate`, or as the test-coverage reviewer during `/redteam`. Any match is a HIGH finding; review manually and either fix or exception-document. The patterns shown are for JavaScript/TypeScript and Python runners; write the equivalent for the project's runner and fire it at a known-bad fixture first.
 
 ```bash
 # Playwright / Vitest — skip tied to HTTP status
@@ -262,6 +262,6 @@ Each match MUST be resolved to one of:
 
 ## Related Rules
 
-- `.claude/commands/test.md` — the tiered testing strategy. Test-skip hygiene is an extension of "tests MUST be deterministic": a skip-on-5xx turns the suite non-deterministic (green today, green tomorrow, never red despite breakage).
+- `.claude/commands/test.md` — the tiered testing strategy. Test-skip hygiene follows from wanting tests that give the same answer every run: a skip-on-5xx turns the suite non-deterministic (green today, green tomorrow, never red despite breakage).
 
 Origin: a chatbot returned 503 on every run; `test.skip(chatStatus >= 500)` masked it until a human filed the issue.

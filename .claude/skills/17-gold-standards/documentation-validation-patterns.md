@@ -93,13 +93,15 @@ Falsifying result: a `MISS` line. Run it against a doc that cites both a real pa
 one (e.g. `` `workspaces/<a-real-project>/briefs/<a-real-file>.md` `` alongside `` `docs/does-not-exist.md` ``) and confirm it
 prints exactly one `OK` and one `MISS` before trusting a clean result elsewhere.
 
-For `.claude/`-relative references (`` `rules/…` ``, `` `skills/…` ``, `` `guides/…` ``), check
-both the bare path and the `.claude/`-prefixed form:
+For harness-relative references (`` `rules/…` ``, `` `skills/…` ``, `` `guides/…` ``,
+`` `phases/…` ``, `` `roles/…` ``), check the bare path and both the `.claude/`- and
+`.harness/`-prefixed forms (guides, phases and roles live under `.harness/`; skills under
+`.claude/`; rules under both):
 
 ```bash
-grep -ohE '`(rules|skills|guides|agents|commands|hooks)/[A-Za-z0-9._/-]+`' "$doc" | tr -d '`' | sort -u \
+grep -ohE '`(rules|skills|guides|phases|roles|agents|commands|hooks)/[A-Za-z0-9._/-]+`' "$doc" | tr -d '`' | sort -u \
   | while read -r p; do
-      [ -e "$p" ] || [ -e ".claude/$p" ] && echo "OK   $p" || echo "MISS $p"
+      { [ -e "$p" ] || [ -e ".claude/$p" ] || [ -e ".harness/$p" ]; } && echo "OK   $p" || echo "MISS $p"
     done
 ```
 
@@ -225,10 +227,10 @@ for doc in "$@"; do
   grep -ohE '`(src|tests|workspaces)/[A-Za-z0-9._/-]+`' "$doc" | tr -d '`' | sort -u \
     | while read -r p; do [ -e "$p" ] || { echo "MISS path: $p"; exit 1; }; done || fail=1
 
-  # (b) .claude-relative citations
-  grep -ohE '`(rules|skills|guides|agents|commands|hooks)/[A-Za-z0-9._/-]+`' "$doc" | tr -d '`' | sort -u \
+  # (b) harness-relative citations (.claude/ or .harness/)
+  grep -ohE '`(rules|skills|guides|phases|roles|agents|commands|hooks)/[A-Za-z0-9._/-]+`' "$doc" | tr -d '`' | sort -u \
     | while read -r p; do
-        [ -e "$p" ] || [ -e ".claude/$p" ] || { echo "MISS artifact: $p"; exit 1; }
+        [ -e "$p" ] || [ -e ".claude/$p" ] || [ -e ".harness/$p" ] || { echo "MISS artifact: $p"; exit 1; }
       done || fail=1
 
   # (c) project commands — plug in the runner check from § 4 for the project's task runner
@@ -257,7 +259,7 @@ pure grep). Both together are the doc-side equivalent of the project's type chec
 | New file missing from its index table                   | BUG         | Add the row                                                       |
 | Section anchor that resolves to a file but not a clause | BUG         | Re-point or restore the clause                                    |
 | Half-completed terminology rename                       | BUG         | Finish the sweep in this change                                   |
-| Prose could be clearer                                  | INCREMENTAL | Defer with a value-anchor per `.harness/rules/product-completion-first.md` |
+| Prose could be clearer                                  | INCREMENTAL | Defer per `.harness/rules/product-completion-first.md` MUST-2 (the five deferral fields) |
 
 Category, not severity, gates the lane. A one-character wrong path is a BUG because the reader
 following it gets nothing.

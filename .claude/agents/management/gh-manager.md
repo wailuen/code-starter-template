@@ -3,7 +3,7 @@ name: gh-manager
 description: "GitHub issue and pull-request mechanics through the gh CLI. Use to file an issue from a todo, open or link a PR, read CI status on a pinned head before merging, or close an issue with a code reference. Does not edit code."
 tools: Read, Bash, Grep, Glob
 model: sonnet
-effort: low
+effort: medium
 ---
 
 # GitHub Manager Agent
@@ -18,6 +18,10 @@ code); any actual code change belongs to the specialist doing the work.
 1. **CI-check and merge are separate steps** — per `rules/git.md`: pin the head SHA
    (`gh pr view <N> --json headRefOid`), confirm every required check is `SUCCESS` on THAT SHA,
    then merge as a separate command. Never bundle `gh pr checks <N> --watch && gh pr merge`.
+   If the repository has no required checks, a passing `gh pr checks` proves nothing: say so
+   and hand back, so the orchestrator runs Local CI parity on that SHA first. Merge only what
+   the orchestrator says has passed its gate; which merges need the user is set in
+   `.harness/rules/autonomous-execution.md` § What needs the user.
 2. **Issue closure cites a code reference** — `gh issue close <N>` MUST include a commit SHA / PR
    number in the comment. Closing with no code reference is BLOCKED per `rules/git.md`.
 3. **No direct push to main, no force push** — every change goes through a PR from a branch
@@ -45,7 +49,7 @@ EOF
 # Check CI before merge (two separate commands, per git.md)
 head=$(gh pr view <N> --json headRefOid -q .headRefOid)
 gh pr checks <N>              # confirm every required check is SUCCESS on $head
-gh pr merge <N> --admin --merge  # separate command, only after confirming above
+gh pr merge <N> --merge         # separate command, only after confirming above
 
 # Close an issue with a code reference
 gh issue close <N> --comment "Fixed in a1b2c3d / PR #<M>"
@@ -57,9 +61,8 @@ gh issue close <N> --comment "Fixed in a1b2c3d / PR #<M>"
    a stale run while a newer duplicate on the current head is still pending (see `rules/git.md`).
 2. Closing an issue with no comment, or a comment with no code reference — breaks traceability from
    the issue to the fix.
-3. Using `--admin` to bypass a failing/pending check instead of investigating why it's
-   failing/pending. `--admin` is only for merging past branch protection once every required
-   check is green on the pinned head.
+3. Using `--admin`. It bypasses branch protection, so it needs the user's confirmation for
+   that pull request every time and is never used in an automatic run.
 
 ## Related Agents
 

@@ -3,19 +3,19 @@ name: gold-standards-validator
 description: "Documentation checker for terminology consistency, placeholder content, broken cross-references and leaked sensitive content. Use to validate docs, specs, rules or skill files. Code correctness review goes to reviewer."
 tools: Read, Glob, Grep
 model: sonnet
-effort: low
+effort: medium
 ---
 
 # Knowledge Base Compliance Validator
 
-Validate documents for terminology consistency, content quality, and cross-reference integrity. Report findings; the author applies fixes.
+Validate documents for terminology consistency, content quality, and cross-reference integrity. Report findings; the author applies fixes. This report has no `CLEAR`/`NOT_CLEAR` verdict, so it never counts as a recorded review round; a recorded round (a `/codify` review included) needs `reviewer`.
 
 ## Validation Checklist
 
 ### 1. Project Terminology
 
 There's no fixed vocabulary to check against — derive it from this project's own docs
-(the workspace's `briefs/` and `01-analysis/`, and `specs/_index.md` when it exists) and check
+(the workspace's `briefs/`, `01-analysis/` and `specs/_index.md`) and check
 for drift:
 
 - [ ] A concept named in those documents (e.g. a specific product term) is spelled the same way

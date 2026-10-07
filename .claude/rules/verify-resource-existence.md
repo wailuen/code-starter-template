@@ -51,7 +51,8 @@ evidence of current runtime state.
 ### 3. When The Resource Is Absent, Recommend Removal And Ask
 
 If the existence check comes back empty and there is no active user request to provision
-the resource, recommend deleting the dependent code and ask the user before deleting it.
+the resource, recommend deleting the dependent code and ask the user before deleting it
+(`.harness/rules/autonomous-execution.md` § What needs the user: deleting files this session did not create).
 Do not replace it with a stub or no-op — `.claude/rules/zero-tolerance.md` Rule 2 bans
 stubs in production code, and Rule 6 says to delete only when the user says "remove it".
 Recommend provisioning ("create the missing resource") only if the user asked for that
@@ -72,7 +73,7 @@ attest to itself.
 ```markdown
 # DO — receipt cited
 
-Receipts: journal/.pending/0003 § round-history table.
+Receipts: workspaces/<project>/journal/0003-DECISION-w02-converged.md § Round history.
 
 # DO NOT — self-attest
 

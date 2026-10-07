@@ -1,6 +1,6 @@
 ---
 name: learn
-description: "Read-only report of journal discoveries, gaps and trade-offs not yet folded into the harness, grouped for /codify. Use for /learn."
+description: "Read-only report of harness lessons (harness-tagged journal entries and harness backlog items) not yet folded into the harness, grouped for /codify. Use for /learn."
 ---
 
 Read and follow `.harness/adapters/claude.md`, then `.harness/phases/learn.md` in full.

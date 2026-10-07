@@ -97,6 +97,6 @@ it here.
 ## Distinct From / Cross-References
 
 - **Extends** `.claude/rules/spec-accuracy.md` Rule 1 (every cited symbol resolves via grep/ast at merge time) — that rule governs whether a citation resolves at write time; this rule governs the anchor shape so resolution survives later edits.
-- **Reconciles** `.claude/rules/specs-authority.md` Rule 9 (cite a canonical artifact by `<path>:<line>` OR `<path> §<section>`) — this rule makes the `§section`/symbol form the required primary; the specs-authority `:line` alternative is the MUST-2 paired-hint case.
+- **Reconciles** `.claude/rules/specs-authority.md` Rule 9 (cite a canonical artifact by a grep-stable anchor — `<path> §<section>` or a named symbol — with a bare `<path>:<line>` only as a paired hint); the two rules agree, and this one defines the anchor shapes in detail.
 
 Origin: a line-number-only citation broke as soon as the cited file was edited, including by the citing session's own later edits.

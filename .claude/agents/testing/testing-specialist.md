@@ -12,6 +12,21 @@ Testing strategy, architecture, and E2E generation for the project's stack (name
 
 Never change a test to fit the code: a test encodes the intended behavior, so a failing test means the code is wrong unless the test itself is shown to be wrong. Write tests first.
 
+## Step 0: Working Directory Self-Check
+
+When dispatched into a worktree, after the dispatch prompt's STEP-0 `cd`, run BARE (no `-C`) before any edit:
+
+```bash
+top=$(git rev-parse --show-toplevel)
+[ "$top" = "$(pwd -P)" ] || { echo "worktree drift detected — refusing to edit main checkout"; exit 1; }
+main=$(cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && pwd -P)
+[ "$top" != "$main" ] || { echo "worktree drift detected — refusing to edit main checkout"; exit 1; }
+git rev-parse --abbrev-ref HEAD
+```
+
+Re-assert location in the same command as any test run or patch (`.claude/rules/worktree-isolation.md` Rule 2a).
+
+
 ## /redteam test-coverage audit (`.harness/phases/redteam.md` § 2)
 
 When deployed by `/redteam` for test verification, follow this audit mode:
@@ -19,7 +34,7 @@ When deployed by `/redteam` for test verification, follow this audit mode:
 1. **Do not trust a recorded count** — a todo's `## Verification` block or an earlier round's report may predate new spec modules that have zero tests.
 2. **Re-derive coverage** by asking the test runner to list the tests it would run (the Tier 1/2/3 commands in `.harness/guides/project-profile.md`, with the runner's list/collect-only flag) — never trust a cached count.
 3. **For every new module** the spec created, grep `tests/` for an import of that module. Zero importing tests = HIGH finding regardless of suite-level "tests pass".
-4. **For every § Security Threats** subsection in any spec, grep for a corresponding test (e.g. a test group or file named for the threat). Missing = HIGH.
+4. **For every threat a spec or delivery contract names** (its `boundaries` and security obligations), grep for a corresponding test (e.g. a test group or file named for the threat). Missing = HIGH.
 5. Run only NEW tests written by red team (E2E, regression for findings). If a test is suspected wrong, re-run THAT test specifically.
 
 ## Probe-Driven Verification (MUST when authoring or auditing harnesses)

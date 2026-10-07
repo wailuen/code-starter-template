@@ -182,7 +182,7 @@ Fixing the import path alone is not enough when the methods called after it are 
 
 **Why:** Permanent gap trackers signal acceptance that the spec is partly aspirational — readers stop trusting any section.
 
-- Write a spec section for behavior not yet implemented
+- Write a spec section for behavior not yet implemented (except an approved-design spec under Exceptions item 4)
 
 **Why:** A spec for behavior that doesn't ship is a brief or a plan; it belongs in `briefs/` or `02-plans/`, not `specs/`.
 
@@ -191,12 +191,13 @@ Fixing the import path alone is not enough when the methods called after it are 
 1. **Explicit `## Out of scope` sections** that bound the spec's coverage (not gap trackers within it).
 2. **Append-only `## §X Change log`** sections describing past transitions in past tense.
 3. **`§X [reserved for future work]`** section-numbering anchors with no prose content (numbering placeholder only — no description).
+4. **Approved design before the code exists.** `/analyze` writes specs for a new project before anything is built (`.harness/phases/analyze.md` § 6). Such a spec file describes the approved behavior and carries one header line, `Status: approved design — not built yet (wave <wNN>)`, naming the wave that builds it. MUST-1's citation check applies to the file from the moment that wave merges, and the wave's spec reconciliation (`.harness/phases/redteam.md`, after the merge) removes the status line and adds the citations. No per-section gap notes, scaffold wording or "Phase 2" framing inside the file; the status line is the only marker. This is the one shared rule for both runtimes.
 
 ## Audit Protocol (runs in /redteam)
 
 ```bash
 # 1. Split-state framing scan — zero matches required; any hit = HIGH
-rg -i 'phase-?1.*phase-?2|target.state|promised.*current|scaffold.*later|TBD|backend.follow-?up|FE.follow-?up|pending.accessor|to.be.wired|accessor.pending' specs/
+rg -i 'phase-?1.*phase-?2|target.state|promised.*current|scaffold.*later|TBD|backend.follow-?up|FE.follow-?up|pending.accessor|to.be.wired|accessor.pending' workspaces/<project>/specs/
 # 2. Citation resolution — every cited symbol must resolve via grep / find / the language's parser. Any unresolved = CRITICAL.
 ```
 

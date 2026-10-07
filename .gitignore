@@ -2,6 +2,37 @@
 .env
 .env.*
 !.env.example
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+.pypirc
+.aws/
+service-account*.json
+*credentials*.json
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.ppk
+.netrc
+.git-credentials
+.htpasswd
+kubeconfig
+.docker/config.json
+*.tfstate*
+.terraform/
+*.tfvars
+.kube/
+*.p8
+*.jks
+.dev.vars
+.pgpass
+
+# Local deploy cache — the deployed revision comes from deploy_check_command, not this file
+deploy/.last-deployed
 
 # Harness runtime state (review-round state, launch ledger) — created on first use
 .claude/learning/
@@ -16,3 +47,10 @@ CLAUDE.local.md
 
 # OS / editor noise
 .DS_Store
+
+# Per-session notes written by /wrapup (local to this checkout)
+.session-notes
+
+# Common dependency and build caches (add your language's own in the project)
+node_modules/
+__pycache__/

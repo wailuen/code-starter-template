@@ -2,9 +2,8 @@
 paths:
   - ".harness/phases/implement.md"
   - ".harness/phases/redteam.md"
-  - ".harness/roles/**"
-  - ".harness/guides/task-delivery.md"
-  - ".claude/agents/**"
+  - ".harness/roles/implementer.md"
+  - ".harness/roles/reviewer.md"
   - "**/e2e/**"
   - "**/*.e2e.*"
   - "**/playwright*"

@@ -109,7 +109,7 @@ If the project has a no-mock guard script, it is listed in the project profile's
 
 ## Agent Teams
 
-For sizeable test work, these agents can split it (a small change doesn't need a team — `.harness/rules/agents.md`):
+For sizeable test work, these agents can split it (a small change doesn't need a team — `.harness/rules/agent-delegation.md`):
 
 - **testing-specialist** — 3-tier strategy, test architecture, coverage requirements, browser-driven E2E generation
 - **tdd-implementer** — test-first implementation for work that is neither server-side nor UI

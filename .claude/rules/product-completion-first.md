@@ -1,10 +1,7 @@
 ---
 paths:
   - ".claude/commands/**"
-  - ".claude/rules/**"
   - ".harness/phases/**"
-  - ".harness/rules/**"
-  - ".harness/guides/task-delivery.md"
   - "**/todos/**"
 ---
 # Shared product-completion-first rule

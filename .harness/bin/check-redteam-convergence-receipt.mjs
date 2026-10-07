@@ -4,16 +4,25 @@
  * claimed to be? Invoked at `.harness/phases/redteam.md` § 4 (commit the receipt, then this refuses
  * or accepts it), `.harness/phases/implement.md` § 4 (the next wave does not start until exit 0),
  * `.claude/commands/ws.md` (`--todo` decides implemented-vs-CLOSED), and CI (`--sweep workspaces`: every
- * completed todo must be CLOSED unless grandfathered — wire it into the project's CI workflow).
+ * completed todo must be CLOSED unless grandfathered). CI runs `--sweep` on `main` ONLY (pushes to
+ * `main` and pull requests INTO `main`): a todo or wave branch legitimately carries completed todos
+ * that are not converged yet, so `--sweep` there is red by design.
+ *
+ * A REFUSED RECEIPT, before the wave merges: fix the paperwork and commit the corrected receipt
+ * (and any missing artifact) for the SAME scope in a later commit on the wave branch; the check
+ * judges the receipt as at its last commit there. Once merged into the integration branch a
+ * receipt is immutable. A new scope (e.g. `wNNb`) is needed only when the acceptance list changed:
+ * then run FRESH review rounds under it. Never copy round records or ledger rows between scopes:
+ * a copied record is `round-records-invalid`.
  *
  * ONE EVIDENCE MODEL FOR EVERY ARTIFACT. Each artifact the receipt names — the receipt itself,
  * its launches ledger, its journal entry, the acceptance list, the covered todos — must be
  * git-TRACKED and COMMITTED, and is read from the commit that PINS it, never from the working
  * tree, whenever the question is "was this closed properly": todos and the acceptance list at
- * `verdict_head`; the receipt, its ledger rows and its journal at the receipt's FIRST commit.
- * Receipts are immutable once committed: a later edit — committed or not — is refused, never
- * re-read. Consequences: `/redteam` § 4 COMMITS the receipt and then runs this check (a
- * refusal means fix and re-certify under a new scope, not amend); a staged-but-uncommitted
+ * `verdict_head`; the receipt, its ledger rows, its round records and its journal at the
+ * RECEIPT'S PIN — its last commit on the wave branch before the merge, or, once merged, the
+ * content that landed on the integration branch (after which it is immutable). Consequences:
+ * `/redteam` § 4 COMMITS the receipt and then runs this check; a staged-but-uncommitted
  * artifact is a named finding, never a silent skip; and routine later housekeeping (renumbering
  * a journal, editing a todo) cannot flip an already-closed task, because nothing is re-read
  * from the moving tree.
@@ -33,7 +42,7 @@
  *   - always: it must be a real commit, a strict ancestor of `verdict_head`, on the integration
  *     branch, and older than every covered todo's completion and the wave's own ledger;
  *   - the receipt must be committed while its verdict is still current — only bookkeeping paths
- *     may change between `verdict_head` and the receipt's first commit. A receipt authored after
+ *     may change between `verdict_head` and the receipt's commit. A receipt authored after
  *     other work landed on top of the verdict is refused (`receipt-postdates-surface-change`),
  *     which is also what stops a post-merge author choosing a shrunken window.
  * Because the window is a recorded, pinned fact rather than "the previous certified receipt",
@@ -55,20 +64,40 @@
  *       → `.harness/phases/redteam.md` § 4; `.harness/rules/completion-criterion.md` MUST-3
  *   - each counted reviewer: `ran`, `evidence`, and a `launch_id` resolving to a `kind:"launch"`
  *     row in the ledger AS COMMITTED WITH THE RECEIPT, whose `subagent_type` matches and whose
- *     `ts` precedes `verdict_at`; a `security` lens must resolve to a security-specialist row
- *       → `.harness/rules/agents.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
+ *     `ts` precedes `verdict_at`; a `security` (or debug-round `security-debug`) lens must resolve to a
+ *     security-reviewer row (its agent name contains "security")
+ *       → `.harness/rules/agent-delegation.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
+ *   - each counted reviewer's `evidence` is the repository-root-relative path of the saved report
+ *     (`workspaces/<p>/04-validate/<scope>-<lens>-r<n>.md`), a NON-EMPTY file tracked AT THE
+ *     RECEIPT'S PIN — never free text
+ *   - every round the receipt lists has its recorder input `04-validate/round-<scope>-<n>.json`
+ *     committed at the receipt's commit, with the same `round`, `head`, reviewer lenses
+ *     (`expected_reviewers` = the receipt's `lens` values), the same `evidence` per lens, and a
+ *     verdict that agrees (receipt `clean` ⇔ every recorded verdict CLEAR); and no committed
+ *     `round-<scope>-<m>.json` exists with an `m` above the receipt's last round — the receipt
+ *     cannot stop counting before a later, unconverged round; the round records of this scope or
+ *     branch start at round 1 with no gaps, and replaying them through the recorder decides
+ *     whether the cap was hit (`cap-hit-understated` when the receipt says it was not)
+ *       → `.harness/guides/task-delivery.md` § Review protocol and circuit breaker
  *   - `security_critical` explicit, and never LOWER than what `wave_base..verdict_head` implies.
- *     The surface is INCLUSION BY DEFAULT: every path under the common source roots (src/, lib/,
- *     app/, apps/, web/, cmd/, internal/, pkg/, server/, api/, scripts/), .claude/ (skills and
- *     guides included — the files the rules delegate their procedure to), .harness/ and .github/,
- *     the root build/runtime/dependency manifests of any ecosystem (`.mcp.json`, `package*.json`,
- *     `pyproject.toml`, `requirements*.txt`, `go.mod`, `Cargo.toml`, `Gemfile`, `pom.xml`,
- *     `build.gradle*`, test-runner / tsconfig / lint configs, Dockerfile, docker-compose), and anywhere else a
- *     code/config file under a directory named auth/authn/authz/security/permission(s)/
- *     tenant(s)/secret(s)/credential(s)/token(s)/crypto/rls or whose name contains one of those
- *     keywords. Excluded: `.claude/learning/` (runtime state) and the workspace bookkeeping
- *     paths. A new directory is security surface by default, not by omission
- *       → `.harness/rules/agents.md` § Quality gates
+ *     The surface is INCLUSION BY DEFAULT: EVERY changed path is surface except
+ *       (a) bookkeeping: `.md` / `.json` / `.jsonl` (and `.gitkeep` / `.keep`) files under
+ *           `workspaces/<p>/{04-validate,journal,todos}/`, the repository-root `.session-notes`,
+ *           and `.md` / `.json` / `.jsonl` files under the root `.session-notes.d/` and
+ *           `.wave-tracker.d/` — exact letter case; any other file type there is surface,
+ *       (b) `.claude/learning/` (gitignored runtime state),
+ *       (c) the root `README` / `LICENSE` / `LICENCE` / `CHANGELOG` / `COPYING` / `NOTICE` files,
+ *           with no extension or `.md` / `.markdown` / `.txt` / `.rst` / `.adoc` (`README.sh` is surface), and
+ *       (d) plain documentation and raster images by extension — `*.md`, `*.markdown`, `*.rst`,
+ *           `*.adoc`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.ico` — OUTSIDE `.claude/`,
+ *           `.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/` (instructions an agent or
+ *           a deploy follows are not plain documentation). `*.txt` and `*.svg` are surface.
+ *     The tests that put a path ON the surface ignore letter case (`.Claude/rules/x.md`,
+ *     `CLAUDE.MD`, `Agents.md`), because case-insensitive filesystems load them as the real thing.
+ *     `AGENTS.md` / `CLAUDE.md` are surface wherever they sit. So a migration, a middleware file,
+ *     `.gitignore`, `.env.example`, `infra/*.tf` or a new top-level directory is surface without
+ *     anyone listing it: a new directory is security surface by default, not by omission
+ *       → `.harness/rules/agent-delegation.md` § Quality gates
  *   - `cap_hit` explicit and false → `completion-criterion.md` MUST-4
  *   - `acceptance_list.path` a tracked regular file inside the workspace, first committed in a
  *     STRICT ancestor of `verdict_head`, unchanged at `verdict_head`, RELEVANT (it names the
@@ -78,13 +107,13 @@
  *   - every covered todo by exact PATH, present at `verdict_head`, completed inside the window,
  *     its browser walk declared THERE with disposition `proceed`; a covering receipt covers a
  *     todo file only while that file's content is the blob it certified
- *       → `.harness/phases/implement.md` § 7a via `check-browser-walk-receipts.mjs`
+ *       → `.harness/phases/implement.md` § 3a via `check-browser-walk-receipts.mjs`
  *   - `journal` a tracked, committed regular file under the workspace's `journal/`, committed no
  *     later than the receipt, whose content AT THE RECEIPT'S COMMIT names the scope
  *       → the workspace's DECISION journal entry for this scope
  *   - `launches` EXACTLY `04-validate/convergence-<scope>.launches.jsonl`, tracked, committed
  *     inside the window (first commit a strict descendant of `wave_base`), last changed in a
- *     strict ancestor of the receipt's first commit; rows read from the receipt's commit. That
+ *     strict ancestor of the receipt's commit; rows read from the receipt's commit. That
  *     is exactly what is proven: THIS wave's rows existed, as read, inside its window and before
  *     the receipt. It does NOT prove when reviewers actually ran — `verdict_at` vs row `ts` is the
  *     only timing check, and both are self-reported
@@ -109,11 +138,16 @@
  *     Forging now takes two artifacts that agree, committed in order inside the window — not
  *     zero, not airtight. The live-ledger cross-check is ADVISORY and absent under CI (the live
  *     ledger is gitignored).
- *   - Identity denylist for `ratified_by` / `accepted_by` (agent names, this repo's dispatch
- *     addresses) errs both ways — an invented human passes, "Ai Weiwei" or a human named Claude
- *     is refused. DEFERRED WORK, not a limitation of principle: a roster-backed check
+ *   - Identity denylist for `ratified_by` / `accepted_by` (`.harness/lib/agent-identity.cjs`,
+ *     shared with the round recorder and the task-contract check: generic agent/model words, the
+ *     `harness-` namespace, and every agent and role name in `.harness/manifest.json` and
+ *     `.claude/agents/`) errs both ways — an invented human passes, "Ai Weiwei" or a human named
+ *     Claude is refused. DEFERRED WORK, not a limitation of principle: a roster-backed check
  *     (not built into the harness) closes both. acceptor: PENDING —
  *     user decision (not self-accepted).
+ *   - The round records and reports are written by the same session too; matching them closes an
+ *     honest transcription slip (a NOT_CLEAR round copied as clean, a report that was never
+ *     saved), not deliberate forging of every artifact at once.
  *   - Assessment cost: one assessment per receipt, no chaining; the CI job's per-suite cap and
  *     job timeout should carry stated, measured margins in the project's CI workflow.
  *
@@ -133,6 +167,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assessTodoText } from "./check-browser-walk-receipts.mjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
+import { isAgentIdentity as namesAnAgent } from "../lib/agent-identity.cjs";
+import { advanceRound, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
 
 export const SCHEMA = "redteam-convergence-receipt/1";
 export const GATING_HALF = "BUG+INVEST-NOW";
@@ -157,37 +193,39 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SCOPE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TODO_ID_RE = /^([a-z]+[0-9]*-[0-9]+[a-z]?)/i;
 const SECURITY_AGENT_RE = /security/i;
-const AGENT_IDENTITY_RE =
-  /\b(?:agent|claude|opus|sonnet|haiku|fable|gpt|llm|model|bot|assistant|orchestrator|implementer|self|ai|n\/a|none|tbd|nobody|team-lead|lead|main)\b/i;
-// Anchored: only a path SEGMENT of these names is bookkeeping.
+// The security lens, including its debug-round name (`<lens>-debug`).
+const SECURITY_LENS_RE = /^security(?:-debug)?$/i;
+// Anchored to the real bookkeeping LOCATIONS — the workspace's 04-validate/, journal/ and todos/,
+// and the repository-root session files — AND to the file types bookkeeping is written in
+// (.md, .json, .jsonl, plus .gitkeep/.keep). A same-named file or folder anywhere else
+// (`src/.session-notes.d/x.ts`), or code dropped into a bookkeeping folder
+// (`workspaces/p/04-validate/evil.ts`), is ordinary code, never bookkeeping. Exact case: a
+// differently-cased spelling is NOT treated as bookkeeping.
 const BOOKKEEPING_RE =
-  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/|(?:.*\/)?\.session-notes(?:\.d\/.*|\.[^/]*)?$|(?:.*\/)?\.wave-tracker\.d\/)/;
-// Security surface: INCLUSION BY DEFAULT with a short exclude list, plus keyword arms anywhere.
-const SURFACE_INCLUDE_RE =
-  /^(?:src|lib|app|apps|web|cmd|internal|pkg|server|api|scripts|\.claude|\.github|\.harness|\.codex|\.agents)\//;
-const SURFACE_EXCLUDE_RE = /^\.claude\/learning\//;
-const ROOT_SURFACE_RE =
-  /^(?:\.mcp\.json|package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|playwright\.config\.[cm]?[jt]s|vitest\.[^/]+|jest\.config\.[^/]+|tsconfig[^/]*\.json|eslint\.config\.[cm]?js|pyproject\.toml|setup\.(?:py|cfg)|requirements[^/]*\.txt|uv\.lock|poetry\.lock|Pipfile(?:\.lock)?|pytest\.ini|tox\.ini|go\.(?:mod|sum)|Cargo\.(?:toml|lock)|Gemfile(?:\.lock)?|pom\.xml|build\.gradle(?:\.kts)?|settings\.gradle(?:\.kts)?|Makefile|Dockerfile|docker-compose[^/]*\.ya?ml|compose[^/]*\.ya?ml)$/;
-const CODE_EXT = "\\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|kts|cs|php|swift|sql|json|ya?ml|sh|toml)";
-const KEYWORD_DIR_RE = new RegExp(
-  `(?:^|/)(?:auth|authn|authz|security|permissions?|tenants?|secrets?|credentials?|tokens?|crypto|rls)/.*${CODE_EXT}$`,
-  "i",
-);
-const KEYWORD_FILE_RE =
-  /(?:^|\/)[^/]*(?:auth|rls|tenant|secret|credential|token|permission|encrypt|sign)[^/]*\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|cs|php|swift|sql)$/i;
+  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/(?:[^/]+\/)*(?:[^/]+\.(?:md|json|jsonl)|\.gitkeep|\.keep)|\.session-notes|\.(?:session-notes|wave-tracker)\.d\/(?:[^/]+\/)*[^/]+\.(?:md|json|jsonl))$/;
+// Security surface: INCLUSION BY DEFAULT (see the header). Only these are NOT surface. The
+// exclusions go by file type, never by name alone (`README.sh` is surface), and the tests that
+// put a path BACK on the surface ignore letter case, because macOS and Windows checkouts do
+// (`.Claude/rules/x.md` lands in `.claude/rules/`, `CLAUDE.MD` is `CLAUDE.md`).
+const RUNTIME_STATE_RE = /^\.claude\/learning\//;
+const ROOT_DOC_RE = /^(?:README|LICEN[CS]E|CHANGELOG|COPYING|NOTICE)(?:\.(?:md|markdown|txt|rst|adoc))?$/i;
+const PLAIN_DOC_RE = /\.(?:md|markdown|rst|adoc|png|jpe?g|gif|webp|ico)$/i;
+// Instructions an agent or a deploy follows live here; a Markdown file under them is not plain documentation.
+const INSTRUCTION_DIR_RE = /^(?:\.claude|\.harness|\.github|\.agents|\.codex|deploy)\//i;
+const AGENT_INSTRUCTION_FILE_RE = /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/i;
 export function isSecuritySurface(p) {
-  if (/(?:^|\/)(?:AGENTS|CLAUDE)\.md$/.test(p)) return true;
-  if (BOOKKEEPING_RE.test(p)) return false;
-  if (ROOT_SURFACE_RE.test(p)) return true;
-  if (SURFACE_INCLUDE_RE.test(p) && !SURFACE_EXCLUDE_RE.test(p)) return true;
-  return KEYWORD_DIR_RE.test(p) || KEYWORD_FILE_RE.test(p);
+  if (RUNTIME_STATE_RE.test(p)) return false;
+  if (AGENT_INSTRUCTION_FILE_RE.test(p) || INSTRUCTION_DIR_RE.test(p)) return true;
+  if (BOOKKEEPING_RE.test(p) || ROOT_DOC_RE.test(p)) return false;
+  return !PLAIN_DOC_RE.test(p);
 }
 
 // ---- primitives -------------------------------------------------------------------------------
 
 function git(args, cwd) {
   try {
-    return execFileSync("git", ["-C", cwd, ...args], {
+    // core.quotePath off: a non-ASCII workspace name is listed as written, not as "caf\303\251".
+    return execFileSync("git", ["-c", "core.quotePath=false", "-C", cwd, ...args], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -203,7 +241,7 @@ const canon = (p) => {
     return p;
   }
 };
-const isAgentIdentity = (v) => !nonEmpty(v) || AGENT_IDENTITY_RE.test(v);
+const isAgentIdentity = (v) => !nonEmpty(v) || namesAnAgent(v);
 const rel = (root, p) => relative(root, p).split("\\").join("/");
 const isAncestor = (a, b, repoRoot) =>
   git(["merge-base", "--is-ancestor", a, b], repoRoot) !== null;
@@ -239,7 +277,7 @@ const isRealDir = (p) => {
 };
 function firstAddCommit(repoRoot, relPath) {
   const out = git(
-    ["log", "--diff-filter=A", "--format=%H", "--", relPath],
+    ["log", "--no-renames", "--diff-filter=A", "--format=%H", "--", relPath],
     repoRoot,
   );
   if (!out) return null;
@@ -298,7 +336,7 @@ function porcelainPaths(repoRoot) {
     // NOT via git(): its trim() would eat the leading status column of " M path".
     out = execFileSync(
       "git",
-      ["-C", repoRoot, "status", "--porcelain", "--untracked-files=all"],
+      ["-c", "core.quotePath=false", "-C", repoRoot, "status", "--porcelain", "--untracked-files=all"],
       {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
@@ -384,6 +422,12 @@ export function todoIdOf(filename) {
 }
 
 // ---- the checks ---------------------------------------------------------------------------------
+
+/** The scope as a whole token: "w01" is named by "wave w01." but not by "w010" or "w01-02". */
+export function namesScope(text, scope) {
+  const escaped = scope.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9._-])${escaped}(?![A-Za-z0-9_-]|\\.[A-Za-z0-9])`).test(text);
+}
 
 function checkShape(c) {
   const { r, add, receiptPath } = c;
@@ -563,7 +607,7 @@ function checkCurrency(c) {
 
 /** `wave_base`: recorded once, verified as a real window, never recomputed from a moving ref. */
 function checkWindow(c) {
-  const { r, add, repoRoot, vh, integ, receiptAdd, wsRel } = c;
+  const { r, add, repoRoot, vh, integ, receiptPin, wsRel } = c;
   c.base = null;
   if (!nonEmpty(r.wave_base) || !vh || !integ) return;
   const wb = r.wave_base.trim();
@@ -591,20 +635,20 @@ function checkWindow(c) {
         `wave_base ${wb.slice(0, 12)} is not git merge-base ${integ.ref} ${vh.slice(0, 12)} (= ${computed.slice(0, 12)}) — the window is recorded once, as the real fork point`,
       );
   }
-  if (receiptAdd) {
+  if (receiptPin) {
     // The receipt must be committed while its verdict is still current. This is also what stops
     // a post-merge author from choosing a shrunken window: after other work lands, no new receipt
     // for this verdict is accepted at all.
-    const moved = surfaceMoved(repoRoot, vh, receiptAdd);
+    const moved = surfaceMoved(repoRoot, vh, receiptPin);
     if (moved === null)
       add(
         "head-unverified",
-        `could not diff ${vh.slice(0, 12)}..${receiptAdd.slice(0, 12)}`,
+        `could not diff ${vh.slice(0, 12)}..${receiptPin.slice(0, 12)}`,
       );
     else if (moved.length)
       add(
         "receipt-postdates-surface-change",
-        `${moved.length} non-bookkeeping path(s) changed between the verdict and the receipt's first commit ${receiptAdd.slice(0, 12)}: ${moved.slice(0, 3).join(", ")} — a receipt must be committed while its verdict is current`,
+        `${moved.length} non-bookkeeping path(s) changed between the verdict and the receipt's commit ${receiptPin.slice(0, 12)}: ${moved.slice(0, 3).join(", ")} — a receipt must be committed while its verdict is current`,
       );
   }
   // Every covered todo was completed INSIDE the window: its first commit is not before the base.
@@ -647,14 +691,14 @@ function checkArtifacts(c) {
     vh,
     historical,
     base,
-    receiptAdd,
+    receiptPin,
     scope,
   } = c;
   const todoIds = (Array.isArray(r.todos) ? r.todos : [])
     .map((t) => todoIdOf(t))
     .filter(Boolean);
   const mentionsScope = (text) =>
-    (scope && text.includes(scope)) ||
+    (scope && namesScope(text, scope)) ||
     (todoIds.length > 0 &&
       todoIds.every((id) => text.toLowerCase().includes(id)));
 
@@ -750,20 +794,20 @@ function checkArtifacts(c) {
             "journal-uncommitted",
             `${r.journal} is staged but has never been committed`,
           );
-      } else if (receiptAdd && !isAncestor(jAdd, receiptAdd, repoRoot))
+      } else if (receiptPin && !isAncestor(jAdd, receiptPin, repoRoot))
         add(
           "journal-postdate-receipt",
-          `${r.journal} was first committed in ${jAdd.slice(0, 12)}, after the receipt's first commit ${receiptAdd.slice(0, 12)}`,
+          `${r.journal} was first committed in ${jAdd.slice(0, 12)}, after the receipt's commit ${receiptPin.slice(0, 12)} — the journal entry must be committed together with (or before) the receipt. Before the merge: re-commit the receipt in the same commit as the journal entry (any edit to the receipt file, even a trailing newline, makes that commit the receipt's commit), then run --scope again`,
         );
       else {
-        const pin = receiptAdd || jAdd;
+        const pin = receiptPin || jAdd;
         const text = showAt(repoRoot, pin, relJ);
         if (text === null)
           add(
             "journal-missing",
             `${r.journal} is not in the tree at ${pin.slice(0, 12)}`,
           );
-        else if (scope && !text.includes(scope))
+        else if (scope && !namesScope(text, scope))
           add(
             "journal-does-not-cite-scope",
             `${r.journal} @ ${pin.slice(0, 12)} never mentions scope "${scope}"`,
@@ -829,22 +873,22 @@ function checkArtifacts(c) {
             "launches-outside-window",
             `${r.launches} was first committed in ${lAdd.slice(0, 12)}, which is not after wave_base ${base.slice(0, 12)} — rows from before the wave started are not this wave's dispatches`,
           );
-        if (receiptAdd) {
-          if (!isStrictAncestor(lLast, receiptAdd, repoRoot))
+        if (receiptPin) {
+          if (!isStrictAncestor(lLast, receiptPin, repoRoot))
             add(
               "launches-postdate-receipt",
-              `${r.launches} was last changed in ${lLast.slice(0, 12)}, which is not a strict ancestor of the receipt's first commit ${receiptAdd.slice(0, 12)} — commit the dispatch rows at dispatch time, the receipt at convergence, and never rewrite the rows`,
+              `${r.launches} was last changed in ${lLast.slice(0, 12)}, which is not a strict ancestor of the receipt's commit ${receiptPin.slice(0, 12)} — commit the dispatch rows at dispatch time, the receipt at convergence, and never rewrite the rows`,
             );
-          const pinned = showAt(repoRoot, receiptAdd, relLp);
+          const pinned = showAt(repoRoot, receiptPin, relLp);
           c.launchRows = pinned === null ? [] : parseLaunchRows(pinned);
           if (
             !historical &&
             existsSync(lp) &&
-            blobNow(repoRoot, lp) !== blobAt(repoRoot, receiptAdd, relLp)
+            blobNow(repoRoot, lp) !== blobAt(repoRoot, receiptPin, relLp)
           )
             add(
               "launches-rewritten-after-receipt",
-              `${r.launches} in the working tree differs from the content committed with the receipt (${receiptAdd.slice(0, 12)})`,
+              `${r.launches} in the working tree differs from the content committed with the receipt (${receiptPin.slice(0, 12)})`,
             );
         } else {
           c.launchRows = parseLaunchRows(showAt(repoRoot, lLast, relLp));
@@ -954,12 +998,12 @@ function checkRounds(c) {
           `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type}, not ${v.agent}`,
         );
       if (
-        /^security$/i.test(v.lens || "") &&
+        SECURITY_LENS_RE.test(v.lens || "") &&
         !SECURITY_AGENT_RE.test(row.subagent_type || "")
       )
         add(
           "security-lens-not-specialist",
-          `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type || "?"} — a security lens must be a security-specialist dispatch, not a relabelled reviewer`,
+          `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type || "?"} — a security lens must be a security-reviewer dispatch (agent name containing "security"), not a relabelled reviewer`,
         );
       if (!Number.isNaN(verdictMs) && !(Date.parse(row.ts || "") < verdictMs))
         add(
@@ -982,12 +1026,196 @@ function checkRounds(c) {
     }
     if (
       securityCritical &&
-      !revs.some((v) => /^security$/i.test(v.lens || "") && v.ran === true)
+      !revs.some((v) => SECURITY_LENS_RE.test(v.lens || "") && v.ran === true)
     )
       add(
         "security-lens-missing",
         `round ${round.n}: security-critical scope has no ran security-lens reviewer`,
       );
+  }
+}
+
+/**
+ * The receipt's rounds, tied to what the round recorder was given: each reviewer's `evidence` is a
+ * saved, non-empty report, and each listed round has its committed `round-<scope>-<n>.json` that
+ * says the same thing. Both are read at the receipt's pin, like the ledger.
+ */
+function checkRoundRecords(c) {
+  const { r, add, repoRoot, wsRel, receiptPin, scope } = c;
+  if (!receiptPin || !scope || !Array.isArray(r.rounds) || r.rounds.length === 0 ||
+      !r.rounds.every((x) => x && typeof x === "object" && Number.isInteger(x.n)))
+    return;
+  const validateRel = `${wsRel}/04-validate/`;
+  const reportPath = (ev) => {
+    if (!nonEmpty(ev)) return null;
+    const norm = ev.trim().split("\\").join("/");
+    if (isAbsolute(norm) || norm.split("/").some((seg) => seg === ".." || seg === "." || seg === ""))
+      return null;
+    return norm.startsWith(validateRel) ? norm : null;
+  };
+  const revsOf = (x) =>
+    Array.isArray(x.reviewers) ? x.reviewers.filter((v) => v && typeof v === "object") : [];
+  for (const round of r.rounds) {
+    for (const v of revsOf(round)) {
+      const who = `round ${round.n}: ${v.agent || "?"}/${v.lens || "?"}`;
+      const report = reportPath(v.evidence);
+      if (!report)
+        add(
+          "reviewer-evidence-not-a-report",
+          `${who} evidence must be the repository-root-relative path of the saved report under ${validateRel} (e.g. ${validateRel}${scope}-${v.lens || "<lens>"}-r${round.n}.md), got ${JSON.stringify(v.evidence ?? null)}`,
+        );
+      else if (
+        git(["cat-file", "-t", `${receiptPin}:${report}`], repoRoot) !== "blob" ||
+        !(Number(git(["cat-file", "-s", `${receiptPin}:${report}`], repoRoot)) > 0)
+      )
+        add(
+          "reviewer-evidence-missing",
+          `${who} evidence ${report} is not a committed, non-empty file at the receipt's commit ${receiptPin.slice(0, 12)}`,
+        );
+    }
+    const recordRel = `${validateRel}round-${scope}-${round.n}.json`;
+    const text = showAt(repoRoot, receiptPin, recordRel);
+    if (text === null) {
+      add(
+        "round-record-missing",
+        `round ${round.n}: ${recordRel} is not committed at the receipt's commit ${receiptPin.slice(0, 12)} — every round the receipt lists must be the round the recorder was given`,
+      );
+      continue;
+    }
+    let rec;
+    try {
+      rec = JSON.parse(text);
+    } catch (e) {
+      add("round-record-mismatch", `round ${round.n}: ${recordRel} is not valid JSON: ${e.message}`);
+      continue;
+    }
+    const problems = [];
+    if (!rec || typeof rec !== "object") rec = {};
+    if (rec.round !== round.n) problems.push(`its round is ${JSON.stringify(rec.round)}`);
+    if (nonEmpty(r.branch) && rec.branch !== r.branch.trim())
+      problems.push(`its branch is ${JSON.stringify(rec.branch)}, the receipt's is ${JSON.stringify(r.branch)}`);
+    if (rec.head !== round.head) problems.push(`its head is ${JSON.stringify(rec.head)}, the receipt's is ${JSON.stringify(round.head)}`);
+    const recRevs = Array.isArray(rec.reviewers) ? rec.reviewers.filter((x) => x && typeof x === "object") : [];
+    const lenses = revsOf(round).map((v) => v.lens).sort();
+    const expected = Array.isArray(rec.expected_reviewers) ? [...rec.expected_reviewers].sort() : [];
+    if (JSON.stringify(lenses) !== JSON.stringify(expected))
+      problems.push(`its expected_reviewers ${JSON.stringify(expected)} are not the receipt's lenses ${JSON.stringify(lenses)}`);
+    for (const v of revsOf(round)) {
+      const rv = recRevs.find((x) => x.id === v.lens);
+      if (!rv) problems.push(`no recorded verdict for lens ${JSON.stringify(v.lens)}`);
+      else if (reportPath(v.evidence) && reportPath(rv.evidence) !== reportPath(v.evidence))
+        problems.push(`lens ${v.lens} cites ${JSON.stringify(rv.evidence)} there, ${JSON.stringify(v.evidence)} here`);
+    }
+    const recordedClean = recRevs.length > 0 && recRevs.every((x) => x.verdict === "CLEAR");
+    const receiptClean = round.clean === true && round.new_gating_findings === 0;
+    if (recordedClean !== receiptClean)
+      problems.push(`recorded verdicts ${recRevs.map((x) => `${x.id}=${x.verdict}`).join(", ") || "none"} but the receipt says clean=${round.clean}`);
+    if (problems.length)
+      add("round-record-mismatch", `round ${round.n}: ${recordRel} disagrees with the receipt — ${problems.join("; ")}`);
+  }
+  // A later round the receipt leaves out: the receipt stopped counting before the branch did.
+  const lastN = Math.max(...r.rounds.map((x) => x.n));
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const scopeRecordRe = new RegExp(`^${escapeRe(validateRel)}round-${escapeRe(scope)}-(\\d+)\\.json$`);
+  for (const p of (git(["ls-tree", "--name-only", receiptPin, "--", validateRel], repoRoot) || "").split("\n")) {
+    const m = p.match(scopeRecordRe);
+    if (m && Number(m[1]) > lastN)
+      add(
+        "round-record-after-receipt",
+        `${p} records round ${m[1]}, after the receipt's last round ${lastN} — a receipt must count every recorded round of its scope`,
+      );
+  }
+  // RIGHT NOW: a record of this scope committed (or left uncommitted) AFTER the receipt — any
+  // number, a later NOT_CLEAR re-review included — means the receipt no longer tells the whole story.
+  if (!c.historical) {
+    const dir = join(c.workspaceDir, "04-validate");
+    for (const name of existsSync(dir) ? readdirSync(dir) : []) {
+      const relP = `${validateRel}${name}`;
+      if (!scopeRecordRe.test(relP)) continue;
+      const added = isTracked(repoRoot, join(dir, name)) ? firstAddCommit(repoRoot, relP) : null;
+      const pinned = blobAt(repoRoot, receiptPin, relP);
+      if (added && pinned && blobNow(repoRoot, join(dir, name)) !== pinned)
+        add(
+          "round-record-after-receipt",
+          `${relP} changed after the receipt's commit ${receiptPin.slice(0, 12)} — a recorded round is never rewritten`,
+        );
+      else if (!added || !isAncestor(added, receiptPin, repoRoot))
+        add(
+          "round-record-after-receipt",
+          `${relP} was ${added ? `first committed in ${added.slice(0, 12)}, after` : "not committed before"} the receipt's commit ${receiptPin.slice(0, 12)} — a round reviewed after the receipt reopens the scope`,
+        );
+    }
+  }
+  checkRoundBudget(c, validateRel);
+}
+
+/**
+ * The cap, worked out rather than taken from the receipt, with the recorder's own counting: every
+ * round record ever ADDED to this workspace's 04-validate/ in the receipt commit's history whose
+ * file names this scope or whose `branch` is the receipt's branch is replayed, oldest version
+ * first, through the recorder's advanceRound. A round the recorder's cap, debug-round or
+ * escalation gate would refuse means the cap was hit: `cap-hit-understated`. A record of this
+ * scope that does not parse, two records for one round (a copied record included), a record
+ * deleted and re-added with different content, counted rounds that do not start at round 1, or a
+ * gap in the numbering is `round-records-invalid`.
+ */
+function checkRoundBudget(c, validateRel) {
+  const { r, add, repoRoot, receiptPin } = c;
+  if (!nonEmpty(r.branch)) return;
+  const branch = r.branch.trim();
+  const log = git(["log", "--reverse", "--no-renames", "--diff-filter=A", "--format=%x00%H", "--name-only", receiptPin, "--", validateRel], repoRoot);
+  if (log === null) return add("round-records-invalid", `could not read the round records' history at ${receiptPin.slice(0, 12)}`);
+  const byRound = new Map();
+  const invalid = (detail) => add("round-records-invalid", detail);
+  for (const chunk of log.split("\0").filter(Boolean)) {
+    const [commit, ...paths] = chunk.split("\n").filter((l) => l.length);
+    for (const p of paths) {
+      if (!/\/round-[^/]+\.json$/.test(p)) continue;
+      const sameScope = scopeOfRecordPath(p) === c.scope;
+      let rec;
+      try {
+        rec = JSON.parse(showAt(repoRoot, commit, p) ?? "");
+      } catch {
+        if (sameScope) invalid(`${p} as first committed in ${commit.slice(0, 12)} is not valid JSON`);
+        continue;
+      }
+      // The recorder's counting: a record of this scope, or of this branch.
+      if (!rec || typeof rec !== "object" || !(sameScope || rec.branch === branch)) continue;
+      if (!Number.isSafeInteger(rec.round) || rec.round < 1) {
+        invalid(`${p} as first committed in ${commit.slice(0, 12)} has no valid round number`);
+        continue;
+      }
+      const seen = byRound.get(rec.round);
+      if (!seen) byRound.set(rec.round, { rec, path: p });
+      else if (seen.path !== p)
+        invalid(`round ${rec.round} of ${branch} is recorded twice (${seen.path}, ${p}) — a round is reviewed once; never copy a record into a new scope`);
+      else if (JSON.stringify(seen.rec) !== JSON.stringify(rec))
+        invalid(`${p} was deleted and re-added with different content — a recorded round is never rewritten`);
+    }
+  }
+  const rounds = [...byRound.keys()].sort((a, b) => a - b);
+  if (rounds.length && rounds[0] !== 1) {
+    invalid(`the recorded rounds of scope ${c.scope} / branch ${branch} start at round ${rounds[0]}, not round 1 — every round the recorder admitted must stay committed`);
+    return;
+  }
+  for (let i = 1; i < rounds.length; i++)
+    if (rounds[i] !== rounds[i - 1] + 1) {
+      invalid(`the recorded rounds of ${branch} skip from ${rounds[i - 1]} to ${rounds[i]} — every round the recorder admitted must stay committed`);
+      return;
+    }
+  let state;
+  for (const n of rounds) {
+    try {
+      state = advanceRound(state, byRound.get(n).rec).nextState;
+    } catch (e) {
+      if (e.code === "DEBUG_ROUND" || e.code === "ESCALATE_TO_HUMAN")
+        add(
+          "cap-hit-understated",
+          `round ${n} of ${branch} (${byRound.get(n).path}) is past the round cap without its debug round or a named human's acceptance (${e.code}), yet cap_hit is ${JSON.stringify(r.cap_hit)} — the committed records show the cap was hit`,
+        );
+      else invalid(`round ${n} of ${branch} (${byRound.get(n).path}) is not a round the recorder admits: ${e.message}`);
+      return;
+    }
   }
 }
 
@@ -1074,9 +1302,28 @@ function checkTodos(c) {
 
 /**
  * Assess one receipt. `historical: true` judges it AS OF its own commits (see header) — the
- * receipt text itself is then read from its FIRST commit, never the working tree.
+ * receipt text itself is then read at its pin (receiptPinOf), never the working tree.
  * @returns {{findings: {id: string, detail: string}[], notes: string[], scope: string|null}}
  */
+/**
+ * The commit that PINS a receipt. Before its wave merges, a receipt refused for paperwork may be
+ * corrected in a later commit on the wave branch, so it is judged as at its LAST commit on the
+ * checked-out branch. Once it is on the integration branch it is immutable: it is judged as it was
+ * when it first landed there (its last change reachable from that integration commit), and any
+ * later change is `receipt-rewritten`.
+ */
+function receiptPinOf(repoRoot, relR) {
+  const integ = resolveIntegration(repoRoot);
+  if (integ) {
+    const landings = git(["log", "--first-parent", "--no-renames", "--diff-filter=A", "--format=%H", integ.sha, "--", relR], repoRoot);
+    const landed = landings ? landings.split("\n").filter(Boolean).pop() : null;
+    if (landed) return { pin: lastChangeAt(repoRoot, landed, relR), merged: true };
+  }
+  return { pin: lastChangeAt(repoRoot, "HEAD", relR), merged: false };
+}
+const lastChangeAt = (repoRoot, ref, relPath) =>
+  git(["log", "-1", "--format=%H", ref, "--", relPath], repoRoot) || null;
+
 export function assessReceipt({
   receiptPath,
   workspaceDir,
@@ -1098,10 +1345,10 @@ export function assessReceipt({
   }
   const relR = rel(repoRoot, receiptPath);
   const tracked = isTracked(repoRoot, receiptPath);
-  const receiptAdd = tracked ? firstAddCommit(repoRoot, relR) : null;
+  const { pin: receiptPin, merged } = tracked ? receiptPinOf(repoRoot, relR) : { pin: null, merged: false };
   const text =
-    historical && receiptAdd
-      ? showAt(repoRoot, receiptAdd, relR)
+    historical && receiptPin
+      ? showAt(repoRoot, receiptPin, relR)
       : readFileSync(receiptPath, "utf8");
   let r;
   try {
@@ -1122,18 +1369,20 @@ export function assessReceipt({
       "receipt-untracked",
       `${relR} is not tracked — git add and commit it before checking`,
     );
-  else if (!receiptAdd)
+  else if (!receiptPin)
     add(
       "receipt-uncommitted",
       `${relR} is staged but has never been committed — commit the receipt, then check it`,
     );
   else if (
     !historical &&
-    blobNow(repoRoot, receiptPath) !== blobAt(repoRoot, receiptAdd, relR)
+    blobNow(repoRoot, receiptPath) !== blobAt(repoRoot, receiptPin, relR)
   )
     add(
       "receipt-rewritten",
-      `${relR} differs from its first committed content (${receiptAdd.slice(0, 12)}) — receipts are immutable once committed; re-certify under a new scope`,
+      merged
+        ? `${relR} differs from the content merged into the integration branch (${receiptPin.slice(0, 12)}) — a receipt is immutable once merged`
+        : `${relR} has uncommitted changes — before the merge a corrected receipt is judged once it is committed (last commit ${receiptPin.slice(0, 12)})`,
     );
   const c = {
     r,
@@ -1145,7 +1394,7 @@ export function assessReceipt({
     wsRel: rel(repoRoot, workspaceDir),
     historical,
     scope: nonEmpty(r.scope) ? r.scope.trim() : null,
-    receiptAdd,
+    receiptPin,
     vh: null,
     integ: null,
     onIntegration: false,
@@ -1160,6 +1409,7 @@ export function assessReceipt({
   deriveSecurity(c);
   checkArtifacts(c);
   checkRounds(c);
+  checkRoundRecords(c);
   checkResiduals(c);
   checkTodos(c);
   return { findings, notes, scope: c.scope };
@@ -1185,33 +1435,31 @@ export function template(scope) {
     gating_half: GATING_HALF,
     acceptance_list: {
       path: "<workspace-relative path to the ratified list — committed before the work, unchanged since, naming this scope or every covered todo>",
-      ratified_by: "<named human or the independent planning reviewer>",
+      ratified_by: "<the name of the person (the user) who approved the acceptance list — never an agent or reviewer>",
     },
-    rounds: [
-      {
-        n: 1,
-        head: "<40-hex>",
-        new_gating_findings: 0,
-        clean: true,
-        reviewers: [
-          {
-            agent: "reviewer",
-            lens: "correctness",
-            ran: true,
-            evidence: "<journal/… § or verdict quote>",
-            launch_id:
-              "<this round's own dispatch — one per reviewer, never reused>",
-          },
-          {
-            agent: "security-reviewer",
-            lens: "security",
-            ran: true,
-            evidence: "<…>",
-            launch_id: "<a security-specialist dispatch of this round>",
-          },
-        ],
-      },
-    ],
+    rounds: [1, 2].map((n) => ({
+      n,
+      head: "<40-hex — the same verdict_head in both counted rounds>",
+      new_gating_findings: 0,
+      clean: true,
+      reviewers: [
+        {
+          agent: "reviewer",
+          lens: "correctness",
+          ran: true,
+          evidence: `workspaces/<project>/04-validate/${scope}-correctness-r${n}.md`,
+          launch_id:
+            "<this round's own dispatch — one per reviewer, never reused>",
+        },
+        {
+          agent: "security-reviewer",
+          lens: "security",
+          ran: true,
+          evidence: `workspaces/<project>/04-validate/${scope}-security-r${n}.md`,
+          launch_id: "<a security-reviewer dispatch of this round>",
+        },
+      ],
+    })),
     cap_hit: false,
     residuals: [],
     launches: `04-validate/convergence-${scope}.launches.jsonl`,
