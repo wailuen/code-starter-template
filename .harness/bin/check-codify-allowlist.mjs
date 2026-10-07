@@ -41,6 +41,10 @@ const OUTCOMES = new Set(["folded in", "declined", "deferred", "awaiting user"])
 // "approving"), so a row cannot read as the user's decision.
 const USER_ANSWER_RE =
   /\bapproved by\b|\b(?:users?|owners?)(?:['’]s)?\b[^|]*\b(?:sa(?:id|ys?|ying)|answer\w*|approv\w*|confirm\w*|agree\w*|declin\w*|repl(?:y|ies|ied|ying)|wr(?:ote|ites?|iting)|cho(?:se|oses?|osing|ice)|decid\w*|decision|accept\w*|reject\w*|ok(?:ay)?'?d?|sign(?:s|ed)?[ -]?off|yes|no)\b/i;
+// An automatic run's row never decides anything for anyone: no deciding word in the row at all,
+// whoever it names ("approved per the user", "you approved", "Jane approved" all read as consent).
+const DECIDING_RE =
+  /\b(?:approv\w*|confirm\w*|consent\w*|agree\w*|accept\w*|sign(?:s|ed)?[ -]?off|ok(?:ay)?|yes|decid\w*|decision|cho(?:se|ice)|reject\w*|authori[sz]\w*|green[ -]?light\w*)\b/i;
 const EDITABLE_RE = /^\.harness\/(?:guides|backlog)\/(?:[^/]+\/)*[^/]+\.md$/;
 const EVIDENCE_RE =
   /^(?:\.harness\/reviews\/|workspaces\/[^/]+\/04-validate\/)(?:codify-[^/]+\.md|round-codify-[^/]+\.json)$|^workspaces\/[^/]+\/journal\/\d{4}-DECISION-[^/]+\.md$/;
@@ -72,12 +76,20 @@ function checkLog(baseText, headText) {
   if (headText === null) return ["the log was deleted"];
   const base = baseText.endsWith("\n") || baseText === "" ? baseText : `${baseText}\n`;
   if (!headText.startsWith(base)) return ["existing text was changed — rows are appended, never rewritten or deleted"];
+  // Lessons whose latest row at the base is "awaiting user" stay with the user.
+  const latest = new Map();
+  for (const line of base.split("\n")) {
+    const c = line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
+    if (c && c.length === 5 && OUTCOMES.has(c[3].toLowerCase())) latest.set(c[2], c[3].toLowerCase());
+  }
+  const awaiting = new Set([...latest].filter(([, o]) => o === "awaiting user").map(([k]) => k));
   for (const line of headText.slice(base.length).split("\n")) {
     if (!line.trim()) continue;
     const cells = line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
     if (!cells || cells.length !== 5) { problems.push(`appended line is not a five-cell table row: ${JSON.stringify(line.slice(0, 80))}`); continue; }
     if (!OUTCOMES.has(cells[3].toLowerCase())) problems.push(`row outcome ${JSON.stringify(cells[3])} is not folded in / declined / deferred / awaiting user`);
-    if (USER_ANSWER_RE.test(line)) problems.push(`row records a user's answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
+    if (USER_ANSWER_RE.test(line) || DECIDING_RE.test(`${cells[2]} ${cells[4]}`)) problems.push(`row records a decision or answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
+    if (awaiting.has(cells[2])) problems.push(`${cells[2]} is waiting for the user's answer; only that answer may add a row for it`);
   }
   return problems;
 }
@@ -107,7 +119,12 @@ export function checkCodifyAllowlist(base, head, cwd = process.cwd()) {
       continue;
     }
     if (EDITABLE_RE.test(p)) { if (status !== "A" && status !== "M") fail(`status ${status}`); continue; }
-    if (EVIDENCE_RE.test(p)) { if (status !== "A") fail("the run's evidence is added, never edited"); continue; }
+    if (EVIDENCE_RE.test(p)) {
+      if (status !== "A") { fail("the run's evidence is added, never edited"); continue; }
+      // The run's journal summary is an agent's record, never a user decision.
+      if (/\/journal\//.test(p) && !/^author:\s*agent\s*$/m.test(show(head, p) || "")) fail("the run's journal entry must have `author: agent`");
+      continue;
+    }
     fail("not on the automatic-merge allowlist (ask-first)");
   }
   return { findings };

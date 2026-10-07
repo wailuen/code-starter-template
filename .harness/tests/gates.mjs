@@ -797,7 +797,7 @@ test("codify allowlist: allowlisted guide, backlog, appended log rows and eviden
     put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-ok | .harness/backlog/harness-02-b.md | awaiting user | PR #7 |\n");
     put(dir, ".harness/reviews/codify-ok-correctness-r1.md", "Verdict: CLEAR\n");
     put(dir, ".harness/reviews/round-codify-ok-1.json", "{}\n");
-    put(dir, "workspaces/demo/journal/0002-DECISION-codify-ok.md", "summary\n");
+    put(dir, "workspaces/demo/journal/0002-DECISION-codify-ok.md", "---\ntype: DECISION\nauthor: agent\n---\nsummary\n");
   });
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
 });
@@ -807,19 +807,29 @@ test("codify allowlist: the -ask-review record-only branch (review report, round
   const askReview = branch("docs/codify-x-ask-review", () => {
     put(dir, ".harness/reviews/codify-x-ask-correctness-r1.md", "Verdict: CLEAR\n");
     put(dir, ".harness/reviews/round-codify-x-ask-1.json", "{}\n");
-    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-x-ask | .harness/backlog/harness-01-a.md | awaiting user | held for confirmation — PR #9 |\n");
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-x-ask | .harness/backlog/harness-01-a.md | awaiting user | waiting for the user — PR #9 |\n");
   });
   assert.equal(askReview.status, 0, askReview.stdout + askReview.stderr);
   const wording = branch("docs/codify-y-ask-review", () => {
     put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-y-ask | .harness/backlog/harness-01-a.md | awaiting user | needs the user's approval |\n");
   });
-  assert.equal(wording.status, 1, "control: wording that reads as a user's answer is refused; say 'held for confirmation'");
+  assert.equal(wording.status, 1, "control: wording that reads as a user's answer is refused; say 'waiting for the user'");
   for (const phrase of ["the user approves it", "user confirms the change", "owner will accept"]) {
     const present = branch(`docs/codify-p${phrase.length}-ask-review`, () => {
       put(dir, ".harness/codify-log.md", log + `| 2026-10-08 | docs/codify-p-ask | .harness/backlog/harness-01-a.md | awaiting user | ${phrase} |\n`);
     });
     assert.equal(present.status, 1, `any tense of a deciding verb after "user"/"owner" is refused: ${phrase}`);
   }
+  for (const phrase of ["approved per the user", "confirmed with the user", "you approved", "Jane approved"]) {
+    const noSubject = branch(`docs/codify-q${phrase.length}-ask-review`, () => {
+      put(dir, ".harness/codify-log.md", log + `| 2026-10-08 | docs/codify-q-ask | .harness/backlog/harness-01-a.md | folded in | ${phrase} |\n`);
+    });
+    assert.equal(noSubject.status, 1, `a deciding word is refused whoever it names: ${phrase}`);
+  }
+  const humanJournal = branch("docs/codify-h", () => {
+    put(dir, "workspaces/demo/journal/0009-DECISION-codify-h.md", "---\ntype: DECISION\nauthor: human\n---\nsummary\n");
+  });
+  assert.equal(humanJournal.status, 1, "the run's journal entry must be author: agent");
   const strayJson = branch("docs/codify-z-ask-review", () => {
     put(dir, ".harness/reviews/notes.json", "{}\n");
   });
