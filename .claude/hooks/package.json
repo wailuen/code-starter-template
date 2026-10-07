@@ -1,0 +1,4 @@
+{
+  "//": "The harness hook helpers are CommonJS. Pin that here so a project whose root manifest sets \"type\": \"module\" does not make Node read them as ESM.",
+  "type": "commonjs"
+}

@@ -1,0 +1,18 @@
+# Secrets — keep only .env.example under version control
+.env
+.env.*
+!.env.example
+
+# Harness runtime state (review-round state, launch ledger) — created on first use
+.claude/learning/
+
+# Per-user Claude Code files
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+CLAUDE.local.md
+
+# Worktrees must be siblings of the repo, never nested (see .claude/rules/worktree-isolation.md)
+.claude/worktrees/
+
+# OS / editor noise
+.DS_Store

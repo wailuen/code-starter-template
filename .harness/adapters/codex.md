@@ -1,0 +1,171 @@
+# Codex runtime adapter
+
+This adapter supplies Codex-only runtime mapping. The shared `.harness/phases/`,
+`guides/`, `rules/`, `roles/` and `bin/` remain the delivery policy for both runtimes.
+Resolve paths from the repository root, including `.claude/` references. Reading a
+Claude instruction body does not load a Claude agent or its model/tool settings.
+
+## Installation and verification
+
+Run from the project root (Node.js 22+):
+
+```bash
+node .harness/bin/check-adapters.mjs --write --codex-only
+node .harness/bin/check-adapters.mjs --codex-only
+node --test ".harness/tests/*.mjs"
+```
+
+The first command generates `.agents/skills/*/SKILL.md` and
+`.codex/agents/harness-*.toml`. It never writes `.claude/` files. The second fails if
+any expected Codex adapter is missing or drifted, even before Codex is enabled.
+`--codex` checks both adapters; `--codex-only` checks only Codex. The existing
+no-flag check still checks Claude and any enabled Codex adapters.
+
+The source is `.harness/manifest.json`: `phases` supplies the eight shared phases;
+`codex.agents` supplies role instructions, model and reasoning settings.
+`codex.helpers` is empty to avoid creating extra skill directories. Do not hand-edit generated files.
+Keep Codex-only changes in this adapter and the manifest's `codex` section; changing
+shared phases/rules/roles affects Claude too and is outside a Codex-only change.
+
+Start a fresh Codex session after generating skills or agents. Verify the runtime
+actually lists the project skills and offers the configured custom agent types.
+File generation and passing Node tests do not prove native discovery or dispatch.
+A template without Git metadata can generate adapters, but delivery needs a real
+Git repository, an integration branch, and a populated project profile. Do not
+invent a revision or initialize the user's repository just to create review evidence.
+
+## Session entry and tool mapping
+
+Read every `.harness/rules/*.md` and `.claude/rules/*.md` at session start, following
+shared-rule pointers, then root `.session-notes` if present. Read
+`.harness/guides/project-profile.md` for concrete project commands and
+`.harness/guides/task-delivery.md` for paths, branches and review rounds.
+
+Use `$analyze`, `$todos`, `$implement`, `$redteam`, `$debug`, `$fix`, `$codify`, `$learn`.
+For helper procedures (`start`, `ws`, `wrapup`, `sweep`, `journal`, `deploy`,
+`validate`, `test`, `design`, `doctor`, `worktree`, `autonomize`), read the existing
+`.claude/commands/<name>.md` directly when requested or referenced by a phase.
+These helpers do not need separate Codex skill folders.
+Select the skill in clients that use a skill picker. A shared `/name` reference
+means the matching skill/procedure, never a shell command. `$ARGUMENTS` means the
+user's actual arguments. The helper's authorization gates and read-only
+restrictions still apply.
+
+Map Read/Glob/Grep/Edit/Bash to the available Codex read/search/edit/shell tools.
+Map Agent to native Codex dispatch and SendMessage to the native message/return
+channel. Do not call Claude tools, pass Claude-only arguments, or claim that
+reading a file launches its agent. Native lifecycle completion is not a verdict.
+Ignore Claude frontmatter `model`, `effort` and `tools`; Codex configuration and
+actual tool availability govern those. Resolve abbreviated `rules/...` or
+`skills/...` references in a Claude body under `.claude/`.
+
+## Task routing and reasoning
+
+Use the following custom types when the runtime exposes them. These are defaults
+for this harness, not a claim that one setting is optimal for every project.
+
+| Task / shared agent name | Codex type | Model | Effort |
+| --- | --- | --- | --- |
+| Analysis, architecture, acceptance authoring / analyst | harness-analyst | gpt-6.1-sol | high |
+| Existing todo status/hygiene / todo-manager | harness-todo-manager | gpt-6-luna | high |
+| General test-first implementation / tdd-implementer | harness-implementer | gpt-6.1-sol | medium |
+| Server-side implementation / backend-specialist | harness-backend-specialist | gpt-6.1-sol | medium |
+| Screens, components and browser walks / frontend-specialist | harness-frontend-specialist | gpt-6.1-sol | medium |
+| Build/type error only / build-fix | harness-build-fix | gpt-6.1-sol | medium |
+| Test architecture and infrastructure / testing-specialist | harness-testing-specialist | gpt-6.1-sol | medium |
+| UI/UX and AI interaction design / uiux-designer | harness-uiux-designer | gpt-6.1-sol | medium |
+| Authorized GitHub mechanics / gh-manager | harness-gh-manager | gpt-6-luna | high |
+| Documentation references and terminology / gold-standards-validator | harness-gold-standards-validator | gpt-6-luna | high |
+| Independent correctness / reviewer | harness-reviewer | gpt-6.1-sol | high |
+| Independent security / security-reviewer | harness-security-reviewer | gpt-6.1-sol | high |
+| Difficult or recurring correctness failures in debug | harness-debug-reviewer | gpt-6.1-sol | xhigh |
+| Difficult or recurring security failures in debug | harness-debug-security-reviewer | gpt-6.1-sol | xhigh |
+
+The manifest is the executable source for this table. The generated agent reads
+its shared role or the existing specialist instruction body; do not substitute a
+generic implementation brief for frontend/backend/design/testing guidance.
+The planner authors acceptance; the todo-manager only tracks it. Documentation
+validation is not correctness clearance. Debug reviewers diagnose and report;
+the implementation owner fixes. Use the analyst for buyer-value analysis where
+shared prose mentions a hypothetical value-auditor; never invent an agent type.
+
+Custom files explicitly set both `model` and `model_reasoning_effort`. Their values
+can take precedence over spawn overrides, so use the dedicated debug types to
+raise review effort instead of assuming a spawn override defeats a fixed file.
+Do not raise every task to maximum effort. Escalate ambiguous analysis, difficult
+cross-boundary reasoning or repeated failures; bookkeeping stays narrowly scoped.
+If the configured model/effort is unavailable, report that fact and select an
+available suitable model explicitly, recording the actual choice. Never silently
+claim a requested model ran. Do not change user-wide model or permission settings.
+
+For a small implementation or clerical task, work directly when delegation adds
+no value. Required independent reviews still need a separate reviewer. Review
+phases authorize bounded correctness/security delegation. Start reviewers with a
+fresh context containing the contract, owned paths, pinned commit, checkout and
+report destination, not the author's full conversation. When the exposed API uses
+`fork_turns`, use `"none"` for independent reviewers. Pass model/effort only through
+supported parameters. A task name is a label, not proof of a native custom type.
+
+## Capability checks and isolation
+
+Before dispatch, inspect the actual tool interface: custom-type selection,
+model/effort overrides, fresh-context support and necessary read/shell/browser tools.
+If a client only exposes generic collaboration agents, explicitly supply the
+mapped instruction body and model/effort when supported. Record this as a generic
+agent with an assigned lens, not as `harness-security-reviewer`. Such a review can
+inform repairs, but cannot satisfy the convergence checker's native
+security-specialist dispatch requirement. Missing capability blocks that gate;
+it never permits relabelling launch evidence. Use a client supporting native
+custom agents for certification. Report unavailable tools instead of inventing them.
+
+Respect the runtime's real concurrency limit; start at most three independent
+children and reduce on throttling. Claude concurrency environment variables do
+not configure Codex. Independent work needs disjoint files AND mutable resources.
+Create sibling worktrees outside the repo as the shared delivery guide requires.
+Every child first enters its assigned absolute checkout, checks the resolved Git
+root against the resolved assigned path and verifies the expected branch/commit.
+Stop on mismatch; never fall back to the author's checkout. Set an explicit
+`workdir` or use absolute paths on every tool call: shell `cd` is not persistent.
+Reviewers do not edit the author tree; mutation probes get disposable copies.
+
+## Cold-start specifications
+
+For Codex, resolve the inherited spec-first versus shipped-spec-only conflict as
+follows: approved future behavior and acceptance live in `02-plans/` and the task
+contracts. Initial `specs/_index.md` indexes the actual baseline and links to those
+design documents, clearly distinguishing them from implemented domain truth.
+During analysis, the detailed future-domain descriptions requested by the shared
+phase are written in the plans, with their links in the index. Planning and review
+read those approved designs as the acceptance oracle. On implementation, update
+the affected domain specs with verified behavior in the same delivery change.
+Never invent existing APIs to fill an initial spec or back-fit acceptance after
+implementation. This is a Codex-only interpretation; no Claude rule is changed.
+
+## Review evidence and closure
+
+No hook is configured by default. At each actual dispatch record the runtime's
+agent ID, native type (or honest generic capability), requested model/effort and
+observed model/effort if exposed. Unknown effective settings remain unknown.
+Record launches before verdicts, as `.harness/phases/redteam.md` describes.
+Use the exact native type in the committed launch ledger and receipt; additional
+model metadata is provenance, not a substitute for independent verification.
+Never synthesize dispatches, reports, timestamps or approval.
+
+Save actual returned reports, aggregate every expected lens on the pinned commit,
+then run `record-review-round.mjs`. Follow its retry/debug/escalation decision.
+One clean round is the checkpoint bar; wave convergence needs two consecutive
+clean rounds on the same commit and a successful
+`check-redteam-convergence-receipt.mjs` result. Replace the template's Claude
+reviewer names with the actual dispatched Codex types. Keep the shared main-checkout
+`.claude/learning/` state store; do not create competing Codex state.
+
+The manual launch ledger is review evidence, not cryptographic proof of a dispatch.
+Automated fixtures may use clearly labelled synthetic launches only in disposable
+test repositories; never copy those into a real delivery receipt.
+
+If a project later adds Codex hooks, follow native hook trust and start a fresh
+session; do not bypass trust or alter user-wide settings. Release authorization,
+plan approval and risk acceptance remain governed by the user's actual instructions.
+
+Official reference checked for this adapter:
+https://learn.chatgpt.com/docs/agent-configuration/subagents
