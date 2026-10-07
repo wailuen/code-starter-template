@@ -16,6 +16,7 @@ derives it from the repository — it never guesses.
 | Application shape | `<unset>` | e.g. web app + API, CLI, library, mobile app, data pipeline. |
 | Source roots | `<unset>` | e.g. `src/`, `app/`, `cmd/`, `web/`. |
 | Test roots | `<unset>` | e.g. `tests/`, `__tests__/`, `*_test.go`. |
+| UI framework and design system | `<unset>` | e.g. React + the project's component library; `n/a` with no user interface. |
 
 ## Commands
 
@@ -35,6 +36,9 @@ reason) when the project genuinely has no such step.
 | Start the app locally | `<unset>` | Used by headed browser walk-throughs (`.harness/rules/e2e-god-mode.md`) and E2E. |
 | Database migrate (dev) | `<unset>` | Only when the project has a database. |
 | Database migrate (test) | `<unset>` | Must refuse to target anything but a throwaway test database. |
+| Database migrate (production) | `<unset>` | Run only by `/deploy` Step 3 (owner: `backend-specialist`), with the user's confirmation of that deploy. |
+| Dependency outdated check | `<unset>` | Lists dependencies with newer versions; `/sweep` Sweep 9. |
+| Dependency security audit | `<unset>` | Lists dependencies with known security advisories; exits non-zero on any; `/sweep` Sweep 9. |
 
 ## Release
 
@@ -59,6 +63,7 @@ confirms them with the user and writes the operational detail to `deploy/deploym
 | Domain (address users type) | `<unset>` |
 | Production database and its backups | `<unset>` |
 | Who is alerted when production is down, and how | `<unset>` |
+| `main_auto_deploys` — does every push to `main` deploy? | `<unset>` (`yes` or `no`, set by `/deploy --onboard`; `yes` makes every merge into `main` a deploy) |
 
 ## Test infrastructure
 
@@ -93,3 +98,4 @@ the inventory of what is enforced by tooling; anything not listed is enforced by
 | --- | --- | --- |
 | Harness adapters match the manifest | `node .harness/bin/check-adapters.mjs` | A generated Claude/Codex adapter file drifted from `.harness/manifest.json`. |
 | Harness self-tests | `node --test ".harness/tests/*.mjs"` | A harness tool regressed. |
+| Secret scan | `<unset>` | A secret value is in the tree or in a saved review report; also run on reports before committing them (task-delivery § Review protocol and circuit breaker). |

@@ -4,7 +4,16 @@
  * claimed to be? Invoked at `.harness/phases/redteam.md` § 4 (commit the receipt, then this refuses
  * or accepts it), `.harness/phases/implement.md` § 4 (the next wave does not start until exit 0),
  * `.claude/commands/ws.md` (`--todo` decides implemented-vs-CLOSED), and CI (`--sweep workspaces`: every
- * completed todo must be CLOSED unless grandfathered — wire it into the project's CI workflow).
+ * completed todo must be CLOSED unless grandfathered). CI runs `--sweep` on `main` ONLY (pushes to
+ * `main` and pull requests INTO `main`): a todo or wave branch legitimately carries completed todos
+ * that are not converged yet, so `--sweep` there is red by design.
+ *
+ * A REFUSED RECEIPT is never edited or patched up. Fix the problem, then run FRESH review rounds
+ * under a NEW scope name (e.g. `wNNb`): a new acceptance-list commit if the acceptance changed,
+ * new launch rows in `convergence-<new>.launches.jsonl` committed at dispatch, new reports and new
+ * `round-<new>-<n>.json` records the recorder actually processed (round numbers continue on the
+ * branch), then a new receipt and DECISION journal entry in one commit. Copying the old scope's
+ * round records or ledger is refused: the copies are added after the reviews they claim to record.
  *
  * ONE EVIDENCE MODEL FOR EVERY ARTIFACT. Each artifact the receipt names — the receipt itself,
  * its launches ledger, its journal entry, the acceptance list, the covered todos — must be
@@ -55,7 +64,8 @@
  *       → `.harness/phases/redteam.md` § 4; `.harness/rules/completion-criterion.md` MUST-3
  *   - each counted reviewer: `ran`, `evidence`, and a `launch_id` resolving to a `kind:"launch"`
  *     row in the ledger AS COMMITTED WITH THE RECEIPT, whose `subagent_type` matches and whose
- *     `ts` precedes `verdict_at`; a `security` lens must resolve to a security-specialist row
+ *     `ts` precedes `verdict_at`; a `security` (or debug-round `security-debug`) lens must resolve to a
+ *     security-reviewer row (its agent name contains "security")
  *       → `.harness/rules/agent-delegation.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
  *   - each counted reviewer's `evidence` is the repository-root-relative path of the saved report
  *     (`workspaces/<p>/04-validate/<scope>-<lens>-r<n>.md`), a NON-EMPTY file tracked AT THE
@@ -69,14 +79,19 @@
  *       → `.harness/guides/task-delivery.md` § Review protocol and circuit breaker
  *   - `security_critical` explicit, and never LOWER than what `wave_base..verdict_head` implies.
  *     The surface is INCLUSION BY DEFAULT: EVERY changed path is surface except
- *       (a) the workspace bookkeeping paths (`workspaces/<p>/{04-validate,journal,todos}/`, and the
- *           repository-root `.session-notes`, `.session-notes.d/`, `.wave-tracker.d/`),
+ *       (a) bookkeeping: `.md` / `.json` / `.jsonl` (and `.gitkeep` / `.keep`) files under
+ *           `workspaces/<p>/{04-validate,journal,todos}/`, the repository-root `.session-notes`,
+ *           and `.md` / `.json` / `.jsonl` files under the root `.session-notes.d/` and
+ *           `.wave-tracker.d/` — exact letter case; any other file type there is surface,
  *       (b) `.claude/learning/` (gitignored runtime state),
- *       (c) the root `README` / `LICENSE` / `CHANGELOG` / `COPYING` / `NOTICE` files, and
- *       (d) plain documentation and raster images — `*.md`, `*.markdown`, `*.txt`, `*.rst`,
+ *       (c) the root `README` / `LICENSE` / `LICENCE` / `CHANGELOG` / `COPYING` / `NOTICE` files,
+ *           with no extension or `.md` / `.markdown` / `.txt` / `.rst` / `.adoc` (`README.sh` is surface), and
+ *       (d) plain documentation and raster images by extension — `*.md`, `*.markdown`, `*.rst`,
  *           `*.adoc`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.ico` — OUTSIDE `.claude/`,
  *           `.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/` (instructions an agent or
- *           a deploy follows are not plain documentation), and never `requirements*.txt`.
+ *           a deploy follows are not plain documentation). `*.txt` and `*.svg` are surface.
+ *     The tests that put a path ON the surface ignore letter case (`.Claude/rules/x.md`,
+ *     `CLAUDE.MD`, `Agents.md`), because case-insensitive filesystems load them as the real thing.
  *     `AGENTS.md` / `CLAUDE.md` are surface wherever they sit. So a migration, a middleware file,
  *     `.gitignore`, `.env.example`, `infra/*.tf` or a new top-level directory is surface without
  *     anyone listing it: a new directory is security surface by default, not by omission
@@ -90,7 +105,7 @@
  *   - every covered todo by exact PATH, present at `verdict_head`, completed inside the window,
  *     its browser walk declared THERE with disposition `proceed`; a covering receipt covers a
  *     todo file only while that file's content is the blob it certified
- *       → `.harness/phases/implement.md` § 7a via `check-browser-walk-receipts.mjs`
+ *       → `.harness/phases/implement.md` § 3a via `check-browser-walk-receipts.mjs`
  *   - `journal` a tracked, committed regular file under the workspace's `journal/`, committed no
  *     later than the receipt, whose content AT THE RECEIPT'S COMMIT names the scope
  *       → the workspace's DECISION journal entry for this scope
@@ -151,6 +166,7 @@ import { fileURLToPath } from "node:url";
 import { assessTodoText } from "./check-browser-walk-receipts.mjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 import { isAgentIdentity as namesAnAgent } from "../lib/agent-identity.cjs";
+import { advanceRound } from "../lib/redteam-stall.cjs";
 
 export const SCHEMA = "redteam-convergence-receipt/1";
 export const GATING_HALF = "BUG+INVEST-NOW";
@@ -175,23 +191,31 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SCOPE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TODO_ID_RE = /^([a-z]+[0-9]*-[0-9]+[a-z]?)/i;
 const SECURITY_AGENT_RE = /security/i;
-// Anchored to the real bookkeeping LOCATIONS: the workspace's 04-validate/, journal/ and todos/,
-// and the repository-root session files. A same-named file or folder anywhere else
-// (`src/.session-notes.d/x.ts`) is ordinary code, never bookkeeping.
+// The security lens, including its debug-round name (`<lens>-debug`).
+const SECURITY_LENS_RE = /^security(?:-debug)?$/i;
+// Anchored to the real bookkeeping LOCATIONS — the workspace's 04-validate/, journal/ and todos/,
+// and the repository-root session files — AND to the file types bookkeeping is written in
+// (.md, .json, .jsonl, plus .gitkeep/.keep). A same-named file or folder anywhere else
+// (`src/.session-notes.d/x.ts`), or code dropped into a bookkeeping folder
+// (`workspaces/p/04-validate/evil.ts`), is ordinary code, never bookkeeping. Exact case: a
+// differently-cased spelling is NOT treated as bookkeeping.
 const BOOKKEEPING_RE =
-  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/|\.session-notes(?:$|\.d\/)|\.wave-tracker\.d\/)/;
-// Security surface: INCLUSION BY DEFAULT (see the header). Only these are NOT surface.
+  /^(?:workspaces\/[^/]+\/(?:04-validate|journal|todos)\/(?:[^/]+\/)*(?:[^/]+\.(?:md|json|jsonl)|\.gitkeep|\.keep)|\.session-notes|\.(?:session-notes|wave-tracker)\.d\/(?:[^/]+\/)*[^/]+\.(?:md|json|jsonl))$/;
+// Security surface: INCLUSION BY DEFAULT (see the header). Only these are NOT surface. The
+// exclusions go by file type, never by name alone (`README.sh` is surface), and the tests that
+// put a path BACK on the surface ignore letter case, because macOS and Windows checkouts do
+// (`.Claude/rules/x.md` lands in `.claude/rules/`, `CLAUDE.MD` is `CLAUDE.md`).
 const RUNTIME_STATE_RE = /^\.claude\/learning\//;
-const ROOT_DOC_RE = /^(?:README|LICENSE|LICENCE|CHANGELOG|COPYING|NOTICE)(?:\.[A-Za-z]+)?$/;
-const PLAIN_DOC_RE = /\.(?:md|markdown|txt|rst|adoc|png|jpe?g|gif|webp|ico)$/i;
+const ROOT_DOC_RE = /^(?:README|LICEN[CS]E|CHANGELOG|COPYING|NOTICE)(?:\.(?:md|markdown|txt|rst|adoc))?$/i;
+const PLAIN_DOC_RE = /\.(?:md|markdown|rst|adoc|png|jpe?g|gif|webp|ico)$/i;
 // Instructions an agent or a deploy follows live here; a Markdown file under them is not plain documentation.
-const INSTRUCTION_DIR_RE = /^(?:\.claude|\.harness|\.github|\.agents|\.codex|deploy)\//;
-const DEPENDENCY_LIST_RE = /(?:^|\/)requirements[^/]*\.txt$/;
+const INSTRUCTION_DIR_RE = /^(?:\.claude|\.harness|\.github|\.agents|\.codex|deploy)\//i;
+const AGENT_INSTRUCTION_FILE_RE = /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/i;
 export function isSecuritySurface(p) {
-  if (/(?:^|\/)(?:AGENTS|CLAUDE)\.md$/.test(p)) return true;
-  if (BOOKKEEPING_RE.test(p) || RUNTIME_STATE_RE.test(p) || ROOT_DOC_RE.test(p)) return false;
-  if (PLAIN_DOC_RE.test(p) && !INSTRUCTION_DIR_RE.test(p) && !DEPENDENCY_LIST_RE.test(p)) return false;
-  return true;
+  if (RUNTIME_STATE_RE.test(p)) return false;
+  if (AGENT_INSTRUCTION_FILE_RE.test(p) || INSTRUCTION_DIR_RE.test(p)) return true;
+  if (BOOKKEEPING_RE.test(p) || ROOT_DOC_RE.test(p)) return false;
+  return !PLAIN_DOC_RE.test(p);
 }
 
 // ---- primitives -------------------------------------------------------------------------------
@@ -395,6 +419,12 @@ export function todoIdOf(filename) {
 }
 
 // ---- the checks ---------------------------------------------------------------------------------
+
+/** The scope as a whole token: "w01" is named by "wave w01." but not by "w010" or "w01-02". */
+export function namesScope(text, scope) {
+  const escaped = scope.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9._-])${escaped}(?![A-Za-z0-9_-]|\\.[A-Za-z0-9])`).test(text);
+}
 
 function checkShape(c) {
   const { r, add, receiptPath } = c;
@@ -665,7 +695,7 @@ function checkArtifacts(c) {
     .map((t) => todoIdOf(t))
     .filter(Boolean);
   const mentionsScope = (text) =>
-    (scope && text.includes(scope)) ||
+    (scope && namesScope(text, scope)) ||
     (todoIds.length > 0 &&
       todoIds.every((id) => text.toLowerCase().includes(id)));
 
@@ -774,7 +804,7 @@ function checkArtifacts(c) {
             "journal-missing",
             `${r.journal} is not in the tree at ${pin.slice(0, 12)}`,
           );
-        else if (scope && !text.includes(scope))
+        else if (scope && !namesScope(text, scope))
           add(
             "journal-does-not-cite-scope",
             `${r.journal} @ ${pin.slice(0, 12)} never mentions scope "${scope}"`,
@@ -965,12 +995,12 @@ function checkRounds(c) {
           `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type}, not ${v.agent}`,
         );
       if (
-        /^security$/i.test(v.lens || "") &&
+        SECURITY_LENS_RE.test(v.lens || "") &&
         !SECURITY_AGENT_RE.test(row.subagent_type || "")
       )
         add(
           "security-lens-not-specialist",
-          `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type || "?"} — a security lens must be a security-specialist dispatch, not a relabelled reviewer`,
+          `${who} launch_id ${v.launch_id} was spawned as ${row.subagent_type || "?"} — a security lens must be a security-reviewer dispatch (agent name containing "security"), not a relabelled reviewer`,
         );
       if (!Number.isNaN(verdictMs) && !(Date.parse(row.ts || "") < verdictMs))
         add(
@@ -993,7 +1023,7 @@ function checkRounds(c) {
     }
     if (
       securityCritical &&
-      !revs.some((v) => /^security$/i.test(v.lens || "") && v.ran === true)
+      !revs.some((v) => SECURITY_LENS_RE.test(v.lens || "") && v.ran === true)
     )
       add(
         "security-lens-missing",
@@ -1059,6 +1089,8 @@ function checkRoundRecords(c) {
     const problems = [];
     if (!rec || typeof rec !== "object") rec = {};
     if (rec.round !== round.n) problems.push(`its round is ${JSON.stringify(rec.round)}`);
+    if (nonEmpty(r.branch) && rec.branch !== r.branch.trim())
+      problems.push(`its branch is ${JSON.stringify(rec.branch)}, the receipt's is ${JSON.stringify(r.branch)}`);
     if (rec.head !== round.head) problems.push(`its head is ${JSON.stringify(rec.head)}, the receipt's is ${JSON.stringify(round.head)}`);
     const recRevs = Array.isArray(rec.reviewers) ? rec.reviewers.filter((x) => x && typeof x === "object") : [];
     const lenses = revsOf(round).map((v) => v.lens).sort();
@@ -1081,14 +1113,93 @@ function checkRoundRecords(c) {
   // A later round the receipt leaves out: the receipt stopped counting before the branch did.
   const lastN = Math.max(...r.rounds.map((x) => x.n));
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const laterRe = new RegExp(`^${escapeRe(validateRel)}round-${escapeRe(scope)}-(\\d+)\\.json$`);
+  const scopeRecordRe = new RegExp(`^${escapeRe(validateRel)}round-${escapeRe(scope)}-(\\d+)\\.json$`);
   for (const p of (git(["ls-tree", "--name-only", receiptAdd, "--", validateRel], repoRoot) || "").split("\n")) {
-    const m = p.match(laterRe);
+    const m = p.match(scopeRecordRe);
     if (m && Number(m[1]) > lastN)
       add(
         "round-record-after-receipt",
         `${p} records round ${m[1]}, after the receipt's last round ${lastN} — a receipt must count every recorded round of its scope`,
       );
+  }
+  // RIGHT NOW: a record of this scope committed (or left uncommitted) AFTER the receipt — any
+  // number, a later NOT_CLEAR re-review included — means the receipt no longer tells the whole story.
+  if (!c.historical) {
+    const dir = join(c.workspaceDir, "04-validate");
+    for (const name of existsSync(dir) ? readdirSync(dir) : []) {
+      const relP = `${validateRel}${name}`;
+      if (!scopeRecordRe.test(relP)) continue;
+      const added = isTracked(repoRoot, join(dir, name)) ? firstAddCommit(repoRoot, relP) : null;
+      if (!added || !isAncestor(added, receiptAdd, repoRoot))
+        add(
+          "round-record-after-receipt",
+          `${relP} was ${added ? `first committed in ${added.slice(0, 12)}, after` : "not committed before"} the receipt's first commit ${receiptAdd.slice(0, 12)} — a round reviewed after the receipt reopens the scope`,
+        );
+    }
+  }
+  checkRoundBudget(c, validateRel);
+}
+
+/**
+ * The cap, worked out rather than taken from the receipt. Every round record ever ADDED to this
+ * workspace's 04-validate/ in the receipt commit's history whose `branch` is the receipt's branch
+ * (any scope: a re-certified `wNNb` continues the branch's numbering) is replayed, as first
+ * committed, through the recorder's own advanceRound. A round the recorder's cap, debug-round
+ * or escalation gate would refuse means the cap was hit: `cap-hit-understated`. A record that
+ * does not parse, two records for one round (a copied record included), or a gap in the numbering
+ * is `round-records-invalid`.
+ */
+function checkRoundBudget(c, validateRel) {
+  const { r, add, repoRoot, receiptAdd } = c;
+  if (!nonEmpty(r.branch)) return;
+  const branch = r.branch.trim();
+  const log = git(["log", "--diff-filter=A", "--format=%x00%H", "--name-only", receiptAdd, "--", validateRel], repoRoot);
+  if (log === null) return add("round-records-invalid", `could not read the round records' history at ${receiptAdd.slice(0, 12)}`);
+  const byRound = new Map();
+  const invalid = (detail) => add("round-records-invalid", detail);
+  for (const chunk of log.split("\0").filter(Boolean)) {
+    const [commit, ...paths] = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+    for (const p of paths) {
+      if (!/\/round-[^/]+\.json$/.test(p)) continue;
+      let rec;
+      try {
+        rec = JSON.parse(showAt(repoRoot, commit, p) ?? "");
+      } catch {
+        if (p.includes(`/round-${c.scope}-`)) invalid(`${p} as first committed in ${commit.slice(0, 12)} is not valid JSON`);
+        continue;
+      }
+      if (!rec || typeof rec !== "object" || rec.branch !== branch) continue;
+      if (!Number.isSafeInteger(rec.round) || rec.round < 1) {
+        invalid(`${p} as first committed in ${commit.slice(0, 12)} has no valid round number`);
+        continue;
+      }
+      const seen = byRound.get(rec.round);
+      if (!seen) byRound.set(rec.round, { rec, path: p });
+      else if (seen.path !== p)
+        invalid(`round ${rec.round} of ${branch} is recorded twice (${seen.path}, ${p}) — a round is reviewed once; never copy a record into a new scope`);
+      else if (JSON.stringify(seen.rec) !== JSON.stringify(rec))
+        invalid(`${p} was deleted and re-added with different content — a recorded round is never rewritten`);
+    }
+  }
+  const rounds = [...byRound.keys()].sort((a, b) => a - b);
+  for (let i = 1; i < rounds.length; i++)
+    if (rounds[i] !== rounds[i - 1] + 1) {
+      invalid(`the recorded rounds of ${branch} skip from ${rounds[i - 1]} to ${rounds[i]} — every round the recorder admitted must stay committed`);
+      return;
+    }
+  let state;
+  for (const n of rounds) {
+    try {
+      state = advanceRound(state, byRound.get(n).rec).nextState;
+    } catch (e) {
+      if (e.code === "DEBUG_ROUND" || e.code === "ESCALATE_TO_HUMAN")
+        add(
+          "cap-hit-understated",
+          `round ${n} of ${branch} (${byRound.get(n).path}) is past the round cap without its debug round or a named human's acceptance (${e.code}), yet cap_hit is ${JSON.stringify(r.cap_hit)} — the committed records show the cap was hit`,
+        );
+      else invalid(`round ${n} of ${branch} (${byRound.get(n).path}) is not a round the recorder admits: ${e.message}`);
+      return;
+    }
   }
 }
 
@@ -1308,7 +1419,7 @@ export function template(scope) {
           lens: "security",
           ran: true,
           evidence: `workspaces/<project>/04-validate/${scope}-security-r${n}.md`,
-          launch_id: "<a security-specialist dispatch of this round>",
+          launch_id: "<a security-reviewer dispatch of this round>",
         },
       ],
     })),

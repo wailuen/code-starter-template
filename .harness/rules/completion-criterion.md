@@ -21,8 +21,7 @@ The operational protocol is `.harness/guides/task-delivery.md`.
 ## MUST-1 — Acceptance precedes implementation and review
 
 Each delivery has acceptance criteria the user ratified (`ratified_by` and `approved_by` name
-the user, never a reviewer or agent; `.harness/lib/agent-identity.cjs` refuses those),
-testable by two readers, plus an explicit trusted/untrusted boundary and integrated scenario. The implementing
+the user, never a reviewer or agent), testable by two readers, plus an explicit trusted/untrusted boundary and integrated scenario. The implementing
 agent cannot redefine its own oracle after seeing the result. Use the delivery-contract
 readiness checker. A credible threat (security or correctness) is adjudicated
 immediately: classify it BUG or not-BUG, with evidence, before any other step. Only a
@@ -30,6 +29,17 @@ newly uncovered requirement (a missing feature or scope addition) may be surface
 scope decision or recorded as a todo proposal. Do not silently expand the task or declare
 either harmless by omission. Small, related fixes follow
 `.harness/rules/autonomous-execution.md` § Problems found along the way.
+
+**Person-only fields** — `ratified_by`, `approved_by`, `residuals[].accepted_by`, and the
+recorder's `escalation_accepts.acceptor` and `replan_accepts[].acceptor` — go through one
+identity check, `.harness/lib/agent-identity.cjs`. It first normalises the value (NFKC,
+invisible characters removed, lookalike letters folded, spaces collapsed, punctuation
+trimmed, lowercased), then refuses: model and vendor names with or without versions
+(`gpt5`, `sonnet4`, `opus4.5`, `o1`/`o3`, ChatGPT, OpenAI, Anthropic, Grok, DeepSeek, Mistral,
+Llama), names run together or letter-spaced, no-reply and bot email addresses, and values
+made only of role or filler words ("the user", "Project owner", "operator", "myself",
+"User (chat approval)"). A real name passes, also next to a role ("Jane, owner"). The check
+cannot tell a real name from an invented one, so never write a name the user did not give.
 
 ## MUST-2 — Preserve gating obligations and triage discoveries
 

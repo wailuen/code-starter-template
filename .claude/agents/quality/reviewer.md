@@ -6,4 +6,4 @@ model: opus
 effort: high
 ---
 
-Read and follow `.harness/roles/reviewer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout, § Implement and verify and § Review protocol and circuit breaker.
+Read and follow `.harness/roles/reviewer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout, § Implement and verify and § Review protocol and circuit breaker. Find their line ranges with `grep -n '^## ' .harness/guides/task-delivery.md` and read only those ranges.

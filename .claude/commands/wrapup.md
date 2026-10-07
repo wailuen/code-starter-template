@@ -1,11 +1,12 @@
 ---
 name: wrapup
-description: "Write .session-notes so the next session resumes without re-discovering context."
+description: "End a session: run /learn (and /codify when it is due), then write .session-notes so the next session resumes without re-discovering context."
 ---
 
-The only deliverable is a `.session-notes` file at the repo root that lets a fresh session
+The main deliverable is a `.session-notes` file at the repo root that lets a fresh session
 start producing work within a couple of minutes of reading it, without re-exploring the
-codebase.
+codebase. Before writing it, wrapup runs `/learn` and, when it is due, `/codify` (§ Lessons
+below), which can open and merge a harness pull request.
 
 **Before running:** if a significant decision, discovery, or risk from this session isn't yet
 in `workspaces/<project>/journal/`, run `/journal new DECISION|DISCOVERY|RISK <topic>` first — `.session-notes` gets
@@ -105,7 +106,7 @@ for the next session to orient, not a history.
   written from memory goes stale the moment the next commit lands. Point at the command that
   produces the real number instead (`git diff --stat`, the test command).
 - **"Read first" is the one section that must be present.** Without it, the next session has no
-  entry point. If you can't produce a useful list, point at `.claude/CLAUDE.md` as the entry point and
+  entry point. If you can't produce a useful list, point at `.claude/CLAUDE.md` (or `AGENTS.md` in a Codex session) as the entry point and
   say why nothing more specific applies yet.
 
 `.session-notes` is a pointer file, not a report — its job is to save the next session's

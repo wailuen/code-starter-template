@@ -6,7 +6,10 @@ current wave's delivery contracts and `03-user-flows/`. Results belong in `works
 `.harness/guides/task-delivery.md` § Workspace file layout. A wave review runs with the wave
 branch `feat/wNN-<slug>` checked out, scope `wNN`; its rounds are recorded on that branch.
 
-Read `.harness/guides/task-delivery.md` and `.harness/rules/completion-criterion.md`.
+Read `.harness/rules/completion-criterion.md` and, from `.harness/guides/task-delivery.md`,
+§ Wave boundary, § Workspace file layout, § Branches, pull requests and merging and § Review
+protocol and circuit breaker. Find each section's line range with `grep -n '^## ' .harness/guides/task-delivery.md` and read
+only those ranges.
 A user-approved acceptance list must predate review: for a wave it is
 `workspaces/<project>/04-validate/acceptance-wNN.md`, committed by `/todos` before the work. New uncovered product
 requirements are surfaced as design/scope decisions immediately; do not silently add
@@ -20,10 +23,10 @@ missing evidence clean. Security/trust-bearing changes require
 independent correctness and security reviewers; add testing, UX/value or domain seats
 for their actual surface. Do not spawn irrelevant specialists by default. Plan the security
 seat for nearly every wave: the convergence checker treats every changed path as security
-surface except workspace bookkeeping (`04-validate/`, `journal/`, `todos/`, the root
-`.session-notes`), `.claude/learning/`, the root README, LICENSE, CHANGELOG, COPYING and NOTICE,
-and plain documentation (`*.md`, `*.txt`, `*.rst`, `*.adoc`, raster images) outside `.claude/`,
-`.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/`, and refuses a receipt whose `security_critical` is lower than that. The checker
+surface except workspace bookkeeping, root licence/readme files and plain documentation
+outside the harness and deploy folders (the exact list, matched without regard to letter case,
+is in the header of `.harness/bin/check-redteam-convergence-receipt.mjs`, `isSecuritySurface`),
+and refuses a receipt whose `security_critical` is lower than that. The checker
 recognises the security seat only from the agent type in the launch ledger, which the
 orchestrator writes by hand, so it is honour-based: record the type actually dispatched, never a
 relabelled generic agent (`.harness/adapters/codex.md` § Known limitations).
@@ -119,7 +122,9 @@ covered-todo, current-commit and named residual-acceptor requirements. Each revi
 `evidence` is the repository-root path of its committed report; each round the receipt lists
 has its committed `round-<scope>-<n>.json` with the same head, lenses, evidence and verdicts;
 and the receipt lists every recorded round of the scope up to the highest. Its
-`acceptance_list.ratified_by` and any `residuals[].accepted_by` are the user's name. Write the DECISION journal entry for the convergence, then commit the
+`acceptance_list.ratified_by` and any `residuals[].accepted_by` are the user's name. A round
+recorded on a debug round uses `<lens>-debug` lens names (`correctness-debug`,
+`security-debug`); the checker accepts `security-debug` as the security lens. Write the DECISION journal entry for the convergence, then commit the
 receipt and that journal entry together in ONE commit (the checker refuses a journal entry
 committed after the receipt), and run
 `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <scope>`.
@@ -127,26 +132,42 @@ Only exit 0 permits a convergence claim. The round recorder does not replace thi
 verifier.
 
 A passing receipt is immutable; later changes use a new certificate scope. A receipt the
-checker refuses is not a certificate and would block every todo it lists: remove it with
-`git rm` in its own commit whose message quotes the refusal, then write the corrected receipt
-under a new scope name (`wNNb`), copying the launch ledger, and run the check again.
+checker refuses is not a certificate and would block every todo it lists. To recover:
 
-Before merging, show the user the wave (task-delivery § Wave boundary): a plain summary of
-what their users can now do, how to try it themselves, and anything left for later. Commit it
-with the receipt at `04-validate/<scope>-preview.md`, ending with the line
-`User answer: pending`; when the user answers, replace that line with their words and the
-date on a `docs/<scope>-preview` branch merged into `main`. Ask
-whether it matches what they wanted (`.claude/rules/communication.md` § Asking the user to
-decide). If the user is not there, merge the certified wave anyway (merging is reversible and
-internal), leave the preview as the first open question for `/ws` and `/wrapup`, and do not
-deploy the wave until the user has answered. Then merge the wave branch into `main` by pull request, reading CI on the pinned head
-SHA before a separate merge command, with a merge commit (task-delivery § Branches, pull
-requests and merging; no user confirmation needed once the check above exited 0 —
-`.harness/rules/autonomous-execution.md` § What needs the user). Right after the merge, run
-`/codify` — on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md` §
-When it runs) — then spec/todo reconciliation (for each spec this wave built, remove its
-`Status: approved design` line and cite the real code, `.claude/rules/spec-accuracy.md`
-§ Exceptions item 4) and value re-ranking before the next wave.
+1. Remove it with `git rm` in its own commit whose message quotes the refusal.
+2. Fix the problem the refusal names.
+3. Certify under a new scope name — the next unused letter (`wNNb`, then `wNNc`): commit a new
+   acceptance list only if acceptance changed; run fresh review rounds whose numbers continue
+   the branch's count (if `w01` had rounds 1-2, `w01b` records rounds 3-4), with new reports,
+   new `round-wNNb-<n>.json` records and a new `convergence-wNNb.launches.jsonl` committed at
+   dispatch; then write the new receipt and its DECISION journal entry in one commit. Never copy
+   the old scope's round records or launch ledger — the checker refuses copies
+   (`round-records-invalid`). The journal entry and acceptance list must name the new scope as
+   a whole word (`w01b`, which `w01b2` or `w01b-03` does not match).
+
+After the receipt check exits 0, in this order:
+
+1. Write the wave preview (task-delivery § Wave boundary) at `04-validate/<scope>-preview.md`:
+   what users can now do, how to try it, and what is left for later (including any deferred
+   INCREMENTAL finding), ending with the line `User answer: pending`. Commit it, and cite it and
+   the boundary walk in the wave's DECISION journal entry.
+2. If the user is here, ask whether it matches what they wanted
+   (`.claude/rules/communication.md` § Asking the user to decide). If they are not, it stays
+   the first open question for `/ws` and `/wrapup`, and the wave is not deployed until they
+   answer. When they answer, replace the last line with their words and the date on a
+   `docs/<scope>-preview` branch merged into `main`.
+3. Merge the wave branch into `main` by pull request: read CI on the pinned head SHA, then
+   merge in a separate command with a merge commit (task-delivery § Branches, pull requests
+   and merging). This needs no confirmation — unless the project profile says
+   `main_auto_deploys: yes`, where merging is deploying: then it needs the user's
+   confirmation and respects any deploy hold (`.harness/rules/autonomous-execution.md`
+   § What needs the user).
+4. Run `/codify` on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md`
+   § When it runs).
+5. Reconcile specs on a `docs/wNN-spec-reconcile` branch: for each spec this wave built, remove
+   its `Status: approved design` line and cite the real code (`.claude/rules/spec-accuracy.md`
+   § Exceptions item 4). Then reconcile the remaining todos and re-rank by value before the next
+   wave.
 
 ## Conditional checks
 

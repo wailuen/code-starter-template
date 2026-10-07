@@ -20,6 +20,8 @@ waiting for you." Check each of these:
   `ESCALATE_TO_HUMAN` (the recorder's state, or a `round-<scope>-<n>.json` after the debug round
   with no later round), or a residual in a receipt or decision record that names no human
   acceptor yet.
+- **Merges that would deploy** — when the profile says `main_auto_deploys: yes`, any certified
+  wave or fix waiting to merge, because merging it ships it to users.
 - **Undeployed changes** — when `deploy/deployment-config.md` exists, the drift from
   `/deploy --check`, and any open fix record with `Deploy hold: yes`.
 - **Open S1/S2 bugs** — fix records in `workspaces/*/fixes/` whose `Status:` is not `closed`,
@@ -27,7 +29,14 @@ waiting for you." Check each of these:
 - **Harness changes awaiting your OK** — lessons whose latest `.harness/codify-log.md` row is
   `awaiting user` (classify exactly as `.harness/phases/learn.md` step 1), with the pull request
   or backlog item holding the change; say in one line what it would change for the user.
-- **Open product questions** — journal `GAP` entries with no later entry that resolves them.
+- **Open product questions** — journal `GAP` entries without the `harness` tag and with no
+  later entry that resolves them.
+- **Update check due** — when the newest `04-validate/sweep-<date>.md` that ran Sweep 9 (or no
+  such report at all, once the product is deployed) is more than a month old: "Dependency and
+  security updates were last checked N days ago. Run `/sweep`?"
+- **External setup the next wave needs** — any credential or account the plan asked the user
+  for (`.harness/guides/task-delivery.md` § Before a wave starts) and not yet provided, and any
+  decision point from the latest `/sweep` report not yet answered.
 - **Parked hotfix follow-ups** — parked proposals whose first line is `Source: hotfix <fix-id>`:
   that area shipped on an emergency review and still needs its full review through `/todos`.
 
@@ -38,7 +47,8 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
 
 - Workspace name and path.
 - Current phase, from the most advanced of these that is true (each needs its own artifact,
-  not just a folder):
+  not just a folder). Read `main` and the open wave branch (`feat/wNN-<slug>`): completed todos
+  and wave review rounds live on the wave branch until it merges.
   - `convergence-wNN.json` on `main` for the latest wave → wave NN reviewed and merged
   - a `round-wNN-<n>.json` without a converged receipt → wave NN in review (`/redteam`)
   - `todos/completed/` files for the current wave → building wave NN (`/implement`)

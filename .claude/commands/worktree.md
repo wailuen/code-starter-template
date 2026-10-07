@@ -16,8 +16,8 @@ On (b): a session rooted at a NESTED worktree was measured (Claude Code 2.1.x, u
 probe) to load **path-scoped** rules from BOTH its own `.claude/rules/` AND the ancestor repo's — the
 same rule twice, under two paths — while a SIBLING-rooted session loads each exactly once. `CLAUDE.md`
 and baseline (`priority: 0`) rules do NOT ancestor-load. Sibling placement is therefore a quota
-requirement, not a tidiness preference — for a worktree a SESSION ROOTS INTO; a dispatched subagent
-inherits its parent session's corpus instead (measured) and is not itself a double-load.
+requirement, not a tidiness preference. A dispatched subagent working in a nested worktree also
+receives path-scoped rules, so it can get the same rule twice too.
 Full rationale: `.claude/rules/worktree-isolation.md` Rule 7.
 
 Durable session worktrees and transient agent-wave worktrees both live outside the repo:

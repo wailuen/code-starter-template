@@ -30,7 +30,7 @@ Claude-only commands (`.claude/commands/`; in Codex, read the file and follow it
 | `/wrapup` | Write `.session-notes` at the repository root for the next session. |
 | `/sweep` | Repo-wide audit of outstanding work before calling a cycle done. |
 | `/journal` | Create, list or search `workspaces/<project>/journal/` entries. |
-| `/deploy` | Onboard, deploy, check drift, or roll back (`deploy/deployment-config.md`). |
+| `/deploy` | Onboard, deploy, check drift, roll back, or decommission (`deploy/deployment-config.md`). |
 | `/validate` | Check a change against the project's standards. |
 | `/test` | Testing quick reference. |
 | `/design` | UI/UX standards quick reference. |
@@ -63,7 +63,7 @@ in `guides/task-delivery.md`.
    `adapters/codex.md` § Known limitations before relying on Codex for `/redteam`.
 6. Optional — a project adopting the harness mid-life can set `grandfather_pin` in
    `manifest.json` to main's tip at adoption, so already-completed todos are not re-audited by
-   `check-redteam-convergence-receipt.mjs --sweep`. Leave it `null` on a new project.
+   `check-redteam-convergence-receipt.mjs --sweep workspaces`. Leave it `null` on a new project.
 
 ## Shared invariants
 
@@ -87,9 +87,9 @@ to CommonJS so a project-level `"type": "module"` cannot change how Node loads t
 
 | Tool | Purpose |
 | --- | --- |
-| `bin/check-adapters.mjs` | Verifies (or with `--write`, regenerates) the generated Claude/Codex adapter files from `manifest.json`. Exit 0 match, 1 drift or invalid manifest, 2 usage. A stale generated Codex file counts as drift and `--write` removes it; it refuses to write outside the repository or through a symlinked directory. |
+| `bin/check-adapters.mjs` | Verifies (or with `--write`, regenerates) the generated Claude/Codex adapter files from `manifest.json`. Exit 0 match, 1 drift or invalid manifest, 2 usage. A stale generated Codex file (exactly the generator's template text) counts as drift and `--write` removes it; any other file there is left alone with a note. `--write` refuses to write outside the repository or through any symlink, before writing anything. |
 | `bin/check-task-contract.mjs` | Validates a todo's `## Delivery contract` block before implementation, including that `approved_by` names a person. Exit 0 ready; 1 not ready, unreadable or usage. |
-| `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete `/redteam` round and enforces the round budget / reassessment rules. |
+| `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete review round of any scope (todo, wave, fix, plan, analysis, codify) and enforces the round budget / reassessment rules. |
 | `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace workspaces/<project> --scope <scope>`), whether a todo is closed (`--workspace workspaces/<project> --todo <id>`), sweeps every completed todo (`--sweep workspaces`), and prints a receipt skeleton (`--template <scope>`). |
 | `bin/check-browser-walk-receipts.mjs` | Checks a todo declares its browser walk (or why it does not apply). |
 

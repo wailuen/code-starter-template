@@ -1,24 +1,33 @@
 ## When to use
 
 Use `/fix` for a defect in behavior that is already built: a user report, a failing check on
-`main`, a production incident, or a bug found while doing other work that is too large to fix
+`main`, a production incident (including an outage alert from `alert_destination` — that is an
+S1 intake), or a bug found while doing other work that is too large to fix
 in that change. It is not for new behavior or a change to agreed behavior — that is scope and
 goes through `/analyze` or `/todos`. A review loop that stopped converging goes to `/debug`.
 
-Read `.harness/guides/task-delivery.md` (§ Branches, pull requests and merging and § Review
-protocol and circuit breaker apply here as written) and `.claude/rules/zero-tolerance.md`
+From `.harness/guides/task-delivery.md`, read § Branches, pull requests and merging and § Review
+protocol and circuit breaker (they apply here as written; find their line ranges with
+`grep -n '^## '`) and `.claude/rules/zero-tolerance.md`
 Rule 4: fix the root cause, never work around it.
 
 ## 1. Intake
 
 **S1 — stop the bleeding first.** Before anything else, when users are down or data is being
 lost or exposed: check whether `/deploy --rollback` has a verified earlier revision to return
-to (`.claude/commands/deploy.md` § Rollback Mode). If it does, ask the user at once, in one
-plain question with the trade-off (`.claude/rules/communication.md` § Asking the user to
-decide) — for example "Undo the last update now? Takes about N minutes; feature X disappears
-until the fix ships. I recommend yes." Roll back on a yes, then continue below with users safe.
-If there is no rollback target, or rolling back would not help (the defect is older than the
-last deploy, or a migration cannot be undone), say so and go straight to the hotfix path.
+to (`.claude/commands/deploy.md` § Rollback Mode). If it does, ask the user at once, in the
+format in `.claude/rules/communication.md` § Asking the user to decide — for example: "Users
+can't sign in. Should I undo the last update now? If yes: sign-in works again in about N
+minutes, but feature X disappears until the fix ships. If no: users stay locked out until the
+fix ships, about N hours. I recommend yes. Answer yes or no." Roll back on a yes, then continue
+below with users safe. If there is no rollback target, or rolling back would not help (the
+defect is older than the last deploy, or a migration cannot be undone), say so and go straight
+to the hotfix path. If the product is not deployed at all, an S1 follows the normal path below,
+just first in line.
+
+One bug has one fix record. A rollback started here continues this record (fill in
+`Deploy hold`); a rollback started from `/deploy --rollback` opened a record already, so
+continue that one instead of creating a new id.
 
 Resolve the workspace as `/implement` does; if none exists, create `workspaces/<project>/`.
 Give the bug the next fix id in that workspace — `f001`, `f002`, … (check the highest existing
@@ -68,19 +77,20 @@ Status: open | in progress | converted to todo | closed
 
 ## Closure
 - Pull request / merge commit: <#N / SHA>
-- Deployed: <deploy log path, or "not deployed — reason">
+- Deployed: <deployment record path in deploy/deployments/, or "not deployed — reason">
 - Verified live: <check and result, or n/a>
 - Issue closed: <#N with SHA, or n/a>
-- Deploy hold: <"yes — set by /deploy --rollback" while production was rolled back because of this bug; "cleared" at closure; or n/a>
+- Deploy hold: <yes | cleared | n/a> — `yes` exactly while production is rolled back because of this bug (set by the rollback), `cleared` at closure
 - Follow-ups: <todo proposal, backlog item or /redteam todo proposal, or none>
 ```
 
 ## 2. Branch
 
-Cut `fix/<id>-<slug>` from `main`. For S1, cut `hotfix/<id>-<slug>` from the revision
-production runs now, as `deploy_check_command` in `deploy/deployment-config.md` reports it (the
-local `deploy/.last-deployed` file is only a cache), or from `main` when the project is not
-deployed.
+Cut `fix/<id>-<slug>` from `main`. For S1, cut `hotfix/<id>-<slug>` from the bad revision:
+after a rollback, the commit production was rolled back FROM (named in the rollback record), so
+the failing test can fail; without a rollback, the revision production runs now, as
+`deploy_check_command` in `deploy/deployment-config.md` reports it (the local
+`deploy/.last-deployed` file is only a cache).
 
 ## 3. Reproduce first
 
@@ -154,6 +164,11 @@ receipt is needed.
 
 ## 7. Ship
 
+For a security defect, keep details private until the fix is deployed: use the repository's
+private security advisory or a private branch where available, and keep public commit,
+pull-request and issue text to a neutral one-line summary; publishing the details earlier needs
+the user (`.harness/rules/autonomous-execution.md` § What needs the user).
+
 Push, open a pull request into `main` with `Fixes #N` under `## Related issues`, read CI on the
 pinned head SHA, then merge as a separate command with a merge commit (task-delivery
 § Branches, pull requests and merging). If the bug is live, ask the user whether to deploy it
@@ -170,7 +185,8 @@ S1 hotfix (the rollback question was already asked in § 1), in this order:
 3. Merge the branch into `main` through a pull request, the same way as above: CI read on
    the pinned head SHA, then a separate merge command with a merge commit.
 4. Write a todo proposal (first line `Source: hotfix <fix-id>`) for a full `/redteam` of the
-   affected area that names this fix record (`.harness/rules/autonomous-execution.md` § Problems found along the way). It joins
+   affected area that names this fix record (`.harness/rules/autonomous-execution.md` § Problems found along the way),
+   committed with the closure record on the `docs/<fix-id>-closure` branch (§ 8). It joins
    a wave only through `/todos` plan approval (`.harness/phases/todos.md` § Workflow step 1),
    then goes through `/redteam`'s normal convergence gate.
 
@@ -179,9 +195,10 @@ S1 hotfix (the rollback question was already asked in § 1), in this order:
 Fill in `## Closure`: pull request, merge commit, deploy record, the live check, and set
 `Deploy hold: cleared` if a rollback had set it. Close the issue as completed with a comment
 that cites the merge commit or pull request (`.claude/rules/git.md` § Discipline); closing it as
-won't-fix needs the user. Tell the reporter in plain words what was wrong and what changed —
-in the issue comment, or, for a reporter reached another way (email, chat), give the user a
-draft to send. If the bug taught something about the harness itself — a missing test pattern
+won't-fix needs the user. Draft, in plain words, what was wrong and what changed for the
+reporter. A comment or message that reaches someone outside the repository's own team (an
+outside reporter, email, chat) is sent only after the user approves the text
+(`.harness/rules/autonomous-execution.md` § What needs the user). If the bug taught something about the harness itself — a missing test pattern
 in a rule, a misleading phase step — create a journal entry with `tags: [harness]`
 (`/journal new DISCOVERY <slug>`); a lesson about the product gets no `harness` tag. Set
 `Status: closed`, and commit the record and any journal entry on a short

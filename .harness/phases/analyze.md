@@ -13,7 +13,9 @@ product-market research in § 3 unless the user asks for it. Instead: describe w
 does today, from the code, in `specs/` (§ 6); fill the project profile from the existing build,
 test and CI scripts (§ 5); check that the repository allows merge commits
 (`.harness/guides/task-delivery.md` § Branches, pull requests and merging, step 5); merge the
-harness's `.gitignore` entries into the project's own; and write the user's intended change as
+harness's `.gitignore` entries into the project's own; if the repository requires a person's
+approving review on pull requests, tell the user that each merge will wait for that person; and
+write the user's intended change as
 the first brief. The output trees in § Output-Completeness Gate still apply — the analysis
 documents the current system and the change.
 
@@ -83,9 +85,13 @@ commands, test infrastructure — propose concrete values alongside the stack re
 The stack recommendation includes where the product will run (§ Production in the profile):
 a hosting option with its expected monthly cost, whether it needs a domain and a production
 database, and one cheaper or simpler alternative, in plain words the user can choose between.
-Once the user approves the stack, write them into the profile. Leave a row `<unset>` when it
+Once the user approves the stack, write them into the profile, and replace the project-name
+and one-line description placeholders at the top of `.claude/CLAUDE.md` and `AGENTS.md`. Leave a row `<unset>` when it
 is genuinely still unknown, and `n/a` (with a reason) when the project has no such step;
-never guess a command. Later phases read commands only from the profile.
+never guess a command. Later phases read commands only from the profile. Choosing the stack
+and where it runs is the user's decision (`.harness/rules/autonomous-execution.md` § What needs
+the user). While the repository has no code yet, this analysis branch pushes without running
+Local CI parity (there is nothing for it to test); say "no code yet" in the commit body.
 
 ### 6. Create specs/ (MUST — before red team)
 

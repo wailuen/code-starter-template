@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
  * check-browser-walk-receipts.mjs — did a todo DECLARE its browser-walk disposition before it
- * closed? Invoked at `.harness/phases/implement.md` § 7a (per todo, before it moves to
+ * closed? Invoked at `.harness/phases/implement.md` § 3a (per todo, before it moves to
  * `completed/`) and `.harness/phases/redteam.md` § 2 (over the wave's completed todos).
  *
  * PROPOSITION — exact, over a parsed document section: inside the todo's `## Verification`
  * section, EITHER a `### Browser walk receipt` block whose `Steps:` / `Observed:` /
  * `Disposition:` fields are all non-empty and whose Disposition is one of `proceed` / `blocked` /
  * `confused` (`.claude/rules/user-flow-validation.md` MUST-2), OR exactly one
- * `Browser walk: not applicable — <reason>` line with a reason (at least one word), is present —
+ * `Browser walk: not applicable — <reason>` line with a real reason (at least two words and eight
+ * letters), not indented as a code block (four spaces or a tab), is present —
  * never both, never neither. The heading must be exactly `## Verification` and appear once;
  * anything inside a fenced code block (``` or ~~~) is an example and is ignored; when the section
  * has several receipt blocks, every one is judged, so a later `blocked` / `confused` walk is not
@@ -37,8 +38,10 @@ const LEVEL2_HEADING_RE = /^##\s/;
 const LEVEL3_HEADING_RE = /^###\s/;
 const RECEIPT_HEADING_RE = /^###\s+Browser walk receipt\b/i;
 // `**Steps:**` (colon inside the bold) and `**Steps**:` (outside) are both common; accept either.
+// At most three leading spaces: four spaces or a tab make an indented code block — an example,
+// not a declaration. After that, list / quote / emphasis markers are allowed.
 const NOT_APPLICABLE_RE =
-  /^[\s>*_`-]*(?:\*\*)?Browser walk(?::\*\*|\*\*:|:)\s*not applicable\s*(?:[—–-]+\s*)?(.*)$/i;
+  /^ {0,3}(?:[>*_`-][\s>*_`-]*)?(?:\*\*)?Browser walk(?::\*\*|\*\*:|:)\s*not applicable\s*(?:[—–-]+\s*)?(.*)$/i;
 const FIELD_RE =
   /^[\s>*_`-]*(?:\*\*)?(Steps|Observed|Disposition)(?::\*\*|\*\*:|:)\s*(.*)$/;
 const DISPOSITION_RE = /^(proceed|blocked|confused)\b/i;
@@ -46,8 +49,10 @@ const DISPOSITION_RE = /^(proceed|blocked|confused)\b/i;
 // complete, honest receipt of a walk that found it broken — declared (never silent), but not done.
 const DISPOSITION_OK_RE = /^proceed\b/i;
 const REQUIRED_FIELDS = ["Steps", "Observed", "Disposition"];
-// A not-applicable reason must say something: at least one word of three letters ("." or "N/A" is not a reason).
-const REASON_RE = /[A-Za-z]{3,}/;
+// A not-applicable reason must say something: at least two words and eight letters in all
+// ("command-line tool, no screen" passes; ".", "N/A", "the" and "no UI" do not).
+const isRealReason = (reason) =>
+  (reason.match(/\p{L}{2,}/gu) || []).length >= 2 && (reason.match(/\p{L}/gu) || []).length >= 8;
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 
 // Fenced blocks are examples, never declarations: blank their lines (keeping line positions)
@@ -140,7 +145,7 @@ export function assessTodoText(text) {
       };
     }
     const reason = (naLines[0].match(NOT_APPLICABLE_RE)[1] || "").trim();
-    if (!REASON_RE.test(reason))
+    if (!isRealReason(reason))
       return {
         status: "incomplete",
         detail: `not-applicable line has no real reason${reason ? `: ${JSON.stringify(reason.slice(0, 40))}` : ""}`,

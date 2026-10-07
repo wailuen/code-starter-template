@@ -8,8 +8,11 @@ Read `workspaces/<project>/specs/_index.md`, the relevant spec, plan section, de
 and current dependency source. Compare changed briefs with approved scope; mtime alone is not a
 semantic change. Ask only if a material unapproved requirement changes the task.
 
-Read `.harness/guides/task-delivery.md`; it governs this phase's task scope, review
-cadence, isolation, branches and circuit breaker. Existing approval authorizes implementation.
+From `.harness/guides/task-delivery.md`, read § Workspace file layout, § Branches, pull
+requests and merging, § Before implementation, § Implement and verify and § Review protocol
+and circuit breaker; they govern this phase's task scope, review cadence, isolation, branches
+and circuit breaker. Find each section's line range with `grep -n '^## ' .harness/guides/task-delivery.md` and read
+only those ranges. Existing approval authorizes implementation.
 
 Work on the todo's own branch, `feat/wNN-MM-<slug>` (`fix/wNN-MM-<slug>` for a defect todo),
 cut from the wave branch `feat/wNN-<slug>`; create the wave branch from `main` first if this
@@ -70,7 +73,7 @@ the todo with commands, results, commit, relevant constraints and open findings.
 Changed domain truth is reconciled sequentially by the orchestrator. User-visible or
 authority changes outside approval require a decision before closure.
 
-## 7a. Browser walk receipt
+## 3a. Browser walk receipt
 
 Before closing any browser-visible task, walk the changed flow in a headed browser
 as a real user, including write→reload→read-back. Follow `.harness/rules/e2e-god-mode.md`.
@@ -84,19 +87,21 @@ and walk the product's real interface instead (a command-line tool's commands, a
 a real client): record it under `### Walk receipt` with the same `Steps:`, `Observed:` and
 `Disposition:` lines. The checker reads only the browser declaration; the reviewer checks the
 walk receipt (`.claude/rules/user-flow-validation.md`).
-The not-applicable reason must say something real (a word of three or more letters); lines
-inside code fences are ignored. Run `node .harness/bin/check-browser-walk-receipts.mjs <todo.md>`;
+The not-applicable reason must be at least two words and eight letters ("no UI" fails); the
+line may be indented by at most three spaces (four spaces or a tab make it a code block, which
+is ignored, as are fenced lines; a fence closes only with the same character at least as long
+as its opening). Run `node .harness/bin/check-browser-walk-receipts.mjs <todo.md>`;
 every walk receipt counts, so any blocked/confused walk keeps the todo active. Suite green, API-only calls, or a conformance declaration do not
 replace this walk.
 
-## 7b. Expectation coverage
+## 3b. Expectation coverage
 
 No automated enumerator is included to check this mechanically. Manually confirm every new endpoint/component/CLI surface this todo adds
 has an explicit acceptance criterion in the spec or todo contract — not just a passing test for
 whatever it happens to do. Missing expectations must be ratified before closure; do not
 back-fit them to the implemented behavior.
 
-## 7c. Boundary-injection receipt
+## 3c. Boundary-injection receipt
 
 Shared-state and side-effect tasks record refusal, mid-operation exception, corrupt/
 partial re-entry and unauthorized-action cases under `### Boundary-injection receipt`.

@@ -7,4 +7,7 @@ model: haiku
 
 Read and follow `.harness/roles/todo-manager.md`. You read and report on todo files. The
 review-round, worktree, walk and convergence rules in your context govern other agents' work:
-do not run reviews, walks or checkers, and do not move or create todo files.
+do not run reviews or walks, and do not move, create or edit todo files. The one checker you
+run is the read-only `--todo` status check the role names. Rule notices that appear when you
+read todo files are for agents that build or review work; you do not need to open the files
+they point to.

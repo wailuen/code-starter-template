@@ -11,8 +11,8 @@ For `/learn`, report what's been captured but not yet folded into the harness vi
    - `folded in` or `declined` → closed (a declined lesson reopens only through a new journal
      entry that adds evidence, which is itself a new lesson);
    - `deferred` → **deferred**: listed separately with its revisit condition, not open, so it
-     never starts a run; when the condition is met, a new journal entry or an edit that adds a
-     fresh log row reopens it;
+     never starts a run; when the condition is met, `/codify` (or `/sweep` Sweep 10, which reports
+     it) reopens it with a new journal entry or a fresh log row;
    - `awaiting user` → **waiting**: shown separately as needing the user's confirmation, and
      not open, so it never starts an automatic `/codify` run on its own.
 

@@ -12,6 +12,18 @@
 .aws/
 service-account*.json
 *credentials*.json
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.ppk
+.netrc
+.git-credentials
+.htpasswd
+kubeconfig
+.docker/config.json
+*.tfstate*
+.terraform/
 
 # Local deploy cache — the deployed revision comes from deploy_check_command, not this file
 deploy/.last-deployed

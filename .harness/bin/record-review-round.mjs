@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { dirname, join, resolve, basename } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation } from "../lib/redteam-stall.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
@@ -39,20 +39,29 @@ function legacySeedFrom(file, round, cwd) {
   return { replansConsumed, reviewersSeen: [...reviewersSeen].sort() };
 }
 
-// The branch's round records as COMMITTED on it (`git show refs/heads/<branch>:<path>` for
-// every `round-*.json` in its tree). The recorder replays them only when this checkout holds
-// no state for the branch, so a deleted state file or a fresh clone keeps the spent budget.
-// Working-tree copies are not history: an uncommitted record cannot rebuild anything.
+// Every round record ever ADDED to the branch's own history, as it was first committed: the
+// non-merge commits on the branch's first-parent line that are not on the integration branch
+// (origin/HEAD, else origin/main, else main). A record deleted or edited later still counts
+// as first added; a branch cut from another branch inherits that branch's records; work
+// merged in from other branches (a todo branch into its wave) is not this branch's history.
+// The recorder replays this only when this checkout holds no state for the branch.
+const ROUND_RECORD_RE = /(?:^|\/)(?:04-validate|\.harness\/reviews)\/round-[^/]+\.json$/;
 function committedRoundRecords(cwd) {
   return (branch) => {
     const git = (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    const tryRef = (ref) => { try { return git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).trim(); } catch { return null; } };
+    let integration = null;
+    try { integration = git(["symbolic-ref", "-q", "refs/remotes/origin/HEAD"]).trim(); } catch { /* none */ }
+    if (!integration || !tryRef(integration)) integration = ["refs/remotes/origin/main", "refs/heads/main"].find(tryRef) || null;
     const ref = `refs/heads/${branch}`;
+    const exclude = integration && tryRef(integration) !== tryRef(ref) && integration !== ref ? ["--not", integration] : [];
+    const log = git(["log", "--first-parent", "--no-merges", "--reverse", "--diff-filter=A", "--format=%x00%H", "--name-only", ref, ...exclude]);
     const records = [];
-    for (const path of git(["ls-tree", "-r", "--name-only", "-z", ref]).split("\0")) {
-      if (!/^round-.*\.json$/.test(basename(path))) continue;
-      let record;
-      try { record = JSON.parse(git(["show", `${ref}:${path}`])); } catch { continue; } // not a round record
-      if (record && typeof record === "object" && record.branch === branch) records.push(record);
+    for (const chunk of log.split("\0").filter(Boolean)) {
+      const [commit, ...paths] = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+      for (const path of paths) {
+        if (ROUND_RECORD_RE.test(path)) records.push({ path, commit, text: git(["show", `${commit}:${path}`]) });
+      }
     }
     return records;
   };

@@ -6,4 +6,4 @@ model: sonnet
 effort: medium
 ---
 
-Read and follow `.harness/roles/implementer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout, § Before implementation and § Implement and verify.
+Read and follow `.harness/roles/implementer.md`. From `.harness/guides/task-delivery.md`, read only § Workspace file layout, § Before implementation and § Implement and verify. Find their line ranges with `grep -n '^## ' .harness/guides/task-delivery.md` and read only those ranges.

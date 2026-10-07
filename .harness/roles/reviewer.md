@@ -73,8 +73,8 @@ Whenever a session claims a deliverable is done / complete / converged, verify a
 
 The load-bearing checks, in the order they fail most often:
 
-1. **A durable acceptance list predates the first verification effort** — and was authored or
-   RATIFIED by a party distinct from the agent satisfying it. A self-authored criterion is gamed
+1. **A durable acceptance list predates the first verification effort** — and was RATIFIED by
+   the user, named in its approval record (`approved_by`), never by a reviewer or agent. A self-authored criterion is gamed
    at declaration time; every downstream check then passes honestly.
 2. **Independently derive an acceptance surface** from the spec/brief and report every item on it
    ABSENT from the authored list. Any absence is a finding with `Acceptance: NEW`. Categorize it

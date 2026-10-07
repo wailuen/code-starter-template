@@ -135,7 +135,7 @@ Spec §5.9 says: "the schema exports 41 fields (40 + a later addition)"
 
 ### 6. Deviations From Spec Require Explicit Acknowledgment
 
-When implementation deviates from a spec: (a) update the spec with the new truth, (b) log the deviation with its rationale, (c) flag user-visible changes for the user's approval.
+When implementation deviates from a spec: (a) update the spec with the new truth, (b) log the deviation with its rationale, (c) flag user-visible changes for the user's approval (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ```markdown
 # DO

@@ -20,11 +20,11 @@ The AI handles all the technical work — writing code, testing, security checks
 
 | Step | Command | What Happens | Your Role |
 |------|---------|-------------|-----------|
-| 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Confirm we understood your vision |
+| 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Pick between the options it recommends (how to build it, where it runs and what that costs) |
 | 2. Planning | `/todos` | Create a complete project roadmap | Approve the plan before building starts |
 | 3. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
 | 4. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
-| 5. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules or what it may do without you; `/ws` shows those |
+| 5. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules, skills, commands or what it may do without you; `/ws` shows those |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.
@@ -37,7 +37,7 @@ answer. If the project publishes numbered versions (a library, an app-store app)
 a release; the AI recommends the version number.
 
 Things the AI always asks you first: approving a plan, putting changes live or undoing them,
-spending money, deleting things, and publishing anything. The full list is in
+spending money, deleting things, publishing a release, and sending messages to people outside the project. The full list is in
 `.harness/rules/autonomous-execution.md` § What needs the user.
 
 ## Getting Started
@@ -65,7 +65,7 @@ If the user already has a workspace, show them their current status with `/ws` i
 | `/redteam` | Independent review and real-user testing of finished work |
 | `/debug` | Step back and rethink when reviews keep finding the same problem |
 | `/fix` | Fix a reported bug: reproduce it, fix the cause, review, ship |
-| `/deploy` | Put the application live, check what's live, or roll back |
+| `/deploy` | Put the application live, check what's live, roll back, or take the product offline for good |
 | `/ws` | Show where the project stands |
 | `/wrapup` | Save notes so the next session picks up where this one stopped |
 | `/sweep` | Full check for anything unfinished before calling a stretch of work done |

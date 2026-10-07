@@ -21,10 +21,13 @@ naming or presentation gap, not a way to record an unbounded number of rounds.
   guidance unescaped, so a hostile id could forge or hide a line on a terminal. A
   committed-file control-byte check, if the project has one, does not cover runtime strings.
 - Local state lives in the git-ignored `.claude/learning/`. When it is missing, the recorder
-  rebuilds the branch's history only from COMMITTED `round-*.json` files; a round recorded
-  but never committed is not counted after that.
-- A branch cut from the same head under a new name starts a fresh budget; the
-  recorder verifies the branch exists and the head is on it, not that the work is new.
+  rebuilds the branch's history from every `04-validate/round-*.json` or
+  `.harness/reviews/round-*.json` ever added on the branch's own first-parent, non-merge commits,
+  as first committed; deleting or editing a record later changes nothing, and an unreadable,
+  duplicate or gapped history makes it refuse. A round recorded but never committed is not
+  counted after that. A branch cut from a branch with recorded rounds inherits them and
+  continues their numbering.
+- The recorder verifies the branch exists and the head is on it, not that the work is new.
 - The branch check compares against `refs/heads`, not the invoking checkout's `HEAD`,
   because the CLI may legitimately run from the main checkout for a worktree branch.
 - A record named `__proto__` relies on null-prototype maps and `Object.hasOwn`; that

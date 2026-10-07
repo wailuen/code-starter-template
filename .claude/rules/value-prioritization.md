@@ -154,7 +154,8 @@ the only way to catch decay.
 
 Do not close an issue, todo or journal DECISION entry recording a deferral that carries a value-anchor as
 `not_planned`, `wontfix`, "deferred indefinitely" or "out of scope" without the user's
-explicit approval in the same session. You may recommend closure with a value-decay
+explicit approval in the same session (one of the decisions in
+`.harness/rules/autonomous-execution.md` § What needs the user). You may recommend closure with a value-decay
 rationale ("the brief moved on", "landed elsewhere via PR #N", "dependency removed"); the
 user accepts. Closing by age ("stale ≥30 days") or reframing as "downstream
 responsibility" is closure without the user.

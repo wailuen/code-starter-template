@@ -14,7 +14,9 @@ breaker).
 `/debug` reassesses a stalled review loop. A newly reported bug in built behavior goes
 through `/fix` instead.
 
-Read `.harness/guides/task-delivery.md` and the current delivery contract.
+Read the current delivery contract and, from `.harness/guides/task-delivery.md`, § Review
+protocol and circuit breaker. Find each section's line range with `grep -n '^## ' .harness/guides/task-delivery.md` and read
+only those ranges.
 
 ## 1. Establish facts
 
@@ -57,8 +59,8 @@ queue that choice until convergence; it may be what convergence depends on.
 If the mechanism lies in the harness itself — a misleading rule, a missing check, a wrong
 role brief — rather than in the product, file it as a `.harness/backlog/` item on this branch
 (`.harness/rules/autonomous-execution.md` § Problems found along the way). `/codify` picks it
-up automatically when the wave merges into `main` (`.harness/phases/codify.md` § When it
-runs); until then this branch keeps working under the harness text it already has and is not
+up once this branch reaches `main` — at the wave-merge trigger for a wave, or at the next
+`/wrapup` for a `/fix` branch (`.harness/phases/codify.md` § When it runs); until then this branch keeps working under the harness text it already has and is not
 merged with `main` mid-review (`.harness/guides/task-delivery.md` § Branches, pull requests
 and merging).
 
@@ -70,8 +72,11 @@ experiment. The next complete-round JSON cites the decision file as `replan`
 recorder keeps the branch's full root-cause history and round count; a decision record
 starts a new non-clear streak but never resets the three-round budget. After
 `DEBUG_ROUND`, the next round is the branch's single debug round: `"debug": true`, this
-new `replan`, and reviewer ids never used on the branch (for example `correctness-debug`).
+new `replan`, and reviewer ids named `<lens>-debug` (`correctness-debug`, `security-debug`), never used on the branch.
 If `replan_closes` claims a root cause is closed, a later recurrence of it fires again.
+Leaving a root cause knowingly recurring (`replan_accepts`) is accepting a known risk: ask the
+user, and name them as its acceptor (`.harness/rules/autonomous-execution.md` § What needs the
+user).
 Capture concise evidence, not an ever-growing narrative pasted into every source file.
 
 Use the normal `/redteam` completion gate after the revised implementation. The cap,

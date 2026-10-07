@@ -46,9 +46,13 @@ changes before more implementation or review, and reference the decision record 
 
 A decision record is consumed by the round that first cites it; re-citing the same path
 on any later round of the branch is refused, because it would suppress recurrence
-detection for the whole interval it covers. A decision record may declare
+detection for the whole interval it covers. The one exception is the re-run of a void
+errored round (MUST-3 (d)), which may cite the record the errored round cited. A decision record may declare
 `replan_closes` (root-cause keys it claims to structurally end) and/or `replan_accepts`
-(keys knowingly left recurring, each naming a human acceptor).
+(keys knowingly left recurring). Leaving a key recurring is accepting a known risk, so each
+`replan_accepts` acceptor is the user's name, given after they agreed
+(`.harness/rules/autonomous-execution.md` § What needs the user), and is held to the same
+identity check as every other person-only field (`.harness/lib/agent-identity.cjs`).
 
 Record a finding under the earlier round's key when the reviewer's evidence names it as
 the same mechanism; do not mint a fresh key for a named recurrence. The recorder matches
@@ -64,11 +68,27 @@ budget (`roundsRecorded`, `reviewersSeen`, `debugRound`, `acceptancesConsumed`,
 `replansConsumed`). State written before the budget existed is seeded from the round
 number, the last recorded lens set and decision record, and — through the CLI — the
 branch's earlier `round-*.json` files beside the one being recorded, so a spent record
-stays spent; the round count can only over-count. When a checkout has no state for the branch at all
-(the gitignored state file was deleted, or the repository was cloned fresh), the recorder
-rebuilds the budget from the branch's committed `round-<scope>-<n>.json` records and refuses
-any round after 1 whose earlier records are not committed. A missing state file is never a
-fresh budget, so commit each round record before the next round.
+stays spent; the round count can only over-count. When a checkout has no state for
+the branch at all (the gitignored state file was deleted, or the repository was cloned
+fresh), the recorder rebuilds the budget from every round record
+(`workspaces/<project>/04-validate/round-*.json` or `.harness/reviews/round-*.json`) ever
+added on the branch's own first-parent, non-merge commits, each read as it was first
+committed — a later edit or deletion of a record changes nothing, and a record that does not
+parse makes the recorder refuse rather than skip it ("Cannot rebuild the review budget …; a
+missing or edited history is never a fresh budget"). A round number that does not follow
+the committed ones is refused ("… the branch's committed history already holds rounds
+1-K …, so the next round is K+1"). Commit each round record before the next round. A
+branch cut from a branch with recorded rounds inherits them and continues their
+numbering; a new branch never starts a new budget.
+
+The convergence checker reads the same committed records. It refuses a receipt whose
+`cap_hit` says the cap was not hit while the records show more counted rounds than the cap
+with no debug round or escalation (`cap-hit-understated`); records that do not parse,
+repeat a round (including records copied into a new scope), were deleted and re-added with
+different content, or leave a gap (`round-records-invalid`); a record of the scope committed
+after the receipt's first commit, or left uncommitted (`round-record-after-receipt`); and a
+record whose round, head, reviewers, verdicts or `branch` disagree with the receipt
+(`round-record-mismatch`).
 
 Duplicate rounds cannot increment; conflicting or out-of-order rounds are refused;
 errors and partial results never count as clean. Every recorded round prints the
@@ -109,13 +129,13 @@ without recording it:
   lenses on the unchanged head reviews nothing and is refused inside or outside the cap.
 - **(b) The branch's single debug round:** `debug: true`, a new decision record in
   `replan`, and `expected_reviewers` disjoint from every reviewer id ever recorded on
-  the branch. A plain replan with new lenses is not a debug round, a debug round reusing
+  the branch, named `<lens>-debug` (for example `correctness-debug`, `security-debug`;
+  the convergence checker counts `security-debug` as the security lens). A plain replan with new lenses is not a debug round, a debug round reusing
   a lens is refused, and `debug: true` inside the cap is refused.
 - **(c) Human-accepted rounds.** Once the debug round is spent and the branch still has
   not converged, each further round needs `escalation_accepts: {acceptor, record}` — a
-  named person — the shared denylist in `.harness/lib/agent-identity.cjs` refuses agent
-  and model words, role and agent names, reviewer lenses and placeholders such as
-  "human", "user" or "owner" — citing a new acceptance
+  named person, held to the shared identity check (`.harness/lib/agent-identity.cjs`;
+  what it refuses is described in `.harness/rules/completion-criterion.md` MUST-1) — citing a new acceptance
   record per round (re-citation refused; the record must exist and must not be the
   agent's own replan record). An acceptance buys that round and, if clean, its same-head
   confirmation — nothing more. REPLAN still binds an accepted round.
@@ -137,13 +157,12 @@ repository with `head` a commit on it (the recorder verifies both, so a renamed 
 string is not a fresh budget). A cited file is tracked by where it really is (resolved
 through symlinks, relative to that checkout), never by how the citation was spelled:
 `./x`, `x/./x` and an absolute path are one record and consume once. A new branch cut
-from the same head is the same work for budget purposes; gate review checks this,
-because the recorder cannot.
+from a branch with recorded rounds inherits them through its history (MUST-2).
 
 ```json
 // DO — round 4 is the debug round: the flag, a new record, lenses the branch has never seen
-{ "round": 4, "debug": true, "replan": "workspaces/<project>/04-validate/replan-w03-2.md", "expected_reviewers": ["fresh-correctness", "fresh-security"] }
-// DO NOT — an ordinary replan on round 4 (refused, exit 2), or a "fresh" lens that reviewed round 1
+{ "round": 4, "debug": true, "replan": "workspaces/<project>/04-validate/replan-w03-2.md", "expected_reviewers": ["correctness-debug", "security-debug"] }
+// DO NOT — an ordinary replan on round 4 (refused, exit 2), or a lens that already reviewed this branch
 { "round": 4, "replan": "workspaces/<project>/04-validate/replan-w03-2.md", "expected_reviewers": ["correctness", "security"] }
 ```
 
@@ -161,6 +180,6 @@ the dispatch roster.
 
 ## Recorder limits
 
-The recorder's known gaps and its missing test fixtures are listed in
-`.harness/guides/review-round-recorder.md`. Read that file before relying on the
+The recorder's known gaps are listed in `.harness/guides/review-round-recorder.md`; its tests
+live in `.harness/tests/`. Read that file before relying on the
 recorder for a real branch. Gate review remains the backstop for what it cannot check.

@@ -3,7 +3,7 @@ name: gold-standards-validator
 description: "Documentation checker for terminology consistency, placeholder content, broken cross-references and leaked sensitive content. Use to validate docs, specs, rules or skill files. Code correctness review goes to reviewer."
 tools: Read, Glob, Grep
 model: sonnet
-effort: low
+effort: medium
 ---
 
 # Knowledge Base Compliance Validator

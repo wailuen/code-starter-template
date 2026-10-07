@@ -22,10 +22,12 @@ A todo's id comes from its filename: `w03-07-invite-flow.md` has id `w03-07` (wa
 
 ## What it does
 
-1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. A
-   completed todo is "implemented — awaiting wave convergence" unless a
-   `04-validate/convergence-wNN.json` exists for its wave; say which, and never call a todo
-   "done" from the file location alone.
+1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. For a
+   completed todo, run the read-only
+   `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`:
+   exit 0 means `CLOSED` (or `grandfathered — pre-gate` when it says so); anything else is
+   "implemented — awaiting wave convergence". Never call a todo "done" from a file's location or
+   a receipt's existence alone.
 2. **Parked proposals** — count them, name the oldest with its age, and flag any whose first
    line is `Source: hotfix <fix-id>` (an area shipped on an emergency review, awaiting its full
    review through `/todos`).

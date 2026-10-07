@@ -10,9 +10,9 @@ const { assertStateDirContained, readFileHardened, writeFileHardened } = require
 const { isAgentIdentity } = require("./agent-identity.cjs");
 // FIRING_THRESHOLD bounds CONSECUTIVE non-clear rounds since the last reassessment
 // and resets on every fresh decision record. TOTAL_ROUND_CAP bounds the branch's
-// CUMULATIVE round count and never resets: a branch has been observed reaching
-// round 21 without FIRING_THRESHOLD ever firing, because six genuine decision
-// records each legitimately reset the consecutive counter. Both gates apply; whichever fires first.
+// CUMULATIVE round count and never resets, because genuine decision records each
+// legitimately reset the consecutive counter and a branch could otherwise run without
+// end. Both gates apply; whichever fires first.
 const FIRING_THRESHOLD = 4;
 const TOTAL_ROUND_CAP = 3;
 // An errored dispatch may be re-run this many times without spending budget; the
@@ -53,6 +53,9 @@ function normalizeRound(input) {
     if (!Array.isArray(replan_accepts) || !replan_accepts.every((a) => a && nonempty(a.key) && nonempty(a.acceptor))) {
       throw new Error("replan_accepts must be an array of {key, acceptor}");
     }
+    // Accepting a recurring root cause is a human's call, like accepting an escalation.
+    const agent = replan_accepts.find((a) => isAgentIdentity(a.acceptor) || expected_reviewers.includes(a.acceptor.trim()));
+    if (agent) throw new Error(`replan_accepts acceptor must be a named human, not an agent role or reviewer lens (${agent.acceptor})`);
   }
   if (debug !== undefined && debug !== true) throw new Error("debug must be true when present; an ordinary round omits it");
   if (debug && !replan) throw new Error("A debug round must also cite a new decision record in replan; the flag alone is not a reassessment");
@@ -123,12 +126,10 @@ function describeNext({ action, cleanRounds, head, streakReset, capReached, revi
   return `NEXT: repair the findings, then dispatch a fresh round against the new head. Currently cleanRounds ${cleanRounds}/2 (it stays at 0 until two consecutive clean rounds share one unchanged head).`;
 }
 
-// The recurrence check used to compare only ADJACENT rounds' root causes, by
-// EXACT string, which is blind to a class resurfacing after a clean round or
-// under a differently-worded key. This is the affordance half of the fix (found
-// by diagnosing an 11-round branch's round pattern): print the branch's
-// full known-root-cause history on every record so an author cannot mint a
-// fresh key for a class the branch has already named without seeing it listed.
+// Recurrence is judged by key, so a class resurfacing under a differently-worded key
+// would slip past it. Print the branch's full known-root-cause history on every record
+// so an author cannot mint a fresh key for a class the branch has already named
+// without seeing it listed.
 function formatKeyHistory(keyHistory, closedBy, accepted) {
   const keys = Object.keys(keyHistory).sort();
   if (!keys.length) return "Known root causes on this branch: none yet.";
@@ -247,9 +248,8 @@ function advanceRound(previous, input, { legacySeed } = {}) {
   }
   if (round.replan && Object.hasOwn(budget.replansConsumed, round.replan) && !(rerun && previous.lastRoundRecord.replan === round.replan)) {
     // A decision record is consumed by the round that first cites it. Re-citing
-    // the SAME path on a later round silently suppressed recurrence detection
-    // for that whole interval (observed: rounds 4, 5 and 7 all re-cited a
-    // decision record rounds 3/6 had already consumed) — refuse it instead.
+    // the SAME path on a later round would silently suppress recurrence detection
+    // for that whole interval — refuse it instead.
     // Judged against the whole branch, not the adjacent round: a record spent
     // two rounds ago is no fresher, and the cap's debug round needs a NEW one.
     throw new Error(`replan ${round.replan} was already consumed by round ${budget.replansConsumed[round.replan]}; a new reassessment needs a new decision record`);
@@ -356,7 +356,13 @@ function resolveCitation(cited, { roots, checkoutRoot, require = true }) {
 function assertBranchAndHead(round, cwd) {
   const git = (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   try { git(["rev-parse", "--verify", "--quiet", `refs/heads/${round.branch}`]); }
-  catch { throw new Error(`branch ${round.branch} is not a branch of this repository; name the real branch under review`); }
+  catch {
+    // A branch that exists only on a remote is real but has no local ref to verify against.
+    let remote = "";
+    try { remote = git(["for-each-ref", "--format=%(refname:short)", `refs/remotes/*/${round.branch}`]).trim().split("\n")[0]; } catch { /* no remotes */ }
+    if (remote) throw new Error(`branch ${round.branch} exists only as ${remote}; create the local branch first (git switch ${round.branch}), then record the round`);
+    throw new Error(`branch ${round.branch} is not a branch of this repository; name the real branch under review`);
+  }
   try { git(["merge-base", "--is-ancestor", round.head, `refs/heads/${round.branch}`]); }
   catch { throw new Error(`head ${round.head} is not a commit on branch ${round.branch}`); }
 }
@@ -433,28 +439,43 @@ function writeState(repoDir, state) {
 }
 
 // The state file is gitignored and local to one checkout. When it holds nothing for this
-// branch (deleted, a fresh clone, another machine), the budget is rebuilt by replaying the
-// branch's COMMITTED round records, in order, through advanceRound — the same gates that
-// admitted them — so losing the file never hands a branch a fresh budget. A round past 1
-// with no history at all is refused rather than counted as a first round.
+// branch (deleted, a fresh clone, another machine, a renamed branch), the budget is rebuilt
+// by replaying, in round order, EVERY round record ever added to the branch's own history —
+// each as it was first committed, so a later edit or deletion changes nothing — through
+// advanceRound, the same gates that admitted them. `history` is a list of
+// {path, commit, text}; the CLI collects it from the non-merge commits on the branch's
+// first-parent line that are not on the integration branch, so a branch cut from another
+// branch with recorded rounds inherits them. Fail closed: a record that does not parse or
+// is not a complete round, two different records for one round number, a history that does
+// not start at round 1, or a new round that is not the next one after the history, refuses
+// the round instead of starting the count again.
 function rebuildFromHistory(round, history, ctx, legacySeed) {
-  const prior = (history || []).filter((h) => h && typeof h === "object" && h.branch === round.branch &&
-    Number.isSafeInteger(h.round) && h.round >= 1 && h.round < round.round).sort((a, b) => a.round - b.round);
+  const fail = (why) => new Error(`Cannot rebuild the review budget for ${round.branch} from its committed round records: ${why}. ` +
+    `Restore .claude/learning/${STATE_FILE}, or repair the history; a missing or edited history is never a fresh budget`);
+  const byRound = new Map();
+  for (const entry of history || []) {
+    let record;
+    try { record = canonicalizeRound(normalizeRound(JSON.parse(entry.text)), { ...ctx, require: false }); }
+    catch (error) { throw fail(`${entry.path} as added in ${String(entry.commit).slice(0, 12)} is not a complete round record (${error.message})`); }
+    const fingerprint = JSON.stringify(record);
+    const seen = byRound.get(record.round);
+    if (seen && seen.fingerprint !== fingerprint) throw fail(`two different committed records claim round ${record.round} (${seen.path}, ${entry.path})`);
+    if (!seen) byRound.set(record.round, { record, fingerprint, path: entry.path });
+  }
+  const rounds = [...byRound.keys()].sort((a, b) => a - b);
+  if (rounds.length && rounds[0] !== 1) throw fail(`the earliest committed record is round ${rounds[0]}, not round 1`);
   let state;
-  for (const record of prior) {
-    try {
-      const canonical = canonicalizeRound(normalizeRound(record), { ...ctx, require: false });
-      if (state?.lastRound === canonical.round) throw new Error("two different committed records claim this round");
-      state = advanceRound(state, canonical, { legacySeed }).nextState;
-    } catch (error) {
-      throw new Error(`Cannot rebuild the review budget for ${round.branch} from its committed round records (round ${record.round}: ${error.message}); restore .claude/learning/${STATE_FILE} rather than starting the count again`);
-    }
+  for (const n of rounds) {
+    try { state = advanceRound(state, byRound.get(n).record, { legacySeed }).nextState; }
+    catch (error) { throw fail(`round ${n}: ${error.message}`); }
   }
-  if (round.round > 1 && (!state || state.lastRound !== round.round - 1)) {
-    throw new Error(`round ${round.round} refused: no review state for ${round.branch} in this checkout, and its committed round records ` +
-      `${state ? `stop at round ${state.lastRound}` : "are absent"}. Commit every earlier round-<scope>-<n>.json on the branch (or restore .claude/learning/${STATE_FILE}); a missing history is never a fresh budget`);
+  const last = state ? state.lastRound : 0;
+  if (round.round !== last + 1 && !(state && round.round === last && byRound.get(last).fingerprint === JSON.stringify(round))) {
+    throw new Error(`round ${round.round} refused: there is no review state for ${round.branch} in this checkout, and the branch's committed history ` +
+      `${last ? `already holds rounds 1-${last} (deleted or edited records included), so the next round is ${last + 1}` : `holds no round records, so the first round is 1`}. ` +
+      `Restore .claude/learning/${STATE_FILE} if it was lost; a missing or edited history is never a fresh budget`);
   }
-  return { state, replayed: prior.length };
+  return { state, replayed: rounds.length };
 }
 
 // Every entry point verifies the branch and head against git and resolves the cited

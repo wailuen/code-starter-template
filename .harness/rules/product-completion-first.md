@@ -99,9 +99,9 @@ under `residuals` only after the user has accepted it. Each residual then carrie
 the person who accepted it — never an agent name, and never filled in before they say yes.
 `check-redteam-convergence-receipt.mjs` (`checkResiduals`) refuses a residual missing any of
 these, a non-INCREMENTAL category, a backstop that is not a calendar date, or an
-`accepted_by` that names an agent, a role or a placeholder (the shared denylist in
-`.harness/lib/agent-identity.cjs`, also used for `ratified_by`, `approved_by` and the
-recorder's escalation acceptor). A BUG or INVEST-NOW finding can never ship as a residual.
+`accepted_by` that fails the shared identity check for person-only fields — the same check
+used for `ratified_by`, `approved_by` and the recorder's `escalation_accepts` and
+`replan_accepts[].acceptor` (`.harness/rules/completion-criterion.md` MUST-1). A BUG or INVEST-NOW finding can never ship as a residual.
 
 ```markdown
 # DO — incremental defers with the five fields; bug/invest-now fixed now

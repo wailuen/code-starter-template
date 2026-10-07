@@ -11,9 +11,9 @@ few checking tools — that takes a project from requirements to a reviewed, dep
    `.gitignore` it already has; `/analyze` then documents the existing system instead of
    researching a new product). Replace the copyright holder in `LICENSE` with yours, or swap
    in the licence your project uses.
-2. Fill in `.harness/guides/project-profile.md` with the project's language and commands, and
-   the project line in `.claude/CLAUDE.md`. `/analyze` proposes the profile values once the
-   stack is chosen.
+2. Nothing to fill in by hand: `/analyze` proposes the values for
+   `.harness/guides/project-profile.md` and the project line in `.claude/CLAUDE.md` and
+   `AGENTS.md`, and writes them once you agree. (You can also fill them in yourself.)
 3. Start Claude Code in the repository and run `/start`.
 
 The harness's own tools need Node.js 22+, whatever language the project uses:
@@ -32,7 +32,7 @@ pick it up.
 | SDLC stage | Command | What happens | What it leaves behind |
 | --- | --- | --- | --- |
 | Setup | `/start`, `/doctor` | Orientation; check git, GitHub login and the runtimes the project needs | — |
-| Requirements and discovery | `/analyze` | Research the problem, users and constraints; challenge assumptions; red-team the analysis | `briefs/`, `01-analysis/`, `03-user-flows/` |
+| Requirements and discovery | `/analyze` | Research the problem, users and constraints; challenge assumptions; red-team the analysis | `briefs/`, `01-analysis/`, `02-plans/`, `03-user-flows/` |
 | Architecture and design | `/analyze`, `/design` | Choose the stack and where it will run (with monthly cost), record decisions, write the specs; UI/UX standards for screens | `docs/adr/`, `specs/`, the project profile filled in |
 | Planning | `/todos` | Break the work into waves of todos, each with an acceptance contract; **stops for your approval**; the first wave also sets up CI | `todos/WAVE-SEQUENCE.md`, `todos/active/wNN-MM-<slug>.md`, a frozen acceptance list with your approval |
 | Changing your mind | `/todos` | Drop, park or re-plan approved work; the change is recorded with your words | A journal decision, a new acceptance list |
@@ -81,8 +81,8 @@ Along the way:
   `/codify` folds them into the harness's own rules and guides automatically — after each
   wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug
   fix that taught something. Each update is independently reviewed by pull request. Only
-  updates to skills, guides and examples merge on their own; anything that changes the AI's
-  rules, roles or what it may do without you waits for your OK. `/ws` shows what is waiting.
+  updates to reference guides and harness notes merge on their own; anything that changes the
+  AI's rules, roles, skills, commands or what it may do without you waits for your OK. `/ws` shows what is waiting.
 
 You decide at a few fixed points — plan approval, trying the result, deploying or undoing a
 deploy, spending money, anything destructive or public, and questions only you can answer (the

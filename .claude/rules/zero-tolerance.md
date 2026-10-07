@@ -54,8 +54,8 @@ A scanner finding may be deferred only when it is provably runtime-safe and need
 architectural refactor outside the release scope, and only when all four hold: (1) a
 written runtime-safety proof in a PR comment citing the guard lines, (2) a tracking issue
 (`<scanner>: defer <rule-id> — <context>`) with full-fix acceptance criteria, (3) a
-"deferred, safe per #<issue>" link in the release PR body, (4) release-owner sign-off or
-the user's explicit override. Missing any one makes it a silent dismissal.
+"deferred, safe per #<issue>" link in the release PR body, (4) the user's acceptance of the
+known risk (`.harness/rules/autonomous-execution.md` § What needs the user). Missing any one makes it a silent dismissal.
 
 **Why:** Without all four, "deferred" is indistinguishable from silent dismissal.
 
@@ -194,7 +194,7 @@ Do not remove or change a surface this project exposes to other callers — an H
 endpoint, a CLI command or flag, a library's exported API, an MCP tool/resource — in a
 way that breaks existing callers without warning. Keep the old surface working and marked
 deprecated for one release cycle, document the replacement, and remove it only after
-callers have migrated. A hard break needs the user's explicit approval.
+callers have migrated. A hard break needs the user's explicit approval (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 **Why:** Removal without a deprecation path hard-breaks every existing caller (a frontend,
 a script, a downstream library, an MCP client) with no warning; a deprecation period turns

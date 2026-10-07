@@ -149,14 +149,16 @@ re-defer with a fresh value-anchor, or close with the user's sign-off — never 
 ### Sweep 9: Dependency and security updates
 
 Run periodically — at least once a month on a project with users — even when nothing else is
-outstanding. Use the project's own tools from `.harness/guides/project-profile.md` (its package
-manager's outdated and audit commands, the platform's base-image or runtime notices).
+outstanding. Run the project profile's "Dependency outdated check" and "Dependency security
+audit" commands (`.harness/guides/project-profile.md` § Commands; a row still `<unset>` is
+itself a finding), and check the platform's base-image or runtime notices. Note in the report
+that the update check ran, with the date: `/ws` reads it to say when the next one is due.
 
 Surface: dependencies with a known security advisory (a BUG when the vulnerable code path is
 reachable, otherwise INVEST-NOW), runtimes or base images past end of support, certificates or
 domains close to expiry, and major-version upgrades waiting. Updating a dependency is a normal
 `/fix` (for an advisory) or a todo proposal (for an upgrade that changes behavior); removing or
-downgrading one needs the user.
+downgrading one needs the user (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ### Sweep 10: Harness lessons and backlog
 

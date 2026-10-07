@@ -104,8 +104,8 @@ trusting every later recommendation.
 
 **Do not invent a con for balance.** A con must change what the user should do. This
 matters most at a clean gate-stop (end of shard, `/wrapup`, converge-then-gate): stopping
-there is the correct, complete action (`.harness/rules/autonomous-execution.md`
-§ What needs the user), not a compromise, so state it plainly.
+there for the user's answer is the correct, complete action, not a compromise, so state
+it plainly.
 
 ```markdown
 # DO — clean gate-stop stated plainly, no fabricated con
@@ -246,7 +246,8 @@ the user able to overturn it.
 When an action would put more-sensitive material into a less-protected or wider-audience
 durable place, confirm before persisting: name the boundary being crossed, offer the
 lower-exposure form, and ask for confirmation — even when the write is cheap, local and
-in scope. Still recommend the write you believe is right (or its scrubbed form).
+in scope. Still recommend the write you believe is right (or its scrubbed form). This is one
+of the confirmations listed in `.harness/rules/autonomous-execution.md` § What needs the user.
 
 Examples (judge sensitivity qualitatively; there is no fixed table): a secret, credential
 or personal data into a commit body, journal entry or doc; private local config or notes

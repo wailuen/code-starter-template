@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Structure check for a todo's `## Delivery contract` block.
-//   node .harness/bin/check-task-contract.mjs <todo.md>
+//   node .harness/bin/check-task-contract.mjs <todo.md>                  # after the user approved the plan
+//   node .harness/bin/check-task-contract.mjs --pre-approval <todo.md>   # before: approved_by must be empty
 // Prints {"ready": bool, "errors": [...]}. Exit: 0 ready · 1 not ready, unreadable or usage error.
+// `--pre-approval` checks every other field and requires `approved_by` to be EMPTY or absent: the
+// agent never writes an approval the user has not given. The full check runs once they have.
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAgentIdentity } from "../lib/agent-identity.cjs";
@@ -10,7 +13,7 @@ const nonempty = (s) => typeof s === "string" && s.trim().length > 0;
 const strings = (xs, allowEmpty = false) => Array.isArray(xs) &&
   (allowEmpty || xs.length > 0) && xs.every(nonempty);
 
-export function validateTaskContract(text) {
+export function validateTaskContract(text, { preApproval = false } = {}) {
   const section = text.match(/^## Delivery contract\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
   const json = section?.[1].match(/```json\s*\n([\s\S]*?)\n```/);
   if (!json) return ["Missing ## Delivery contract with a fenced JSON object"];
@@ -18,11 +21,14 @@ export function validateTaskContract(text) {
   try { c = JSON.parse(json[1]); } catch { return ["Delivery contract is invalid JSON"]; }
   if (!c || typeof c !== "object" || Array.isArray(c)) return ["Contract must be an object"];
   const errors = [];
-  for (const field of ["approved_by", "integration"]) {
-    if (!nonempty(c[field])) errors.push(`${field} must be explicit`);
-  }
-  // The plan is approved by the user, never by an agent or a reviewer seat (shared denylist).
-  if (nonempty(c.approved_by) && isAgentIdentity(c.approved_by)) {
+  if (!nonempty(c.integration)) errors.push("integration must be explicit");
+  if (preApproval) {
+    if (c.approved_by !== undefined && c.approved_by !== null && c.approved_by !== "")
+      errors.push(`approved_by must stay empty until the user approves the plan; got ${JSON.stringify(c.approved_by)} (run without --pre-approval after approval)`);
+  } else if (!nonempty(c.approved_by)) {
+    errors.push("approved_by must be explicit (the name of the user who approved the plan)");
+  } else if (isAgentIdentity(c.approved_by)) {
+    // The plan is approved by the user, never by an agent or a reviewer seat (shared denylist).
     errors.push(`approved_by must name the person who approved the plan, not an agent, role or placeholder: ${JSON.stringify(c.approved_by)}`);
   }
   for (const field of ["owned_paths", "interfaces"]) {
@@ -52,8 +58,11 @@ export function validateTaskContract(text) {
 
 export function main() {
   try {
-    if (process.argv.length !== 3) throw new Error("Usage: check-task-contract.mjs <todo.md>");
-    const errors = validateTaskContract(readFileSync(process.argv[2], "utf8"));
+    const args = process.argv.slice(2);
+    const preApproval = args[0] === "--pre-approval";
+    const files = preApproval ? args.slice(1) : args;
+    if (files.length !== 1 || files[0].startsWith("--")) throw new Error("Usage: check-task-contract.mjs [--pre-approval] <todo.md>");
+    const errors = validateTaskContract(readFileSync(files[0], "utf8"), { preApproval });
     console.log(JSON.stringify({ ready: errors.length === 0, errors }));
     process.exitCode = errors.length ? 1 : 0;
   } catch (error) {

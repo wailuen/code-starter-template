@@ -13,7 +13,10 @@ the wave branch is cut.
 
 ## Execution contract
 
-Read `.harness/guides/task-delivery.md`. Keep the entire value-ranked roadmap visible;
+From `.harness/guides/task-delivery.md`, read § Priority, § Before a wave starts, § Harness
+backlog, § Workspace file layout, § Branches, pull requests and merging and § Before
+implementation. Find each section's line range with `grep -n '^## ' .harness/guides/task-delivery.md` and read
+only those ranges. Keep the entire value-ranked roadmap visible;
 write detailed delivery contracts only for the current wave. Later-wave tasks are
 provisional and are revalidated at each wave boundary. Estimate using this repository's
 measured work; do not apply an assumed universal 10x throughput multiplier.
@@ -37,9 +40,15 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 2. Declare `workspaces/<project>/todos/WAVE-SEQUENCE.md`, ordered by user value and dependencies. Every
    requirement has a roadmap owner, including testing, integration and deployment. The first
    wave of a new repository also owns its setup: a CI workflow that runs the project profile's
-   Local CI parity command on every pull request, and branch protection on `main` requiring it
+   Local CI parity command on every pull request, plus
+   `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` on pushes to
+   `main` and pull requests into `main` only (todo and wave branches carry todos that are not
+   converged yet), and branch protection on `main` requiring it
    (a repository-settings change, so the user confirms it — `.harness/rules/autonomous-execution.md`
-   § What needs the user). Until both exist, no pull request has a required check.
+   § What needs the user). Branch protection is optional: on a private repository it may need a
+   paid GitHub plan, so say so in the plan and let the user choose. Without required checks,
+   every merge runs Local CI parity on the pinned head first (task-delivery § Branches, pull
+   requests and merging, step 4).
    A one-wave plan states why it fits one convergence surface.
 3. Slice by observable outcome. Prefer one small real caller→component→data-store
    scenario per todo. Split build and wire only with the independently testable interface
@@ -63,7 +72,7 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    invariants and ≤3–4 reasoning hops. Count dependencies and verification complexity;
    three long sentences do not make a large task small. Reassess if implementation grows
    materially beyond the estimate. Preserve the outcome when splitting.
-7. Freeze the expectations of new actionable units, so `/implement` § 7b Expectation
+7. Freeze the expectations of new actionable units, so `/implement` § 3b Expectation
    coverage can check them. Have an
    independent planning reviewer check the integrated scenario, boundary assumptions,
    dependency readiness and negative controls. Classify new findings before expanding
@@ -71,8 +80,9 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    `/redteam`, on the `docs/wNN-plan` branch with scope `wNN-plan`. One complete CLEAR
    round is the bar for the plan (task-delivery § Review protocol and circuit breaker);
    repeated "find any remaining gap" prompting is not a planning completion criterion.
-8. Run `node .harness/bin/check-task-contract.mjs <todo.md>` on each implementation-ready
-   current-wave todo. This checks structure; the reviewer still judges the actual contract.
+8. Run `node .harness/bin/check-task-contract.mjs --pre-approval <todo.md>` on each
+   implementation-ready current-wave todo: it checks everything except `approved_by`, which
+   must still be empty. This checks structure; the reviewer still judges the actual contract.
 9. Surface the top three value-ranked workstreams with brief/spec anchors, dependencies,
    scope trade-offs, and current-wave acceptance. Journal decisions and unresolved risks
    concisely. Update specs when planning legitimately changes an agreed contract.
@@ -89,7 +99,9 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
     with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
     § Workspace file layout), the scope name `wNN`, every current-wave todo id and each todo's
     acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
-    contract. Never fill either before the user has approved, and never with an agent's name. Commit it with the todos; never edit it afterwards — the convergence receipt
+    contract, then run `node .harness/bin/check-task-contract.mjs <todo.md>` (the full check)
+    on each. Never fill either before the user has approved, and never with an agent's name.
+    Commit it with the todos; never edit it afterwards — the convergence receipt
     requires it byte-identical at the verdict commit, so changed acceptance means a new scope.
     Then merge the plan branch into `main` (task-delivery § Branches, pull requests and
     merging).
@@ -107,13 +119,22 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
    line `Parked: <date> — <reason>`; one the user no longer wants is deleted. Either way the
    journal entry names the file.
 4. The frozen `acceptance-wNN.md` is never edited. Re-plan the remaining work as a new scope
-   (`wNNb`, then `wNNc`): run steps 7–11 for it on a `docs/wNNb-plan` branch, with a new
-   acceptance list and approval record. Work already merged into the wave branch stays there
-   if it is still wanted; `/redteam` then certifies scope `wNNb`.
-5. Half-built todo branches: a kept todo continues on its branch; a dropped one is not merged.
+   (the next unused letter: `wNNb`, then `wNNc`): run steps 7–11 for it on a `docs/wNNb-plan`
+   branch, with a new approval record. New todos keep the `wNN-MM-<slug>.md` naming with new
+   item numbers (a `wNNb-` filename does not parse as an id). Commit `acceptance-wNNb.md` and
+   the changed todos on the wave branch itself, so the wave's receipt can see them, and in the
+   plan branch's pull request into `main`.
+5. A dropped todo already merged into the wave branch is either reverted on the wave branch
+   (its own commit, reviewed with the wave) with its `completed/` file moved to `parked/` or
+   deleted, or — if the user wants to keep the code — kept and listed in `acceptance-wNNb.md`.
+   The journal entry says which.
+6. Review rounds for `wNNb` run on the same wave branch and continue its round count and its
+   three-round budget; if that budget is spent, the wave goes to `/debug` or the user
+   (task-delivery § Review protocol and circuit breaker). `/redteam` then certifies `wNNb`.
+7. Half-built todo branches: a kept todo continues on its branch; a dropped one is not merged.
    Keep the branch until the user agrees to delete it (deleting work is a user decision), and
    name it in the journal entry so it stays findable.
-6. Abandoning a whole wave: the wave branch is not merged into `main`. Record the decision as
+8. Abandoning a whole wave: the wave branch is not merged into `main`. Record the decision as
    above; the user decides whether its branches are kept or deleted.
 
 A change the user asks for before step 11 is not a scope change: update the plan and ask for

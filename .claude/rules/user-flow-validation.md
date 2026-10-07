@@ -115,7 +115,7 @@ When a gate verifies a deliverable by driving it — a release first-act gate, a
 ## Enforcement
 
 No hook checks this automatically — no Stop hook checks a "done" claim for a receipt, and `.harness/bin/check-browser-walk-receipts.mjs`
-(run from `.harness/phases/implement.md` and `.harness/phases/redteam.md`) checks only the declaration: one exact `## Verification` heading (two is `contradictory`), lines inside code fences ignored, every `### Browser walk receipt` judged (any `blocked` or `confused` disposition is `walk-blocked`), a not-applicable reason with at least one real word, and exit 3 (`UNRUN`) on an empty folder. It does not check that the walk actually happened. Catching a violation of
+(run from `.harness/phases/implement.md` and `.harness/phases/redteam.md`) checks only the declaration: one exact `## Verification` heading (two is `contradictory`), lines inside code fences or indented as code (four spaces or a tab) ignored, every `### Browser walk receipt` judged (any `blocked` or `confused` disposition is `walk-blocked`), a not-applicable reason of at least two words and eight letters ("no UI" fails), and exit 3 (`UNRUN`) on an empty folder. It does not check that the walk actually happened. Catching a violation of
 this rule depends on the agent applying it and on review. A project that adds a hook for it
 should name it here.
 
