@@ -807,13 +807,27 @@ test("codify allowlist: the -ask-review record-only branch (review report, round
   const askReview = branch("docs/codify-x-ask-review", () => {
     put(dir, ".harness/reviews/codify-x-ask-correctness-r1.md", "Verdict: CLEAR\n");
     put(dir, ".harness/reviews/round-codify-x-ask-1.json", "{}\n");
-    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-x-ask | .harness/backlog/harness-01-a.md | awaiting user | held for the user's confirmation — PR #9 |\n");
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-x-ask | .harness/backlog/harness-01-a.md | awaiting user | held for confirmation — PR #9 |\n");
   });
   assert.equal(askReview.status, 0, askReview.stdout + askReview.stderr);
   const wording = branch("docs/codify-y-ask-review", () => {
     put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-y-ask | .harness/backlog/harness-01-a.md | awaiting user | needs the user's approval |\n");
   });
-  assert.equal(wording.status, 1, "control: wording that reads as a user's answer is refused; say 'held for the user's confirmation'");
+  assert.equal(wording.status, 1, "control: wording that reads as a user's answer is refused; say 'held for confirmation'");
+  for (const phrase of ["the user approves it", "user confirms the change", "owner will accept"]) {
+    const present = branch(`docs/codify-p${phrase.length}-ask-review`, () => {
+      put(dir, ".harness/codify-log.md", log + `| 2026-10-08 | docs/codify-p-ask | .harness/backlog/harness-01-a.md | awaiting user | ${phrase} |\n`);
+    });
+    assert.equal(present.status, 1, `any tense of a deciding verb after "user"/"owner" is refused: ${phrase}`);
+  }
+  const strayJson = branch("docs/codify-z-ask-review", () => {
+    put(dir, ".harness/reviews/notes.json", "{}\n");
+  });
+  assert.equal(strayJson.status, 1, "evidence must be named codify-*.md or round-codify-*.json; any other .json is ask-first");
+  const strayRound = branch("docs/codify-w-ask-review", () => {
+    put(dir, ".harness/reviews/round-other-1.json", "{}\n");
+  });
+  assert.equal(strayRound.status, 1, "a round record of another scope is not codify evidence");
 });
 
 test("codify allowlist refuses case collisions, excluded guides, renames, deletions, symlinks, modes, edited or user-answer log rows and other paths", (t) => {

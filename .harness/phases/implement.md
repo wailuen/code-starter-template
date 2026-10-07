@@ -67,7 +67,8 @@ security review. Reviewers inspect pinned separate checkouts. Mutation probes us
 own disposable checkouts and infrastructure; nobody mutates the implementer's tree.
 Record the checkpoint review with `node .harness/bin/record-review-round.mjs` on the todo
 branch, scope `wNN-MM` (task-delivery § Review protocol and circuit breaker). One complete
-CLEAR round is enough for the todo; the wave's two-clean-round convergence comes later. After
+CLEAR round is enough for the todo; the wave's own gate comes later (two clean rounds in standard
+mode, one in light mode). After
 that round the recorder's `NEXT:` line still says `dispatch round N+1 … cleanRounds 1/2`; do
 not dispatch it for a todo checkpoint.
 
@@ -130,8 +131,9 @@ is **implemented — awaiting wave convergence**, not shipped.
 At the boundary: `/redteam` on the wave branch (its `--scope <wave>` check exits 0 there,
 before the merge) → merge the wave branch into `main` by pull request (task-delivery
 § Branches, pull requests and merging) → `/codify` → specs/remaining todos update → re-rank.
-Do not start the next wave until the previous wave's receipt is committed on `main` and
-`node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` exits 0. Do not
+Do not start the next wave until, in standard mode, the previous wave's receipt is committed on
+`main` and `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` exits 0
+(in light mode: until the previous wave branch has merged into `main`). Do not
 re-run `--scope` after the merge: later commits on `main` (fixes, `/codify`) make it fail by
 design. In standard mode the existing launch evidence, two clean rounds on one commit,
 accepted-residual and browser-walk requirements remain; run

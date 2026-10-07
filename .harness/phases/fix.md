@@ -90,7 +90,7 @@ Status: open | in progress | converted to todo | closed
 - Deployed: <deployment record path in deploy/deployments/, or "not deployed — reason">
 - Verified live: <check and result, or n/a>
 - Issue closed: <#N with SHA, or n/a>
-- Deploy hold: <yes | cleared | n/a> — `yes` exactly while production is rolled back because of this bug (set by the rollback), `cleared` at closure
+- Deploy hold: <yes | cleared | n/a> — `yes` exactly while production is rolled back because of this bug (set by the rollback), `cleared` by the deploy record of the user-confirmed deploy that shipped the fix
 - Follow-ups: <todo proposal, backlog item or /redteam todo proposal, or none>
 ```
 
@@ -102,8 +102,9 @@ fail; it then merges into `main` like any fix.
 
 ## 3. Reproduce first
 
-Write a test that fails for the reported reason, run it, and quote the failure in the record
-before changing product code. Confirm it fails for the right reason, not for a setup error
+Write a test that fails for the reported reason, run it, and keep its failure output before
+changing product code; it goes into the record's `## Reproduction` at closure (the fix branch
+never edits the record). Confirm it fails for the right reason, not for a setup error
 (`.claude/rules/instrument-discipline.md` MUST-2). Use the project's real test tiers
 (`.harness/guides/project-profile.md`); a bug in an integration path gets an integration test.
 Only when no test can express the bug (for example a visual glitch in one browser), record a
@@ -128,8 +129,8 @@ design is in question.
 The regression test fails before the fix and passes after; quote both. Run the affected test
 tiers, then the project profile's local CI parity command; it must exit 0 before the first
 push. For a bug with a browser surface, walk the fixed flow headed as a real user
-(`.harness/rules/e2e-god-mode.md`) and record steps, observations and disposition under
-`## Fix`.
+(`.harness/rules/e2e-god-mode.md`) and keep the steps, observations and disposition for the
+record's `## Fix` section, written at closure.
 
 ## 6. Review
 

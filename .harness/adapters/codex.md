@@ -173,9 +173,10 @@ Never synthesize dispatches, reports, timestamps or approval.
 
 Save actual returned reports, aggregate every expected lens on the pinned commit,
 then run `record-review-round.mjs`. Follow its retry/debug/escalation decision.
-One clean round is the checkpoint bar; wave convergence needs two consecutive
-clean rounds on the same commit and a successful
-`check-redteam-convergence-receipt.mjs` result. Replace the template's Claude
+One clean round is the checkpoint bar; wave convergence needs, in standard mode, two
+consecutive clean rounds on the same commit and a successful
+`check-redteam-convergence-receipt.mjs` result (light mode: one CLEAR wave round,
+`.harness/guides/task-delivery.md` § Light mode). Replace the template's Claude
 reviewer names with the actual dispatched Codex types. Keep the shared main-checkout
 `.claude/learning/` state store; do not create competing Codex state.
 

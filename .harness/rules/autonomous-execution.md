@@ -107,8 +107,8 @@ changes production; an agent never deploys on its own.
   in plain words, to run it. The first deploy creates the `production` branch;
 - every merge into `main` while the project profile says `main_deploys_live: unknown` (the
   default until `/deploy` onboarding has checked that `main` does not deploy) and the product
-  may already be live. **May already be live** means any of: the profile's § Production names
-  a host; the repository has host configuration (`vercel.json`, `netlify.toml`, `fly.toml`,
+  may already be live. **May already be live** means any of: the profile's § Production says the product
+  already runs on a host (a planned host recorded by `/analyze` does not count); the repository has host configuration (`vercel.json`, `netlify.toml`, `fly.toml`,
   `render.yaml`, `app.yaml`, a `Procfile`, or a `Dockerfile` together with a deploy
   workflow) or a CI deploy job; or the user said it is hosted. Other files point to this
   definition;

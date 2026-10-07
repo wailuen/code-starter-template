@@ -48,8 +48,16 @@ function committedRoundRecords(cwd) {
   return (branch) => {
     const git = (args) => execFileSync("git", ["-c", "core.quotePath=false", ...args],
       { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
-    const ref = `refs/heads/${branch}`;
-    const log = git(["log", "--reverse", "--no-renames", "--diff-filter=A", "--format=%x00%H", "--name-only", ref]);
+    // The branch's own history plus the local `main`: a scope's round records can sit on a
+    // record-only branch that already merged (a codify `-ask` review's records live on
+    // `docs/codify-<slug>-ask-review`, never on the `-ask` branch). Records of other scopes and
+    // branches on `main` are filtered out by rebuildFromHistory, so a todo branch still does not
+    // inherit a wave's rounds.
+    const refs = [`refs/heads/${branch}`];
+    if (branch !== "main") {
+      try { git(["rev-parse", "--verify", "--quiet", "refs/heads/main"]); refs.push("refs/heads/main"); } catch { /* no local main */ }
+    }
+    const log = git(["log", "--reverse", "--no-renames", "--diff-filter=A", "--format=%x00%H", "--name-only", ...refs]);
     const records = [];
     for (const chunk of log.split("\0").filter(Boolean)) {
       const [commit, ...paths] = chunk.split("\n").filter((l) => l.length);

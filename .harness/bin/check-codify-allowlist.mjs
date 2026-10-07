@@ -37,8 +37,10 @@ import { fileURLToPath } from "node:url";
 const EXCLUDED_GUIDES = [".harness/guides/task-delivery.md", ".harness/guides/project-profile.md"];
 const LOG = ".harness/codify-log.md";
 const OUTCOMES = new Set(["folded in", "declined", "deferred", "awaiting user"]);
+// Any tense of an answering verb after "user"/"owner" ("approves", "confirms", "will approve",
+// "approving"), so a row cannot read as the user's decision.
 const USER_ANSWER_RE =
-  /\b(?:user|owner)(?:['’]s)?\b[^|]*\b(?:said|says|answered|answer|approved|approval|confirmed|agreed|declined|replied|wrote|chose|decided)\b/i;
+  /\b(?:user|owner)(?:['’]s)?\b[^|]*\b(?:sa(?:id|ys?|ying)|answer\w*|approv\w*|confirm\w*|agree\w*|declin\w*|repl(?:y|ies|ied|ying)|wr(?:ote|ites?|iting)|cho(?:se|oses?|osing|ice)|decid\w*|decision|accept\w*|reject\w*|ok(?:ay)?'?d?|sign(?:s|ed)?[ -]?off|yes|no)\b/i;
 const EDITABLE_RE = /^\.harness\/(?:guides|backlog)\/(?:[^/]+\/)*[^/]+\.md$/;
 const EVIDENCE_RE =
   /^(?:\.harness\/reviews\/|workspaces\/[^/]+\/04-validate\/)(?:codify-[^/]+\.md|round-codify-[^/]+\.json)$|^workspaces\/[^/]+\/journal\/\d{4}-DECISION-[^/]+\.md$/;

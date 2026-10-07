@@ -22,8 +22,8 @@ asking" means without stopping to ask: still record each deferral with the five 
 test-harness work is "keeps the checks that protect the product reliable"), or file it as a
 `.harness/backlog/` item when it is about the harness itself. **This does
 NOT license skipping the confirming second round the convergence gate requires** (§ Review
-protocol and circuit breaker below; `.harness/lib/redteam-stall.cjs`): two clean rounds on the SAME,
-unchanged commit are still necessary to converge, and a change to the reviewed code after a clean
+protocol and circuit breaker below; `.harness/lib/redteam-stall.cjs`): in standard mode, two clean rounds on the SAME,
+unchanged commit are still necessary for a wave to converge (light mode: one, § Light mode), and a change to the reviewed code after a clean
 round — however small — resets that counter to zero, not one. Bookkeeping commits (review
 reports, round records, launch rows, journal and todo files) do not; keep each round's `head` =
 the commit the reviewers checked out. "Defer freely" means stop
@@ -67,8 +67,9 @@ begins. A genuinely minor (INCREMENTAL) finding may be deferred as
 `.harness/rules/product-completion-first.md` MUST-2 describes; it is listed under "left for
 later" in the wave preview, where the user ratifies or overrides it. Record the pass at
 `04-validate/<scope>-boundary-walk.md` (steps, observations, disposition per flow) and cite it,
-with the preview, in a new DECISION journal entry written after the receipt (the receipt has no
-field for it, and the entry committed with the receipt is never edited);
+with the preview, in a new DECISION journal entry written after the receipt — in light mode,
+after the wave's CLEAR round (the receipt has no field for it, and an entry already committed is
+never edited);
 `/redteam` § 2 runs it. This composes
 with, and does not replace, the per-todo review/walk each shard already does.
 
@@ -275,7 +276,7 @@ For every branch:
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
    `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
    allow merge commits before the first wave (a repository-settings change, so ask the user).
-6. Run the convergence check with `--scope` while the wave branch is checked out, before it
+6. Standard mode: run the convergence check with `--scope` while the wave branch is checked out, before it
    merges; that exit 0 is the wave's gate. After the merge, `main` moves on (fixes, `/codify`,
    spec updates), so `--scope` is no longer the question; judge each receipt as of its own
    commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`.
@@ -286,7 +287,7 @@ For every branch:
    `git merge-base main <verdict_head>`. If a `/fix` lands on `main` after review started and
    the wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge
    into `main` (that would be unreviewed code): merge `main` into the wave branch, which moves
-   the reviewed head, so the wave needs two new clean rounds on the new head from its
+   the reviewed head, so the wave needs new clean rounds on the new head (two in standard mode, one in light mode) from its
    remaining budget. Tell the user the delay in plain words; if the budget cannot cover it,
    take it to `/debug`.
 

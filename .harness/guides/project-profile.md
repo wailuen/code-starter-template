@@ -17,7 +17,7 @@ derives it from the repository — it never guesses.
 | Source roots | `<unset>` | e.g. `src/`, `app/`, `cmd/`, `web/`. |
 | Test roots | `<unset>` | e.g. `tests/`, `__tests__/`, `*_test.go`. |
 | UI framework and design system | `<unset>` | e.g. React + the project's component library; `n/a` with no user interface. |
-| `delivery_mode` | `standard` | `standard` or `light` (`.harness/guides/task-delivery.md` § Light mode); `/analyze` recommends, the user chooses at plan approval. |
+| `delivery_mode` | `standard` | `standard` or `light` (`.harness/guides/task-delivery.md` § Light mode); `/analyze` recommends, and the user chooses before `/todos` plans the first wave. |
 
 ## Commands
 

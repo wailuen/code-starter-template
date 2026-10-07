@@ -71,8 +71,8 @@ over the workflow where they differ.
   without the user, 1 findings — ask-first, 2 usage or git error; the reviewer still reviews).
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
   `round-codify-<slug>-<n>.json`; only add or modify files (never delete or rename); and word
-  log rows without the user saying anything (write "held for the user's confirmation", never
-  "user said" or "user approved") — the tool reads such wording as a user's answer. Everything else — skills, commands, rules, roles, phases, agents, adapters,
+  log rows without the user saying anything (write "held for confirmation", never any sentence with
+  "user" or "owner" followed by a deciding verb, such as "user approves" or "user said") — the tool reads such wording as a user's answer. Everything else — skills, commands, rules, roles, phases, agents, adapters,
   the manifest, `.harness/bin/`, `.harness/lib/`, `.claude/CLAUDE.md`, `AGENTS.md`, settings,
   hooks and CI — is **ask-first**.
 - **Two pull requests when anything is ask-first.** (1) `docs/codify-<slug>` carries every
