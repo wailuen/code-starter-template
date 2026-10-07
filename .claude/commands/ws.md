@@ -13,7 +13,8 @@ List every decision only the user can make, each as a question in the format in
 waiting for you." Check each of these:
 
 - **Plan awaiting approval** — a `docs/wNN-plan` branch (local or on the remote) with todos but
-  no `04-validate/acceptance-wNN.md` on `main`.
+  no `04-validate/acceptance-wNN.md` on that branch (one that has it is approved and only
+  waiting to merge).
 - **Wave preview** — any `04-validate/<scope>-preview.md` still ending `User answer: pending`
   (`.harness/phases/redteam.md` § 4).
 - **Review stopped for a decision** — a branch whose latest round record led to
@@ -21,8 +22,10 @@ waiting for you." Check each of these:
   with no later round), or a residual in a receipt or decision record that names no human
   acceptor yet.
 - **Deploy setup not finished** — when the project profile's `main_deploys_live` is still
-  `unknown` and the repository is connected to a host: every merge into `main` waits for the
-  user's OK until `/deploy --onboard` confirms `main` does not deploy; list those merges.
+  `unknown` and the product may already be live (`.harness/rules/autonomous-execution.md`
+  § What needs the user defines it): every merge into `main` waits for the user's OK — "this
+  may put it live for your users" — until `/deploy --onboard` confirms `main` does not deploy;
+  list those merges.
 - **Undeployed changes** — when `deploy/deployment-config.md` exists, the drift from
   `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly), and any open fix
   record with `Deploy hold: yes`. Ask the user whether to run `/deploy`.
@@ -67,7 +70,10 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
   - `briefs/` only → next is `/analyze`
 - Counts: todos in `todos/active/` vs `todos/completed/`; open records in `fixes/`; pending
   proposals in `todos/parked/` with the oldest's age.
-- A `completed/` todo is CLOSED only when
+- In light mode (`delivery_mode: light` in the project profile), a `completed/` todo is CLOSED
+  once its wave branch has merged into `main`; do not run the checker
+  (`.harness/guides/task-delivery.md` § Light mode). In standard mode, a `completed/` todo is
+  CLOSED only when
   `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`
   exits 0 — either a converged `/redteam` receipt covers it (`CLOSED`), or it was completed
   before the gate existed (`grandfathered — pre-gate`, shown as such, never as awaiting);

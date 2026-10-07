@@ -797,7 +797,7 @@ function checkArtifacts(c) {
       } else if (receiptPin && !isAncestor(jAdd, receiptPin, repoRoot))
         add(
           "journal-postdate-receipt",
-          `${r.journal} was first committed in ${jAdd.slice(0, 12)}, after the receipt's commit ${receiptPin.slice(0, 12)}`,
+          `${r.journal} was first committed in ${jAdd.slice(0, 12)}, after the receipt's commit ${receiptPin.slice(0, 12)} — the journal entry must be committed together with (or before) the receipt. Before the merge: re-commit the receipt in the same commit as the journal entry (any edit to the receipt file, even a trailing newline, makes that commit the receipt's commit), then run --scope again`,
         );
       else {
         const pin = receiptPin || jAdd;

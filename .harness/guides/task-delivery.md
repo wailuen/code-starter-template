@@ -136,24 +136,33 @@ retry limit changes the approach; it never makes broken code done.
 
 For a small project — one person, a prototype or hobby, no real users' data and no money
 moving — the project profile can say `delivery_mode: light`. `/analyze` recommends the mode in
-plain words; the user chooses it at plan approval, and switching later (light to standard)
-is a plan change the user approves. Light mode changes only this:
+plain words when it proposes the stack, and the user picks it there, before `/todos` plans the
+first wave; the first plan's approval record quotes that choice. Until the user has chosen,
+standard applies. Light mode changes only this:
 
-- No separate analysis or planning review rounds. The user still approves the plan, and the
-  acceptance list still carries their approval record.
+- No analysis or planning review rounds. The analysis pull request merges into `main` once the
+  user has approved the stack and mode, the plan pull request once they have approved the plan;
+  the acceptance list still carries their approval record.
 - No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
   walk receipts and `## Verification`.
-- The wave gets one review round that must be CLEAR, with a security reviewer when any security
-  surface changed (`.harness/phases/redteam.md` § 1). No convergence receipt, no launch ledger,
-  and no `--sweep` job in CI.
-- Records (reports, round records, journal entries, preview, fix closure) are committed on the
-  wave or fix branch before it merges; anything written after the merge (a deploy record, a
-  preview answer) rides along with the next branch. There are no separate record-only pull
-  requests.
+- The wave gate is ONE review round that must be CLEAR, with a security reviewer when any
+  security surface changed (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
+  receipt and no `--sweep` job in CI.
+- A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
+  `/implement` say so and do not run the convergence checker.
+- `/codify`'s wave trigger fires when the wave branch merges.
+- Review reports, round records and journal entries ride on the wave or fix branch. Records that
+  gate a deploy — the wave preview and the user's answer, deployment records, the deploy hold
+  and fix records — still go to `main` at once on their own record-only branch, exactly as in
+  standard mode, because `/deploy` reads them on `main`.
 
 Everything else is unchanged: tests, `.harness/rules/autonomous-execution.md` § What needs the
 user, the security rules, `/fix` and `/deploy`. The phases say "in light mode, see
 task-delivery § Light mode" where they differ.
+
+Switching from light to standard is a plan change the user approves. At the switch, set
+`grandfather_pin` in `.harness/manifest.json` to `main`'s tip (so light-mode todos are not
+re-audited), then add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2).
 
 ## Workspace file layout
 
@@ -214,19 +223,21 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
-| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`) | `main` |
-| Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`) | `main`, after plan approval |
-| Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 |
-| One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`) | the wave branch, after a CLEAR round and its receipts |
+| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round (light mode: after the user approved the stack and mode) |
+| Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
+| Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |
+| One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |
 | Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
 | Production | `production` | moved only by `/deploy`, to a commit already on `main` (rolled back by `/deploy --rollback`) | none | never merged; the host deploys it |
-| Fix closure record (`/fix` § 8) | `docs/<fix-id>-closure` | `main` | none (record only) | `main` |
+| Fix record — opened, updated, closed (`/fix`, `/deploy --rollback`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
+| Deploy onboarding (`/deploy --onboard`) | `docs/deploy-onboard` | `main` | one CLEAR review (`deploy-onboard`) | `main` |
 | Deployment record (`/deploy`) | `docs/deploy-<date>` | `main` | none (record only) | `main` |
 | Sweep report (`/sweep`) | `docs/sweep-<date>` | `main` | none (record only) | `main` |
 | Wave preview answer (`/redteam` § 4) | `docs/<scope>-preview` | `main` | none (record only) | `main` |
 | Spec reconciliation after a wave (`/redteam` § 4) | `docs/wNN-spec-reconcile` | `main` | none (spec text; the next wave's review reads it) | `main` |
 | Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when `check-codify-allowlist.mjs` exits 0 (`.harness/phases/codify.md` § Automatic runs) |
-| Harness change (`/codify`), ask-first part | `docs/codify-<slug>-ask` | `main` | codify review (`codify-<slug>-ask`) | `main`, when the user says yes, at its reviewed head |
+| Harness change (`/codify`), ask-first part | `docs/codify-<slug>-ask` | `main` | codify review (`codify-<slug>-ask`); its round record names this branch, but the report and record files are committed on the next row's branch, so this head stays the reviewed commit | `main`, when the user says yes, at its reviewed head |
+| Review evidence for the ask-first part | `docs/codify-<slug>-ask-review` | `main` | none (carries the `-ask` review report and round record) | `main`, at once (it passes `check-codify-allowlist.mjs`) |
 | User's answer to a waiting harness change | `docs/codify-<slug>-answer` | `main` | none (appends log rows quoting the user's answer, nothing else) | `main`, in the session the user answered |
 | Release prep | `release/v<X.Y.Z>` | `main` | none (metadata only) | `main` |
 
@@ -258,7 +269,8 @@ For every branch:
    pull request that this was the gate; while the profile row is `n/a — no code yet`, say that
    instead. Whether a merge needs the user is set in `.harness/rules/autonomous-execution.md`
    § What needs the user — a merge whose gate passed does not, except while the project
-   profile's `main_deploys_live` is still `unknown` on a repository connected to a host;
+   profile's `main_deploys_live` is still `unknown` and the product may already be live (as
+`.harness/rules/autonomous-execution.md` § What needs the user defines it);
    `--admin` always does, and never in an automatic run.
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
    `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
@@ -297,9 +309,10 @@ the orchestrator follows these steps.
    (`.claude/rules/zero-tolerance.md` Rule 5).
 4. Add release notes to the changelog, written for the people who use the product.
 5. Push, open the pull request and merge as in § Branches, pull requests and merging.
-6. Tag the merge commit on `main` (`git tag -a v<X.Y.Z> <merge-sha>`) and push the tag, then
-   publish with the profile's publish command, or ask the user to run `/deploy`. Pushing a tag and
-   publishing are public and need the user's confirmation
+6. Tag the merge commit on `main` (`git tag -a v<X.Y.Z> <merge-sha>`). If the host deploys from
+   release tags, pushing the tag IS a deploy: ask the user to run `/deploy`, which pushes it in
+   Step 3. Otherwise push the tag and publish with the profile's publish command. Pushing a tag
+   and publishing are public and need the user's confirmation
    (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 A bad published version: never delete or overwrite a published version. With the user's
@@ -537,8 +550,9 @@ It is a retry-control instrument; the convergence-receipt checker still decides 
 Its last lines start with `NEXT:` and list the branch's known root causes and budget — read them.
 How many clean rounds a scope needs: one complete CLEAR round for a todo checkpoint (scope
 `wNN-MM`), a `/fix` branch (`<fix-id>`), a planning review (`wNN-plan`), an analysis review
-(`analysis-<slug>`) and a codify review (`codify-<slug>`, `codify-<slug>-ask`); two consecutive clean rounds on one
-unchanged commit only for wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
+(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`) and a light-mode
+wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
+wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
 prints `dispatch round N+1`; at a one-round checkpoint do not dispatch it.
 
 Exit codes: `0` — keep going (`FIX`, `REVIEW`, `REPAIR_ENVIRONMENT`, or
@@ -557,8 +571,8 @@ and your recommendation — never as a recorder message or a file path.
 The budget counts rounds of the same scope or branch (`.harness/lib/redteam-stall.cjs`):
 
 - **Three rounds per branch.** A branch gets three counted rounds in total
-  (`TOTAL_ROUND_CAP = 3`) — clean, non-clear or charged-error alike — and nothing resets that
-  count, a decision record included. A third round that is not clean returns exit 2 /
+  (`TOTAL_ROUND_CAP = 3`) — clean, non-clear or charged-error alike — and no decision record
+  resets that count. A third round that is not clean returns exit 2 /
   `DEBUG_ROUND` (a clean third round that is the first in its streak returns `REVIEW`). Repair the findings; the branch's only remaining ordinary round is then its
   single debug round: `"debug": true`, a new decision record in `replan`, and
   `expected_reviewers` ids named `<lens>-debug` (`correctness-debug`, `security-debug`), never used on this branch. If

@@ -55,8 +55,8 @@ pick it up.
    with a description of what you want to build. `/analyze` proposes the tech stack and fills
    in `.harness/guides/project-profile.md` once you agree. For a small personal project (a
    prototype or hobby with no real users' data or money) it suggests **light mode**: fewer
-   review rounds and less paperwork, the same tests and the same questions to you
-   (`.harness/guides/task-delivery.md` § Light mode).
+   review rounds and less paperwork, the same tests and the same questions to you; you pick
+   the mode together with the stack (`.harness/guides/task-delivery.md` § Light mode).
 2. **Plan a wave.** Run `/todos`. Review the plan it shows you and approve it — nothing is
    built until you do. Approval freezes that wave's scope; changing your mind later is
    supported, but it means re-planning that part under a new name.

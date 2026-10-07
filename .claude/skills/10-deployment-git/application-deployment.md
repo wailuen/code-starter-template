@@ -50,8 +50,10 @@ deploy:
 
   # Shell command that prints the full 40-character commit SHA production runs — the git
   # commit, not a platform revision id or a short hash — on a single line. It exits
-  # non-zero when it cannot tell. /deploy compares it with `git rev-parse`, and a hotfix
-  # branch is cut from it, so it must be the full commit. If the platform reports only
+  # non-zero when it cannot tell. /deploy compares it with `git rev-parse`, and a rollback
+  # records it as the bad commit an S1 fix branch is cut from (.harness/phases/fix.md), so
+  # it must be the full commit. Before the first deploy nothing is live and there is
+  # nothing to print; the first /deploy creates the `production` branch. If the platform reports only
   # its own revision id, deploy with the commit in a field you can read back (an image
   # tag, a label, an environment variable or a /version endpoint) and query that.
   # Example: the image is tagged with the full commit SHA at deploy time.
@@ -61,8 +63,8 @@ deploy:
       --query "properties.template.containers[0].image" -o tsv | sed 's/.*://' 
 
   # Local, gitignored cache where /deploy writes the deployed commit SHA on success.
-  # It is never committed and never authoritative: /deploy --check and the hotfix base
-  # use deploy_check_command, and report "unknown" when that query fails.
+  # It is never committed and never authoritative: /deploy --check uses
+  # deploy_check_command, and reports "unknown" when that query fails.
   deploy_state_file: "deploy/.last-deployed"
 
   # Pre-deploy gates that MUST pass before deploy_command runs.
@@ -156,8 +158,8 @@ deploy:
 
 ## Onboarding Reference
 
-The order of the onboarding steps, and what the user is asked when, lives in one place:
-`.claude/commands/deploy.md` § Onboard Mode. This section is reference material for those
+The order of the onboarding steps, and what the user is asked when, lives in one place: the
+Onboard Mode section of `.claude/commands/deploy.md`. This section is reference material for those
 steps: how to detect the platform, how to work out each config value, what to research, how
 to dry-run the config, and how to summarise it for the user.
 
@@ -182,13 +184,16 @@ If more than one matches, recommend which one is the production target and ask i
 `.claude/rules/communication.md` § Asking the user to decide — multi-platform setups are
 common (for example Cloud Run plus Cloudflare for static files).
 
-**Deploy from `production`, never from `main`.** Set the host's git integration, or the CI
-deploy job, to deploy from the `production` branch (or release tags). Check that a merge into
+**Deploy from `production`, never from `main`.** Once the hosting account exists (the user
+creates or chooses it first), set the host's git integration, or the CI deploy job, to deploy
+from the `production` branch (or release tags). The first `/deploy` creates that branch
+(`git push origin <sha>:refs/heads/production`). If the host deploys from release tags,
+pushing a release tag is a deploy and goes through `/deploy` too. Check that a merge into
 `main` does not change what is live, then set `main_deploys_live: no` in
 `.harness/guides/project-profile.md` § Production. Until then it stays `unknown`, and every
-merge into `main` needs the user's confirmation
-(`.harness/rules/autonomous-execution.md` § What needs the user). The steps are in
-`.claude/commands/deploy.md` § Onboard Mode; tell the user in plain words that code reaches
+merge into `main` needs the user's confirmation whenever the product may already be live — defined once in
+`.harness/rules/autonomous-execution.md` § What needs the user. The steps are in the Onboard
+Mode section of `.claude/commands/deploy.md`; tell the user in plain words that code reaches
 their users only when they run `/deploy`.
 
 ### Working Out Each Value

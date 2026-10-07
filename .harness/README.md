@@ -91,6 +91,7 @@ to CommonJS so a project-level `"type": "module"` cannot change how Node loads t
 | `bin/check-task-contract.mjs` | Validates a todo's `## Delivery contract` block before implementation, including that `approved_by` names a person. Exit 0 ready; 1 not ready, unreadable or usage. |
 | `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete review round of any scope (todo, wave, fix, plan, analysis, codify) and enforces the round budget / reassessment rules. |
 | `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace workspaces/<project> --scope <scope>`), whether a todo is closed (`--workspace workspaces/<project> --todo <id>`), sweeps every completed todo (`--sweep workspaces`), and prints a receipt skeleton (`--template <scope>`). |
+| `bin/check-codify-allowlist.mjs` | `<base-ref> <head-ref>`: exit 0 only if an automatic `/codify` change stays inside the allowlist (`phases/codify.md` § Automatic runs); 1 findings, 2 usage or git error. |
 | `bin/check-browser-walk-receipts.mjs` | Checks a todo declares its browser walk (or why it does not apply). |
 
 ## Not included

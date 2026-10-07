@@ -49,7 +49,12 @@ Batching S4 fixes: up to five S4 records that touch the same area may share one 
 own failing test and its own `## Closure`; the round's scope is the first fix id, and every
 record names it.
 
-Use this shape for the record and keep it current through every step:
+The fix record lives on `main`, and the fix branch never adds or edits it, so the two never
+conflict. Open it (at intake, or `/deploy --rollback` opens it) and update it (status changes,
+the closure) only on a short record-only branch cut from `main` — `docs/<fix-id>-record-<n>` —
+merged at once (`.harness/guides/task-delivery.md` § Branches, pull requests and merging); this
+holds in light mode too. Use this shape for the record; fill in `## Reproduction`, `## Root
+cause`, `## Fix` and `## Review` with the closure, from the merged fix branch:
 
 ```markdown
 # f007 — <one-line symptom>
@@ -187,8 +192,10 @@ convergence gate.
 
 ## 8. Close
 
-Fill in `## Closure`: pull request, merge commit, deploy record, the live check, and set
-`Deploy hold: cleared` if a rollback had set it. Close the issue as completed with a comment
+Fill in the record's remaining sections and `## Closure`: pull request, merge commit, deploy
+record and the live check. A rollback's `Deploy hold: yes` is cleared by `/deploy` itself, in
+the deployment record of the user-started deploy that shipped the fix
+(`.claude/commands/deploy.md` Step 5). Close the issue as completed with a comment
 that cites the merge commit or pull request (`.claude/rules/git.md` § Discipline); closing it as
 won't-fix needs the user. Draft, in plain words, what was wrong and what changed for the
 reporter. A comment or message that reaches someone outside the repository's own team (an
@@ -196,7 +203,6 @@ outside reporter, email, chat) is sent only after the user approves the text
 (`.harness/rules/autonomous-execution.md` § What needs the user). If the bug taught something about the harness itself — a missing test pattern
 in a rule, a misleading phase step — create a journal entry with `tags: [harness]`
 (`/journal new DISCOVERY <slug>`); a lesson about the product gets no `harness` tag. Set
-`Status: closed`, and commit the record and any journal entry on a short
-`docs/<fix-id>-closure` branch cut from `main`, merged by pull request like any other branch to
-`main`. Then, if you created a `harness`-tagged entry, run `/codify`
+`Status: closed`, and commit the record and any journal entry on a record-only
+`docs/<fix-id>-record-<n>` branch cut from `main`, merged at once. Then, if you created a `harness`-tagged entry, run `/codify`
 (`.harness/phases/codify.md` § When it runs).

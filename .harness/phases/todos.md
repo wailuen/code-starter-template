@@ -91,19 +91,20 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    concisely. Update specs when planning legitimately changes an agreed contract.
 10. Stop for plan approval before implementation. Show the plan in plain language: what the
     user's users will be able to do after this wave, what is left for later waves, and any
-    external setup the wave needs, and — the first time — the delivery mode `/analyze`
-    recommended (`.harness/guides/task-delivery.md` § Light mode) and, in the first wave, the
-    push of the CI workflow. Ask the four questions in `.claude/rules/communication.md`
+    external setup the wave needs, the delivery mode the user picked in `/analyze`
+    (`.harness/guides/task-delivery.md` § Light mode) and, in the first wave, the push of the CI
+    workflow. Ask the four questions in `.claude/rules/communication.md`
     § Approval Gates, and say plainly that approving freezes this wave's scope: adding,
     dropping or changing a feature later means re-planning it under a new scope name (§ Changing
-    or cancelling approved scope), which costs a new planning review. Existing explicit approval
+    or cancelling approved scope), which costs a new plan approval (and, in standard mode, a
+    new planning review). Existing explicit approval
     remains valid; ask again only for material scope, authority, behavior or accepted-risk
     changes.
 11. After the user approves, write the wave's acceptance list to
     `workspaces/<project>/04-validate/acceptance-wNN.md`: the approval record (`approved_by`
     with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
     § Workspace file layout — naming anything else they approved with it, such as the delivery
-    mode or the CI workflow push; record the mode in the project profile), the scope name `wNN`, every current-wave todo id and each todo's
+    mode they chose or the CI workflow push), the scope name `wNN`, every current-wave todo id and each todo's
     acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
     contract, then run `node .harness/bin/check-task-contract.mjs <todo.md>` (the full check)
     on each. Never fill either before the user has approved, and never with an agent's name.
@@ -125,7 +126,7 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
    line `Parked: <date> — <reason>`; one the user no longer wants is deleted. Either way the
    journal entry names the file.
 4. The frozen `acceptance-wNN.md` is never edited. Re-plan the remaining work as a new scope
-   (the next unused letter: `wNNb`, then `wNNc`): run steps 7–11 for it on a `docs/wNNb-plan`
+   (the next unused letter: `wNNb`, then `wNNc`): run steps 7–11 for it (in light mode, without the planning review round) on a `docs/wNNb-plan`
    branch, with a new approval record. New todos keep the `wNN-MM-<slug>.md` naming with new
    item numbers (a `wNNb-` filename does not parse as an id). `acceptance-wNNb.md` lists every
    todo the wave still delivers — new ones and every already-completed todo the user keeps —
@@ -137,7 +138,7 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
    deleted, or — if the user wants to keep the code — kept and listed in `acceptance-wNNb.md`.
    The journal entry says which.
 6. Review rounds for `wNNb` run on the same wave branch and continue its round count and its
-   three-round budget; if that budget is spent, the wave goes to `/debug` or the user
+   three-round budget (in light mode: the wave's one CLEAR round); if that budget is spent, the wave goes to `/debug` or the user
    (task-delivery § Review protocol and circuit breaker). `/redteam` then certifies `wNNb`.
 7. Half-built todo branches: a kept todo continues on its branch; a dropped one is not merged.
    Keep the branch until the user agrees to delete it (deleting work is a user decision), and

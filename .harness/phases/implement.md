@@ -133,8 +133,9 @@ before the merge) → merge the wave branch into `main` by pull request (task-de
 Do not start the next wave until the previous wave's receipt is committed on `main` and
 `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` exits 0. Do not
 re-run `--scope` after the merge: later commits on `main` (fixes, `/codify`) make it fail by
-design. In light mode the gate is the wave's CLEAR review round and its merge into `main`
-(task-delivery § Light mode). The existing launch evidence, two clean rounds on one commit, accepted-residual
-and browser-walk requirements remain. Run
+design. In standard mode the existing launch evidence, two clean rounds on one commit,
+accepted-residual and browser-walk requirements remain; run
 `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`
-before claiming a covered todo closed. A circuit-breaker stop is never convergence.
+before claiming a covered todo closed. In light mode the gate is the wave's one CLEAR review
+round and its merge into `main`, and a todo is closed once its wave has merged; the checker is
+not run (task-delivery § Light mode). A circuit-breaker stop is never convergence.

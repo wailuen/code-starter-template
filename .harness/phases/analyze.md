@@ -17,8 +17,12 @@ harness's `.gitignore` entries into the project's own; if the repository require
 approving review on pull requests, tell the user that each merge will wait for that person;
 in standard mode, plan a first-wave todo that adds the
 `check-redteam-convergence-receipt.mjs --sweep workspaces` job to the existing CI (on `main`
-only, `.harness/phases/todos.md` § Workflow step 2); if the project already deploys from
-`main`, `/deploy --onboard` moves it to a `production` branch; and write the user's intended
+only, `.harness/phases/todos.md` § Workflow step 2); ask the user plainly, in the five-part
+format, whether the live site updates by itself when code changes are saved to the main copy
+(recommend treating "not sure" as yes), and record the answer in the project profile's
+§ Production — until `/deploy --onboard` moves deploys to a `production` branch, every merge
+into `main` then asks the user ("this may put it live for your users";
+`.harness/rules/autonomous-execution.md` § What needs the user); and write the user's intended
 change as the first brief. The output trees in § Output-Completeness Gate still apply — the analysis
 documents the current system and the change.
 
@@ -87,8 +91,10 @@ determine — project name, primary language(s), application shape, source/test 
 commands, test infrastructure — propose concrete values alongside the stack recommendation.
 Recommend a delivery mode in plain words (`.harness/guides/task-delivery.md` § Light mode):
 light for a one-person prototype or hobby with no real users' data or money, standard
-otherwise; the user chooses at plan approval. In light mode this phase has no separate review
-round (see task-delivery § Light mode).
+otherwise. The user picks it together with the stack, before `/todos`; write it to the profile's
+`delivery_mode` row (standard until they choose). In light mode this phase has no review round,
+and the analysis pull request merges once the user has approved the stack and mode
+(task-delivery § Light mode).
 The stack recommendation includes where the product will run (§ Production in the profile):
 a hosting option with its expected monthly cost, whether it needs a domain and a production
 database, and one cheaper or simpler alternative, in plain words the user can choose between.

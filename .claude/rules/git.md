@@ -18,7 +18,7 @@ fix(api): resolve rate limiting issue
 
 ## Branch Naming
 
-Format: `type/description` (e.g., `feat/add-auth`, `fix/api-timeout`). Branch types: `feat/`, `fix/`, `docs/`, `release/v<X.Y.Z>`, and `hotfix/` for an S1 production fix from `/fix`.
+Format: `type/description` (e.g., `feat/add-auth`, `fix/api-timeout`). Branch types: `feat/`, `fix/`, `docs/`, and `release/v<X.Y.Z>`. An S1 fix uses an ordinary `fix/<id>-<slug>` branch (`.harness/phases/fix.md`).
 
 Which branch each kind of work uses, what it is cut from and where it merges is defined once in `.harness/guides/task-delivery.md` § Branches, pull requests and merging. Follow that table; do not restate it elsewhere. Each branch has its own review-round budget there, which is why review kinds don't share a branch.
 

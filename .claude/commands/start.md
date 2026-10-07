@@ -43,7 +43,7 @@ AI asks you to run `/deploy` when something is ready.
 
 For a small personal project — a prototype or hobby with no real users' data or money —
 `/analyze` will suggest **light mode**: fewer review rounds and less paperwork, with the same
-tests and the same questions to you. You choose when you approve the first plan.
+tests and the same questions to you. You choose it in `/analyze`, together with the tech stack.
 
 ## Getting Started
 

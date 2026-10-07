@@ -59,9 +59,9 @@ routine review backlog.
 
 ## MUST-3 — Evidence follows artifact state
 
-Only complete reviews on the same pinned commit count toward the two clean rounds
-required by the final convergence checker (in light mode, see
-`.harness/guides/task-delivery.md` § Light mode). A shared dependency change invalidates
+Only complete reviews on the same pinned commit count. In standard mode a wave needs two
+clean rounds on one commit and the convergence checker's pass; in light mode a wave needs
+one CLEAR round (`.harness/guides/task-delivery.md` § Light mode). A shared dependency change invalidates
 evidence for its affected consumers. A duplicate reviewer delivery is not another
 round; one clear reviewer cannot clear a failing peer. Errored/missing evidence is
 not clean. Unchanged deterministic checks may be reused with exact source/environment
@@ -72,7 +72,7 @@ identity, but new or disputed properties require independent verification.
 Run `.harness/bin/record-review-round.mjs` after each complete round. It enforces two
 limits (exact behavior: `.harness/rules/redteam-stall-debug.md`):
 
-- **Round cap.** A scope gets three counted rounds in total, counted from the committed
+- **Round cap.** A branch gets three counted rounds in total, counted from the committed
   round records of that scope or branch (`.harness/rules/redteam-stall-debug.md` MUST-2;
   the convergence checker counts the same way, from round 1). A
   non-clean round at or past the cap makes the next round the branch's single `/debug`
@@ -89,8 +89,9 @@ Never wait for convergence before surfacing the architectural choice that could 
 loop.
 
 This bounds retries of an approach, not security obligations. Open bugs still block;
-a cap, replan, elapsed time, or exhausted budget is never success. The final
-convergence-receipt checker must still accept before closure. Do not mechanically
+a cap, replan, elapsed time, or exhausted budget is never success. The wave's
+final gate (the convergence checker in standard mode, the CLEAR wave round in light mode)
+must still pass before closure. Do not mechanically
 dispatch another pair of fresh reviewers with the same repair instructions.
 
 ## MUST-5 — Use the instrument appropriate to the property

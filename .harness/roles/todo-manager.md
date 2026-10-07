@@ -25,8 +25,10 @@ A todo's id comes from its filename: `w03-07-invite-flow.md` has id `w03-07` (wa
 1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. While a
    wave branch `feat/wNN-<slug>` is open, read that wave's todos from it
    (`git ls-tree -r --name-only feat/wNN-<slug> -- workspaces/<project>/todos/`): completed
-   todos stay there until the wave merges. For a
-   completed todo, run the read-only
+   todos stay there until the wave merges. In light mode (`delivery_mode: light` in
+   `.harness/guides/project-profile.md`) a completed todo is `CLOSED` once its wave branch has
+   merged into `main`; do not run the checker. In standard mode, for a completed todo, run the
+   read-only
    `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`:
    exit 0 means `CLOSED` (or `grandfathered — pre-gate` when it says so); anything else is
    "implemented — awaiting wave convergence". Never call a todo "done" from a file's location or

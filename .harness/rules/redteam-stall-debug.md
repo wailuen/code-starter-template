@@ -15,7 +15,8 @@ paths:
 Count complete review rounds, not reviewer messages. The orchestrator aggregates all
 expected reviewers on one pinned commit and runs
 `node .harness/bin/record-review-round.mjs <round.json>` per
-`.harness/guides/task-delivery.md`. The final convergence verifier remains separate.
+`.harness/guides/task-delivery.md`. The wave's final gate stays separate: the convergence
+checker in standard mode, or the one CLEAR wave round in light mode.
 
 The recorder enforces two independent limits on a branch, and whichever fires first
 wins: the **round cap** (MUST-3: three counted rounds, then one debug round, then a
@@ -85,12 +86,8 @@ does not try to detect every local git manipulation: rewriting local history (a 
 new scope on a new branch) can restart the count, and rewriting history already needs the
 user (`.harness/rules/autonomous-execution.md` § What needs the user).
 
-The convergence checker counts the same way: the counted rounds for the scope must start at
-round 1 with no gap, its cap check replays those same records, and a recorded round is
-never rewritten after the receipt's commit. The checker's findings
-(`cap-hit-understated`, `round-records-invalid`, `round-record-after-receipt`,
-`round-record-mismatch`) are explained in its own output and in
-`.harness/guides/review-round-recorder.md`.
+In standard mode the convergence checker counts the same way; its findings are explained
+in its own output and in `.harness/guides/review-round-recorder.md`.
 
 Duplicate rounds cannot increment; conflicting or out-of-order rounds are refused;
 errors and partial results never count as clean. Every recorded round prints the
@@ -101,10 +98,8 @@ gate review — the `/redteam` reviewers and the orchestrator who compiles the c
 receipt, read against the dispatch roster and the round files — is the backstop for whether
 a new key should have reused an existing one.
 Writes are serialized by `redteam-round.lock`; a busy or stale lock or corrupt state is
-reported, never reset silently. Exit codes: 0 with a `NEXT:` line (`FIX`, `REVIEW`,
-`REPAIR_ENVIRONMENT` or `VERIFY_CONVERGENCE_RECEIPT`); 2 for `REPLAN` or `DEBUG_ROUND` and 3
-for `ESCALATE_TO_HUMAN`, whether the round was recorded (its JSON is printed) or refused at
-that gate (nothing recorded); 1 for any other refusal, with nothing recorded. The recorder runs only through its CLI,
+reported, never reset silently. Its exit codes are listed in `.harness/guides/task-delivery.md` § Review protocol and
+circuit breaker; follow the `NEXT:` line it prints. The recorder runs only through its CLI,
 `.harness/bin/record-review-round.mjs`, which takes complete structured round JSON; there
 is no hook entry point. Individual prose
 verdicts are never round evidence — the orchestrator aggregates them and records the
@@ -124,7 +119,9 @@ Past the cap the recorder admits exactly four shapes and refuses everything else
 without recording it:
 
 - **(a) Same-head confirmation** of an immediately preceding first clean round — the
-  closing half of convergence, admitted once. `head` is the commit the reviewers checked
+  closing half of a standard-mode wave's convergence, admitted once (a light-mode wave, a
+  todo checkpoint, a fix and planning, analysis or codify reviews are done after one CLEAR
+  round). `head` is the commit the reviewers checked
   out, not the branch tip: committing the round's own record, reports and ledger rows on top
   does not move it, but any change to the reviewed code is a new cycle. Once the pair has closed, another round with the same
   lenses on the unchanged head reviews nothing and is refused inside or outside the cap.

@@ -44,23 +44,28 @@ harness lesson.
 **No confirmation needed** (inside approved work):
 
 - local commits;
-- pushing a `feat/`, `fix/`, `hotfix/`, `docs/` or `release/v*` branch, unless it changes
+- pushing a `feat/`, `fix/`, `docs/` or `release/v*` branch, unless it changes
   CI workflow files (below);
 - opening a pull request in this repository (for a security fix, see the disclosure item
   below);
 - merging a todo branch into its wave branch;
-- merging into `main` after the pull request's gate passed, unless the project profile
-  still says `main_deploys_live: unknown` (below):
-  - a wave: `check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <wave>`
-    exited 0 (in light mode, see `.harness/guides/task-delivery.md` § Light mode);
-  - a fix or an analysis (`docs/<slug>`): its one CLEAR review round was recorded;
-  - a plan (`docs/wNN-plan`): its CLEAR review round was recorded and the user approved the
-    plan;
-  - a record-only pull request: it changes only records — workspace files, deploy records
-    under `deploy/deployments/`, a sweep report, or a wave preview — and none of them is a
-    record of the user's own decision (an approval record, a wave preview's answer, a journal
-    entry marked `author: human` or `co-authored`, a `Deploy hold:` change). Those merge only
-    in the session where the user gave the words, with the words quoted;
+- merging into `main` after the pull request's gate passed, unless the product may already
+  be live (below):
+  - a wave: in standard mode,
+    `check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <wave>`
+    exited 0; in light mode, its one review round was recorded CLEAR
+    (`.harness/guides/task-delivery.md` § Light mode);
+  - a fix: its one CLEAR review round was recorded;
+  - an analysis (`docs/<slug>`) or a plan (`docs/wNN-plan`): after its CLEAR review round, or
+    in light mode after the user approved; a plan always only after the user approved it;
+  - a record-only pull request: it changes only records — review reports, round records,
+    journal entries, fix records, deploy records under `deploy/deployments/`, a sweep report or
+    a wave preview; never plans, specs, todos or code. A record of the user's own decision (an
+    approval record, a wave preview's answer, a journal entry marked `author: human` or
+    `co-authored`) merges only in the session where the user gave the words, with the words
+    quoted. A deploy hold set by a confirmed rollback, or cleared by the deploy record of the
+    confirmed deploy that shipped the fix, needs no further words — the user already
+    confirmed that rollback or deploy;
   - an automatic `/codify` pull request, or a `/codify` change the user approved, exactly as
     `.harness/phases/codify.md` § Automatic runs allows (an automatic merge needs
     `check-codify-allowlist.mjs` to exit 0);
@@ -98,14 +103,20 @@ release tag), never by merging into `main`. Only the user starts `/deploy` in a 
 changes production; an agent never deploys on its own.
 
 - deploying: moving `production` to a commit already on `main` through the project's deploy
-  command, including an S1 hotfix deploy — ask quickly, in plain words;
+  command. The user confirms by running `/deploy`; when an S1 fix is ready, ask them quickly,
+  in plain words, to run it. The first deploy creates the `production` branch;
 - every merge into `main` while the project profile says `main_deploys_live: unknown` (the
-  default until `/deploy` onboarding has checked that `main` does not deploy) and the
-  repository is connected to any host;
+  default until `/deploy` onboarding has checked that `main` does not deploy) and the product
+  may already be live. **May already be live** means any of: the profile's § Production names
+  a host; the repository has host configuration (`vercel.json`, `netlify.toml`, `fly.toml`,
+  `render.yaml`, `app.yaml`, a `Procfile`, or a `Dockerfile` together with a deploy
+  workflow) or a CI deploy job; or the user said it is hosted. Other files point to this
+  definition;
 - rolling back production: the host's `rollback_command` and pointing `production` back at
   the last good commit. `main` is never reverted for a rollback;
 - decommissioning the product (`/deploy --decommission`);
-- pushing a tag or publishing a release.
+- pushing a tag or publishing a release. When the host deploys from release tags, pushing a
+  release tag is a deploy, so it goes through `/deploy`, which the user starts.
 
 Anything outside this repository:
 
@@ -227,18 +238,19 @@ Record every complete review round with `.harness/bin/record-review-round.mjs`. 
 recorder enforces two limits; the exact behavior is in
 `.harness/rules/redteam-stall-debug.md`:
 
-- **Round cap.** A branch gets three counted rounds in total, and the count never
-  resets. If a round at or past the cap is not clean, the branch's next round must be
-  its single debug round (`/debug`, a new decision record, reviewers never used on the
-  branch). If that does not converge, a named human must accept each further round.
+- **Round cap.** A branch gets three counted rounds in total (counted from the committed
+  round records of its scope or branch, `.harness/rules/redteam-stall-debug.md` MUST-2). If
+  a round at or past the cap is not clean, the branch's next round must be its single debug
+  round (`/debug`, a new decision record, reviewers never used on the branch). If that does
+  not converge, the user must accept each further round.
 - **REPLAN.** A root cause recorded in any earlier non-clear round on the branch comes
   back, or four non-clean rounds pass in a row since the last decision record. Run
   `/debug` and record a changed approach before another repair cycle.
 
 The cap usually fires first. Security work follows the same limits while all unresolved
 security obligations remain blocking. An approved new approach restarts the REPLAN
-interval; it does not reset the round cap, erase failure history, or waive the final
-convergence verifier.
+interval; it does not reset the round cap, erase failure history, or waive the wave's final
+gate (the convergence check in standard mode, the CLEAR wave round in light mode).
 
 ## Handoff and recovery
 

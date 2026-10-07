@@ -17,6 +17,9 @@ unbounded obligations to the current task or dismiss a credible security issue.
 
 ## 1. Prepare a stable review
 
+In light mode the wave gets one review round and records no launch ledger
+(`.harness/guides/task-delivery.md` § Light mode); the rest of §§ 1–3 applies.
+
 Record scope, round number, target commit, acceptance IDs, expected reviewers and
 infrastructure ownership. Review depth scales with the change's risk; it never makes
 missing evidence clean. Security/trust-bearing changes require
@@ -139,7 +142,9 @@ A receipt the checker refuses is not a certificate and would block every todo it
 the wave merges, correct it in place: fix what the refusal names (a missing journal entry, a
 wrong field, a missing artifact) and commit the corrected receipt for the SAME scope in a NEW
 commit on the wave branch, then re-run `--scope`; the checker judges the receipt at its last
-commit (an uncommitted edit is refused as `receipt-rewritten`). Never copy round records. Only when the acceptance list itself changed does the wave move to a
+commit (an uncommitted edit is refused as `receipt-rewritten`). If only the journal entry was missing, commit it together with the receipt in one new commit
+(re-save the receipt unchanged apart from a trailing newline so it is part of that commit).
+Never copy round records. Only when the acceptance list itself changed does the wave move to a
 new scope name (`.harness/phases/todos.md` § Changing or cancelling approved scope). After the
 merge into `main`, a receipt is immutable (`receipt-rewritten`).
 
@@ -152,14 +157,16 @@ After the receipt check exits 0, in this order:
    committed with the receipt.
 2. If the user is here, ask whether it matches what they wanted
    (`.claude/rules/communication.md` § Asking the user to decide). If they are not, it stays
-   the first open question for `/ws` and `/wrapup`. Until they answer, `/deploy` refuses to
-   ship the wave (`.claude/commands/deploy.md` Step 1.3). When they answer, replace the last
-   line with their words and the date on a `docs/<scope>-preview` branch merged into `main`.
+   the first open question for `/ws` and `/wrapup`. Until they answer — and after a "no" until
+   its fix or scope change has landed — `/deploy` refuses to ship the wave
+   (`.claude/commands/deploy.md` Step 1.3). Record the answer by replacing the last line with
+   their words and the date: on the wave branch if they answer before the merge, otherwise on a
+   record-only `docs/<scope>-preview` branch cut from `main` after the merge (light mode too).
 3. Merge the wave branch into `main` by pull request: read CI on the pinned head SHA, then
    merge in a separate command with a merge commit (task-delivery § Branches, pull requests
    and merging). Merging deploys nothing and needs no confirmation, except while the project
-   profile's `main_deploys_live` is `unknown` (`.harness/rules/autonomous-execution.md`
-   § What needs the user). If this merge waits for the user, stop here: steps 4 and 5 run after
+   profile's `main_deploys_live` is `unknown` and the product may already be live
+   (`.harness/rules/autonomous-execution.md` § What needs the user defines it). If this merge waits for the user, stop here: steps 4 and 5 run after
    it, and `/ws` lists the waiting merge.
 4. Run `/codify` on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md`
    § When it runs).

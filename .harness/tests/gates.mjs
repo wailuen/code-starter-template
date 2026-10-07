@@ -630,6 +630,14 @@ test("convergence receipt ties every round to a saved report and a matching comm
 
 // ---- round 3: counting by scope or branch, receipt pin, non-ASCII paths, codify allowlist -------
 
+test("after one CLEAR round the recorder says only a standard-mode wave needs a second clean round", (t) => {
+  const { record } = recorderRepo(t);
+  const first = record(1, "CLEAR");
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stdout, /Only a standard-mode wave convergence \(\/redteam, scope wNN\) needs this second clean round/);
+  assert.match(first.stdout, /a light-mode wave, a todo checkpoint, a \/fix branch, a planning review, an analysis review or a codify review is done after one complete CLEAR round/);
+});
+
 test("the rebuilt count follows the scope or the branch: a todo branch cut from a wave branch starts at round 1", (t) => {
   const fx = recorderRepo(t);
   for (const n of [1, 2]) assert.equal(fx.record(n, "NOT_CLEAR").status, 0);
@@ -709,6 +717,20 @@ test("the checker counts by scope or branch from round 1: inherited failed round
   assert.match(later.stdout, /round-record-after-receipt — .*round-w01-1\.json changed after the receipt/);
 });
 
+test("a journal entry committed after the receipt is refused with the recovery step, and the recovery passes", (t) => {
+  const late = wave(t, ({ ws, rm }) => { rm(`${ws}/journal/0001-DECISION-w01.md`); }, { after: ({ dir, ws }) => {
+    put(dir, `${ws}/journal/0001-DECISION-w01.md`, "# w01 converged (synthetic fixture)\n");
+    git(dir, "add", "-A"); git(dir, "commit", "-qm", "journal entry after the receipt");
+  } });
+  assert.equal(late.status, 1, late.stdout);
+  assert.match(late.stdout, /journal-postdate-receipt — .*re-commit the receipt in the same commit as the journal entry/);
+  const path = join(late.dir, `${late.ws}/04-validate/convergence-w01.json`);
+  writeFileSync(path, readFileSync(path, "utf8") + "\n");
+  git(late.dir, "add", "-A"); git(late.dir, "commit", "-qm", "re-commit the receipt");
+  const fixed = late.check("--scope", "w01");
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
+});
+
 test("before the merge a refused receipt is corrected in a later commit; after the merge it is immutable", (t) => {
   const refused = wave(t, ({ receipt }) => { receipt.acceptance_list.ratified_by = "codex"; });
   assert.equal(refused.status, 1);
@@ -778,6 +800,20 @@ test("codify allowlist: allowlisted guide, backlog, appended log rows and eviden
     put(dir, "workspaces/demo/journal/0002-DECISION-codify-ok.md", "summary\n");
   });
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+});
+
+test("codify allowlist: the -ask-review record-only branch (review report, round record, held log row) may merge without the user", (t) => {
+  const { dir, log, branch } = codifyRepo(t);
+  const askReview = branch("docs/codify-x-ask-review", () => {
+    put(dir, ".harness/reviews/codify-x-ask-correctness-r1.md", "Verdict: CLEAR\n");
+    put(dir, ".harness/reviews/round-codify-x-ask-1.json", "{}\n");
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-x-ask | .harness/backlog/harness-01-a.md | awaiting user | held for the user's confirmation — PR #9 |\n");
+  });
+  assert.equal(askReview.status, 0, askReview.stdout + askReview.stderr);
+  const wording = branch("docs/codify-y-ask-review", () => {
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-y-ask | .harness/backlog/harness-01-a.md | awaiting user | needs the user's approval |\n");
+  });
+  assert.equal(wording.status, 1, "control: wording that reads as a user's answer is refused; say 'held for the user's confirmation'");
 });
 
 test("codify allowlist refuses case collisions, excluded guides, renames, deletions, symlinks, modes, edited or user-answer log rows and other paths", (t) => {

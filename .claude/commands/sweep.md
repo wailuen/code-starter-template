@@ -164,7 +164,8 @@ downgrading one needs the user (`.harness/rules/autonomous-execution.md` § What
 
 Classify lessons exactly as `.harness/phases/learn.md` step 1 does. Surface open lessons (the
 next `/codify` folds them in), waiting ones as questions for the user, deferred ones whose
-revisit condition is now met, and `.harness/backlog/` items with no codify-log row.
+revisit condition is now met; list in-progress lessons (in an open codify pull request) with
+that pull request, not as open.
 
 ## Output
 
