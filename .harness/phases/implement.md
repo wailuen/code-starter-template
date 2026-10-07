@@ -57,6 +57,9 @@ checkpoint; preserve existing defects and security obligations when revising the
 
 ## 3. Verify at a stable checkpoint
 
+In light mode there is no checkpoint review round for a todo (task-delivery § Light mode);
+everything else in this section still applies.
+
 Run targeted tests during edits and affected regression checks once at completion.
 Review one coherent checkpoint, not every file edit or bookkeeping commit. Independent
 correctness review is required; security/trust-bearing work also gets independent
@@ -87,7 +90,8 @@ and walk the product's real interface instead (a command-line tool's commands, a
 a real client): record it under `### Walk receipt` with the same `Steps:`, `Observed:` and
 `Disposition:` lines. The checker reads only the browser declaration; the reviewer checks the
 walk receipt (`.claude/rules/user-flow-validation.md`).
-The not-applicable reason must be at least two words and eight letters ("no UI" fails); the
+The not-applicable reason must be at least two words and eight letters ("no UI", "CLI only",
+"backend" fail; "backend only" passes); the
 line may be indented by at most three spaces (four spaces or a tab make it a code block, which
 is ignored, as are fenced lines; a fence closes only with the same character at least as long
 as its opening). Run `node .harness/bin/check-browser-walk-receipts.mjs <todo.md>`;
@@ -129,7 +133,8 @@ before the merge) → merge the wave branch into `main` by pull request (task-de
 Do not start the next wave until the previous wave's receipt is committed on `main` and
 `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` exits 0. Do not
 re-run `--scope` after the merge: later commits on `main` (fixes, `/codify`) make it fail by
-design. The existing launch evidence, two clean rounds on one commit, accepted-residual
+design. In light mode the gate is the wave's CLEAR review round and its merge into `main`
+(task-delivery § Light mode). The existing launch evidence, two clean rounds on one commit, accepted-residual
 and browser-walk requirements remain. Run
 `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`
 before claiming a covered todo closed. A circuit-breaker stop is never convergence.

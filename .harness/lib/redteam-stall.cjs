@@ -101,7 +101,8 @@ function describeNext({ action, cleanRounds, head, streakReset, capReached, revi
   }
   if (action === "DEBUG_ROUND") {
     return `NEXT: the ${TOTAL_ROUND_CAP}-round cap is reached without convergence. Repair the findings, then the ONLY round this branch can still record is its single /debug round: ` +
-      `debug: true, a new decision record in replan, and expected_reviewers never used on this branch (already used: ${reviewersSeen.join(", ")}). ` +
+      `debug: true, a new decision record in replan, and expected_reviewers never used on this branch, named <lens>-debug (e.g. correctness-debug, security-debug; already used: ${reviewersSeen.join(", ")}). ` +
+      "Its same-head confirmation round, if it is clean, omits debug: true. " +
       "If that round does not converge, the branch escalates to a named human." +
       (replanRequired ? " REPLAN also fires; the decision record must address it." : "");
   }
@@ -438,24 +439,41 @@ function writeState(repoDir, state) {
   finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
 }
 
+// The scope a round record belongs to, from its file name `round-<scope>-<n>.json` (null if not that shape).
+function scopeOfRecordPath(p) {
+  const m = path.posix.basename(String(p)).match(/^round-(.+)-(\d+)\.json$/);
+  return m ? m[1] : null;
+}
+
 // The state file is gitignored and local to one checkout. When it holds nothing for this
-// branch (deleted, a fresh clone, another machine, a renamed branch), the budget is rebuilt
-// by replaying, in round order, EVERY round record ever added to the branch's own history —
-// each as it was first committed, so a later edit or deletion changes nothing — through
-// advanceRound, the same gates that admitted them. `history` is a list of
-// {path, commit, text}; the CLI collects it from the non-merge commits on the branch's
-// first-parent line that are not on the integration branch, so a branch cut from another
-// branch with recorded rounds inherits them. Fail closed: a record that does not parse or
-// is not a complete round, two different records for one round number, a history that does
-// not start at round 1, or a new round that is not the next one after the history, refuses
-// the round instead of starting the count again.
-function rebuildFromHistory(round, history, ctx, legacySeed) {
-  const fail = (why) => new Error(`Cannot rebuild the review budget for ${round.branch} from its committed round records: ${why}. ` +
-    `Restore .claude/learning/${STATE_FILE}, or repair the history; a missing or edited history is never a fresh budget`);
+// branch (deleted, a fresh clone, another machine), the count is rebuilt by replaying, in
+// round order, the committed round records that belong to this review: a record whose file
+// names the SAME SCOPE, or whose `branch` is THIS BRANCH. So a branch renamed or re-cut for the
+// same scope keeps its count, while a todo branch cut from a wave branch does not inherit the
+// wave's rounds. `history` is a list of {path, commit, text}: every record ever added in the
+// branch's history, as first committed (the CLI collects it), so deleting or editing a record
+// later changes nothing.
+//
+// What this does NOT do: the budget is an aid against endless review loops, not a security
+// control. Rewriting local history (a reset, a new branch from `main` under a new scope name)
+// can still start a fresh count; rewriting history already needs the user
+// (`.harness/rules/autonomous-execution.md` § What needs the user).
+//
+// Refused with nothing recorded: a record of this scope that does not parse or is not a
+// complete round, two different records for one round number, counted records that do not
+// start at round 1, and a new round that is not the next one after them.
+function rebuildFromHistory(round, history, ctx, legacySeed, scope) {
+  const fail = (why) => new Error(`Cannot rebuild the review count for ${round.branch} from its committed round records: ${why}. ` +
+    `Restore .claude/learning/${STATE_FILE} if it was lost, or repair the records`);
   const byRound = new Map();
   for (const entry of history || []) {
+    const entryScope = scopeOfRecordPath(entry.path);
+    let parsed = null;
+    try { parsed = JSON.parse(entry.text); } catch { /* judged below */ }
+    const ours = (scope && entryScope === scope) || (parsed && typeof parsed === "object" && parsed.branch === round.branch);
+    if (!ours) continue;
     let record;
-    try { record = canonicalizeRound(normalizeRound(JSON.parse(entry.text)), { ...ctx, require: false }); }
+    try { record = canonicalizeRound(normalizeRound(parsed), { ...ctx, require: false }); }
     catch (error) { throw fail(`${entry.path} as added in ${String(entry.commit).slice(0, 12)} is not a complete round record (${error.message})`); }
     const fingerprint = JSON.stringify(record);
     const seen = byRound.get(record.round);
@@ -471,9 +489,9 @@ function rebuildFromHistory(round, history, ctx, legacySeed) {
   }
   const last = state ? state.lastRound : 0;
   if (round.round !== last + 1 && !(state && round.round === last && byRound.get(last).fingerprint === JSON.stringify(round))) {
-    throw new Error(`round ${round.round} refused: there is no review state for ${round.branch} in this checkout, and the branch's committed history ` +
-      `${last ? `already holds rounds 1-${last} (deleted or edited records included), so the next round is ${last + 1}` : `holds no round records, so the first round is 1`}. ` +
-      `Restore .claude/learning/${STATE_FILE} if it was lost; a missing or edited history is never a fresh budget`);
+    throw new Error(`round ${round.round} refused: there is no review state for ${round.branch} in this checkout, and the committed records of ` +
+      `this scope or branch ${last ? `already hold rounds 1-${last} (deleted or edited records included), so the next round is ${last + 1}` : `hold no rounds, so the first round is 1`}. ` +
+      `Restore .claude/learning/${STATE_FILE} if it was lost`);
   }
   return { state, replayed: rounds.length };
 }
@@ -506,7 +524,7 @@ function recordRound(repoDir, input, options = {}) {
     let rebuilt = null;
     if (!previous) {
       const history = typeof options.history === "function" ? options.history(round.branch) : [];
-      const result = rebuildFromHistory(round, history, ctx, options.legacySeed);
+      const result = rebuildFromHistory(round, history, ctx, options.legacySeed, options.scope);
       previous = result.state;
       if (result.replayed) rebuilt = result.replayed;
     }
@@ -521,4 +539,4 @@ function recordRound(repoDir, input, options = {}) {
 }
 
 module.exports = { FIRING_THRESHOLD, TOTAL_ROUND_CAP, ERROR_RERUN_LIMIT, normalizeRound, advanceRound, readState, writeState,
-  recordRound, findCheckoutRoot, resolveCitation };
+  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath };

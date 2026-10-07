@@ -24,6 +24,12 @@ kubeconfig
 .docker/config.json
 *.tfstate*
 .terraform/
+*.tfvars
+.kube/
+*.p8
+*.jks
+.dev.vars
+.pgpass
 
 # Local deploy cache — the deployed revision comes from deploy_check_command, not this file
 deploy/.last-deployed

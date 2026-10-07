@@ -49,40 +49,36 @@ harness lesson.
 - opening a pull request in this repository (for a security fix, see the disclosure item
   below);
 - merging a todo branch into its wave branch;
-- merging into `main` after the pull request's gate passed, unless the project profile says
-  `main` deploys automatically (below):
+- merging into `main` after the pull request's gate passed, unless the project profile
+  still says `main_deploys_live: unknown` (below):
   - a wave: `check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --scope <wave>`
-    exited 0;
-  - a fix, an analysis (`docs/<slug>`) or a plan (`docs/wNN-plan`): its one CLEAR review
-    round was recorded;
+    exited 0 (in light mode, see `.harness/guides/task-delivery.md` § Light mode);
+  - a fix or an analysis (`docs/<slug>`): its one CLEAR review round was recorded;
+  - a plan (`docs/wNN-plan`): its CLEAR review round was recorded and the user approved the
+    plan;
   - a record-only pull request: it changes only records — workspace files, deploy records
-    under `deploy/deployments/`, a sweep report, or a wave preview;
-  - an automatic `/codify` pull request whose every changed file is on its allowlist:
-    `.harness/guides/**` except `task-delivery.md` and `project-profile.md`;
-    `.harness/backlog/**`; rows the run appends to `.harness/codify-log.md` with the outcome
-    `folded in`, `declined`, `deferred` or `awaiting user` (never a row recording a user's
-    answer); and the run's own evidence (its review report and round record under
-    `.harness/reviews/` or the workspace `04-validate/`, and its `DECISION` journal summary).
-    Skills and commands are not on the allowlist. Details: `.harness/phases/codify.md`;
-  - a `/codify` answer pull request (`docs/codify-<slug>-answer`), which records the user's
-    answer to a waiting change — `folded in` or `declined` rows quoting their words and the
-    date — deletes the holding backlog item if any, and makes a backlog-held change they
-    approved (`.harness/phases/codify.md` § Automatic runs): it merges without further confirmation only in the
-    session where the user gave that answer, because the answer is the approval. In any
-    other session it waits for the user;
+    under `deploy/deployments/`, a sweep report, or a wave preview — and none of them is a
+    record of the user's own decision (an approval record, a wave preview's answer, a journal
+    entry marked `author: human` or `co-authored`, a `Deploy hold:` change). Those merge only
+    in the session where the user gave the words, with the words quoted;
+  - an automatic `/codify` pull request, or a `/codify` change the user approved, exactly as
+    `.harness/phases/codify.md` § Automatic runs allows (an automatic merge needs
+    `check-codify-allowlist.mjs` to exit 0);
 - deleting a work branch after its pull request merged;
+- running `/deploy --check`, which only reads;
 - reversible edits inside the approved scope, routine implementation, diagnosis, test runs,
   independent review and root-cause fixes inside the approved scope.
 
 **Needs the user's confirmation every time**, unless the user authorized that specific
-action in this session. Record the user's words where the decision is recorded; person-only
-fields (`approved_by`, `ratified_by`, `accepted_by`, an escalation or replan acceptor) hold
-the user's name and are never filled before they answer.
+action in this session. Record the user's words where the decision is recorded. Person-only
+fields hold the user's name and are never filled before they answer
+(`.harness/rules/completion-criterion.md` MUST-1).
 
 Decisions about the work:
 
 - approving the plan (`.harness/phases/todos.md`), including the stack and hosting choice
-  `/analyze` proposes;
+  `/analyze` proposes and, for the first wave, the push of its CI workflow — the plan names
+  that push and the approval record quotes the user's yes to it;
 - changing approved scope — adding, dropping or swapping approved work, mid-wave or not
   (`.harness/phases/todos.md` § Changing or cancelling approved scope). `/autonomize` does
   not override this;
@@ -95,16 +91,19 @@ Decisions about the work:
 - a user-visible deviation from a spec (`.claude/rules/specs-authority.md` Rule 6);
 - breaking a public surface without a deprecation period (`.claude/rules/zero-tolerance.md`
   Rule 6a);
-- removing or downgrading a dependency.
+- removing a dependency the product still uses, or downgrading one.
 
-Production and releases:
+Production and releases. Code reaches users only from the `production` branch (or a
+release tag), never by merging into `main`. Only the user starts `/deploy` in a mode that
+changes production; an agent never deploys on its own.
 
-- deploying to production, including an S1 hotfix deploy — ask quickly, in plain words;
-- merging anything into `main` when the project profile says `main` deploys automatically
-  (`main_auto_deploys: yes`): that merge is a deploy, so it needs this confirmation and is
-  refused while a deploy hold is open;
-- rolling back production; when `main` deploys automatically, the confirmed rollback also
-  reverts the bad merge on `main` by pull request, so it is not deployed again;
+- deploying: moving `production` to a commit already on `main` through the project's deploy
+  command, including an S1 hotfix deploy — ask quickly, in plain words;
+- every merge into `main` while the project profile says `main_deploys_live: unknown` (the
+  default until `/deploy` onboarding has checked that `main` does not deploy) and the
+  repository is connected to any host;
+- rolling back production: the host's `rollback_command` and pointing `production` back at
+  the last good commit. `main` is never reverted for a rollback;
 - decommissioning the product (`/deploy --decommission`);
 - pushing a tag or publishing a release.
 
@@ -112,11 +111,13 @@ Anything outside this repository:
 
 - messages to people outside the repository: issue or pull request comments addressed to
   others, telling a reporter, emails, chat posts, uploads to third-party services;
-- publishing details of a security fix before the fix is deployed: keep the work on a
-  private branch or a private security advisory, and keep public commit, pull request and
-  issue text free of the vulnerability's details until the user has confirmed the deploy;
+- publishing details of a security fix, of any severity, before the fix is deployed: in a
+  public repository keep the work on a private fork or a private security advisory, or keep
+  public commit, pull request and issue text to a minimal description, until the user has
+  confirmed the deploy;
 - pushing a change to CI workflow files (for example `.github/workflows/**`), which runs with
-  the repository's secrets as soon as it is pushed.
+  the repository's secrets as soon as it is pushed — except the first wave's workflow the user
+  approved with the plan (above).
 
 Destructive or exposing actions:
 
@@ -124,7 +125,8 @@ Destructive or exposing actions:
   above);
 - killing processes you did not start, or overwriting uncommitted changes you did not make;
 - dropping tables or running migrations against a shared or production database;
-- force-pushing, or rewriting published history;
+- force-pushing, or rewriting history — published history, or local history that holds
+  review records (rewriting it to win back review rounds is exactly this);
 - raising content's exposure — a secret or personal data into a commit, journal or doc,
   private config into a shared file, one tenant's data into a global one
   (`.claude/rules/security.md` § MUST NOT; `.claude/rules/recommendation-quality.md` MUST-8).
@@ -133,8 +135,8 @@ Repository, money and merges:
 
 - changing repository settings (branch protection, secrets, collaborators, webhooks);
 - anything that costs money;
-- merging a `/codify` change outside the allowlist above (the `docs/codify-<slug>-ask` pull
-  request): the run opens it, leaves it open and logs `awaiting user`;
+- merging a held `/codify` change (`docs/codify-<slug>-ask`), as
+  `.harness/phases/codify.md` § Automatic runs describes;
 - merging with `gh pr merge --admin`, which bypasses branch protection. Never use it in an
   automatic run; use it only when the user asks for it on that pull request.
 

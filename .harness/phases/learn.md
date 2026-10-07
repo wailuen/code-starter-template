@@ -7,7 +7,10 @@ For `/learn`, report what's been captured but not yet folded into the harness vi
    they are on `main` (`git ls-tree -r main --name-only`; lessons only on an unmerged branch are not
    counted until that branch merges). Look up its full path in `.harness/codify-log.md` on
    `main`; the latest row for that path decides its state:
-   - no row → **open**;
+   - no row, but the path appears in `.harness/codify-log.md` on an open, unmerged
+     `docs/codify-*` branch (`git branch -a --no-merged main --list '*docs/codify-*'`) → **in
+     progress**: a codify pull request already covers it, so it never starts another run;
+   - no row anywhere → **open**;
    - `folded in` or `declined` → closed (a declined lesson reopens only through a new journal
      entry that adds evidence, which is itself a new lesson);
    - `deferred` → **deferred**: listed separately with its revisit condition, not open, so it
@@ -17,10 +20,9 @@ For `/learn`, report what's been captured but not yet folded into the harness vi
      not open, so it never starts an automatic `/codify` run on its own.
 
    Product journal entries (DISCOVERY, GAP, TRADE-OFF and the rest without the `harness` tag)
-   are not lessons; `/ws` shows open product questions separately. A backlog item `/codify`
-   filed to hold a waiting change has its own `awaiting user` row, so it shows as waiting, not
-   open. Order lessons by path.
-2. Report the open ones grouped by topic, then the waiting ones, then the deferred ones, so
+   are not lessons; `/ws` shows open product questions separately. Order lessons by path.
+2. Report the open ones grouped by topic, then the in-progress ones (with their pull request),
+   the waiting ones, then the deferred ones, so
    `/codify` and the user can pick them up. This works with or without a workspace.
 
 This is read-only status — it does not change any file or grant any write authority. Report

@@ -38,7 +38,12 @@ a release; the AI recommends the version number.
 
 Things the AI always asks you first: approving a plan, putting changes live or undoing them,
 spending money, deleting things, publishing a release, and sending messages to people outside the project. The full list is in
-`.harness/rules/autonomous-execution.md` § What needs the user.
+`.harness/rules/autonomous-execution.md` § What needs the user. Only you put changes live: the
+AI asks you to run `/deploy` when something is ready.
+
+For a small personal project — a prototype or hobby with no real users' data or money —
+`/analyze` will suggest **light mode**: fewer review rounds and less paperwork, with the same
+tests and the same questions to you. You choose when you approve the first plan.
 
 ## Getting Started
 

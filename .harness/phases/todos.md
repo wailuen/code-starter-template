@@ -40,15 +40,17 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 2. Declare `workspaces/<project>/todos/WAVE-SEQUENCE.md`, ordered by user value and dependencies. Every
    requirement has a roadmap owner, including testing, integration and deployment. The first
    wave of a new repository also owns its setup: a CI workflow that runs the project profile's
-   Local CI parity command on every pull request, plus
+   Local CI parity command on every pull request, plus — in standard mode —
    `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` on pushes to
    `main` and pull requests into `main` only (todo and wave branches carry todos that are not
-   converged yet), and branch protection on `main` requiring it
+   converged yet); a health endpoint when the product will be deployed; and branch protection
+   on `main` requiring the CI check
    (a repository-settings change, so the user confirms it — `.harness/rules/autonomous-execution.md`
    § What needs the user). Branch protection is optional: on a private repository it may need a
    paid GitHub plan, so say so in the plan and let the user choose. Without required checks,
    every merge runs Local CI parity on the pinned head first (task-delivery § Branches, pull
-   requests and merging, step 4).
+   requests and merging, step 4). Pushing the CI workflow needs the user's OK; ask for it as
+   part of plan approval (step 10) and name it in the approval record.
    A one-wave plan states why it fits one convergence surface.
 3. Slice by observable outcome. Prefer one small real caller→component→data-store
    scenario per todo. Split build and wire only with the independently testable interface
@@ -72,7 +74,8 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    invariants and ≤3–4 reasoning hops. Count dependencies and verification complexity;
    three long sentences do not make a large task small. Reassess if implementation grows
    materially beyond the estimate. Preserve the outcome when splitting.
-7. Freeze the expectations of new actionable units, so `/implement` § 3b Expectation
+7. (In light mode there is no planning review round; see task-delivery § Light mode.) Freeze
+   the expectations of new actionable units, so `/implement` § 3b Expectation
    coverage can check them. Have an
    independent planning reviewer check the integrated scenario, boundary assumptions,
    dependency readiness and negative controls. Classify new findings before expanding
@@ -88,7 +91,9 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    concisely. Update specs when planning legitimately changes an agreed contract.
 10. Stop for plan approval before implementation. Show the plan in plain language: what the
     user's users will be able to do after this wave, what is left for later waves, and any
-    external setup the wave needs. Ask the four questions in `.claude/rules/communication.md`
+    external setup the wave needs, and — the first time — the delivery mode `/analyze`
+    recommended (`.harness/guides/task-delivery.md` § Light mode) and, in the first wave, the
+    push of the CI workflow. Ask the four questions in `.claude/rules/communication.md`
     § Approval Gates, and say plainly that approving freezes this wave's scope: adding,
     dropping or changing a feature later means re-planning it under a new scope name (§ Changing
     or cancelling approved scope), which costs a new planning review. Existing explicit approval
@@ -97,14 +102,15 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 11. After the user approves, write the wave's acceptance list to
     `workspaces/<project>/04-validate/acceptance-wNN.md`: the approval record (`approved_by`
     with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
-    § Workspace file layout), the scope name `wNN`, every current-wave todo id and each todo's
+    § Workspace file layout — naming anything else they approved with it, such as the delivery
+    mode or the CI workflow push; record the mode in the project profile), the scope name `wNN`, every current-wave todo id and each todo's
     acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
     contract, then run `node .harness/bin/check-task-contract.mjs <todo.md>` (the full check)
     on each. Never fill either before the user has approved, and never with an agent's name.
     Commit it with the todos; never edit it afterwards — the convergence receipt
     requires it byte-identical at the verdict commit, so changed acceptance means a new scope.
-    Then merge the plan branch into `main` (task-delivery § Branches, pull requests and
-    merging).
+    Only now — after the user approved — merge the plan branch into `main` (task-delivery
+    § Branches, pull requests and merging).
 
 ## Changing or cancelling approved scope
 
@@ -121,7 +127,9 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
 4. The frozen `acceptance-wNN.md` is never edited. Re-plan the remaining work as a new scope
    (the next unused letter: `wNNb`, then `wNNc`): run steps 7–11 for it on a `docs/wNNb-plan`
    branch, with a new approval record. New todos keep the `wNN-MM-<slug>.md` naming with new
-   item numbers (a `wNNb-` filename does not parse as an id). Commit `acceptance-wNNb.md` and
+   item numbers (a `wNNb-` filename does not parse as an id). `acceptance-wNNb.md` lists every
+   todo the wave still delivers — new ones and every already-completed todo the user keeps —
+   so none is left uncovered by a receipt. Commit `acceptance-wNNb.md` and
    the changed todos on the wave branch itself, so the wave's receipt can see them, and in the
    plan branch's pull request into `main`.
 5. A dropped todo already merged into the wave branch is either reverted on the wave branch

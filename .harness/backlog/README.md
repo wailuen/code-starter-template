@@ -7,11 +7,10 @@ list with something the user never asked for.
 
 ## Filing an item
 
-One file per item: `harness-NN-<slug>.md`, where `NN` is a flat, incrementing number — check
-the highest existing number in this directory — on the current branch, on `main` and on every
-unmerged local branch (`git ls-tree -r <branch> --name-only -- .harness/backlog/`) — before
-assigning a new one. Do not reuse a
-number, even after a file is resolved and removed.
+One file per item: `harness-NN-<slug>.md`, where `NN` is one above the highest number ever used
+in git history on any branch, including items since deleted
+(`git log --all --diff-filter=A --name-only --format= -- .harness/backlog/`). Never reuse a
+number.
 
 Each file should state: what's wrong, why it matters, and (if known) the fix. No fixed
 template beyond that — this is a lightweight backlog, not a spec.

@@ -2,9 +2,12 @@
 priority: 10
 scope: path-scoped
 paths:
-  - ".claude/agents/**"
-  - ".claude/commands/**"
-  - ".harness/phases/**"
+  - ".harness/phases/implement.md"
+  - ".harness/phases/redteam.md"
+  - ".harness/phases/fix.md"
+  - ".harness/phases/debug.md"
+  - ".harness/phases/codify.md"
+  - ".claude/commands/worktree.md"
   - "**/*worktree*"
 ---
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, basename } from "node:path";
 import { execFileSync } from "node:child_process";
-import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation } from "../lib/redteam-stall.cjs";
+import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 
 // 2 = reassess before another round (REPLAN, or the cap's single debug round);
@@ -39,26 +39,20 @@ function legacySeedFrom(file, round, cwd) {
   return { replansConsumed, reviewersSeen: [...reviewersSeen].sort() };
 }
 
-// Every round record ever ADDED to the branch's own history, as it was first committed: the
-// non-merge commits on the branch's first-parent line that are not on the integration branch
-// (origin/HEAD, else origin/main, else main). A record deleted or edited later still counts
-// as first added; a branch cut from another branch inherits that branch's records; work
-// merged in from other branches (a todo branch into its wave) is not this branch's history.
-// The recorder replays this only when this checkout holds no state for the branch.
+// Every round record ever ADDED in the branch's history (all commits reachable from it), as
+// first committed, oldest first. The recorder keeps only those of this scope or this branch
+// (redteam-stall.cjs rebuildFromHistory). Paths are read with core.quotePath off, so a
+// non-ASCII workspace name is matched as written.
 const ROUND_RECORD_RE = /(?:^|\/)(?:04-validate|\.harness\/reviews)\/round-[^/]+\.json$/;
 function committedRoundRecords(cwd) {
   return (branch) => {
-    const git = (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
-    const tryRef = (ref) => { try { return git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).trim(); } catch { return null; } };
-    let integration = null;
-    try { integration = git(["symbolic-ref", "-q", "refs/remotes/origin/HEAD"]).trim(); } catch { /* none */ }
-    if (!integration || !tryRef(integration)) integration = ["refs/remotes/origin/main", "refs/heads/main"].find(tryRef) || null;
+    const git = (args) => execFileSync("git", ["-c", "core.quotePath=false", ...args],
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
     const ref = `refs/heads/${branch}`;
-    const exclude = integration && tryRef(integration) !== tryRef(ref) && integration !== ref ? ["--not", integration] : [];
-    const log = git(["log", "--first-parent", "--no-merges", "--reverse", "--diff-filter=A", "--format=%x00%H", "--name-only", ref, ...exclude]);
+    const log = git(["log", "--reverse", "--no-renames", "--diff-filter=A", "--format=%x00%H", "--name-only", ref]);
     const records = [];
     for (const chunk of log.split("\0").filter(Boolean)) {
-      const [commit, ...paths] = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+      const [commit, ...paths] = chunk.split("\n").filter((l) => l.length);
       for (const path of paths) {
         if (ROUND_RECORD_RE.test(path)) records.push({ path, commit, text: git(["show", `${commit}:${path}`]) });
       }
@@ -75,7 +69,7 @@ try {
   if (!target.ok) throw new Error(`Cannot resolve shared review state: ${target.reason}`);
   const cwd = process.cwd();
   const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd),
-    history: committedRoundRecords(cwd) });
+    history: committedRoundRecords(cwd), scope: scopeOfRecordPath(basename(file)) });
   console.log(JSON.stringify({ branch: round.branch, round: round.round, ...outcome }));
   if (outcome.next) console.log(outcome.next);
   process.exitCode = EXIT_CODES[outcome.action] ?? 0;

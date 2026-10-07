@@ -72,7 +72,8 @@ experiment. The next complete-round JSON cites the decision file as `replan`
 recorder keeps the branch's full root-cause history and round count; a decision record
 starts a new non-clear streak but never resets the three-round budget. After
 `DEBUG_ROUND`, the next round is the branch's single debug round: `"debug": true`, this
-new `replan`, and reviewer ids named `<lens>-debug` (`correctness-debug`, `security-debug`), never used on the branch.
+new `replan`, and reviewer ids named `<lens>-debug` (`correctness-debug`, `security-debug`), never used on the branch. The same-head confirmation after a clean debug round reuses those ids and
+omits `"debug": true`.
 If `replan_closes` claims a root cause is closed, a later recurrence of it fires again.
 Leaving a root cause knowingly recurring (`replan_accepts`) is accepting a known risk: ask the
 user, and name them as its acceptor (`.harness/rules/autonomous-execution.md` § What needs the

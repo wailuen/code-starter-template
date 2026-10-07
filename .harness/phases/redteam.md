@@ -109,6 +109,10 @@ round's `replan` field. Full rules: task-delivery § Review protocol and circuit
 
 ## 4. Certify convergence
 
+In light mode the wave needs one CLEAR round, with no launch ledger and no receipt
+(`.harness/guides/task-delivery.md` § Light mode); skip to the steps after the receipt check
+below.
+
 Convergence requires two complete clean rounds on the same commit, no unresolved
 gating findings, acceptance/spec compliance over the affected surface, meaningful
 tests, applicable UI/boundary receipts, and green gating semantic evals where applicable.
@@ -131,37 +135,32 @@ committed after the receipt), and run
 Only exit 0 permits a convergence claim. The round recorder does not replace this final
 verifier.
 
-A passing receipt is immutable; later changes use a new certificate scope. A receipt the
-checker refuses is not a certificate and would block every todo it lists. To recover:
-
-1. Remove it with `git rm` in its own commit whose message quotes the refusal.
-2. Fix the problem the refusal names.
-3. Certify under a new scope name — the next unused letter (`wNNb`, then `wNNc`): commit a new
-   acceptance list only if acceptance changed; run fresh review rounds whose numbers continue
-   the branch's count (if `w01` had rounds 1-2, `w01b` records rounds 3-4), with new reports,
-   new `round-wNNb-<n>.json` records and a new `convergence-wNNb.launches.jsonl` committed at
-   dispatch; then write the new receipt and its DECISION journal entry in one commit. Never copy
-   the old scope's round records or launch ledger — the checker refuses copies
-   (`round-records-invalid`). The journal entry and acceptance list must name the new scope as
-   a whole word (`w01b`, which `w01b2` or `w01b-03` does not match).
+A receipt the checker refuses is not a certificate and would block every todo it lists. Before
+the wave merges, correct it in place: fix what the refusal names (a missing journal entry, a
+wrong field, a missing artifact) and commit the corrected receipt for the SAME scope in a NEW
+commit on the wave branch, then re-run `--scope`; the checker judges the receipt at its last
+commit (an uncommitted edit is refused as `receipt-rewritten`). Never copy round records. Only when the acceptance list itself changed does the wave move to a
+new scope name (`.harness/phases/todos.md` § Changing or cancelling approved scope). After the
+merge into `main`, a receipt is immutable (`receipt-rewritten`).
 
 After the receipt check exits 0, in this order:
 
 1. Write the wave preview (task-delivery § Wave boundary) at `04-validate/<scope>-preview.md`:
    what users can now do, how to try it, and what is left for later (including any deferred
-   INCREMENTAL finding), ending with the line `User answer: pending`. Commit it, and cite it and
-   the boundary walk in the wave's DECISION journal entry.
+   INCREMENTAL finding), ending with the line `User answer: pending`. Commit it with a NEW
+   DECISION journal entry that cites the preview and the boundary walk; never edit the entry
+   committed with the receipt.
 2. If the user is here, ask whether it matches what they wanted
    (`.claude/rules/communication.md` § Asking the user to decide). If they are not, it stays
-   the first open question for `/ws` and `/wrapup`, and the wave is not deployed until they
-   answer. When they answer, replace the last line with their words and the date on a
-   `docs/<scope>-preview` branch merged into `main`.
+   the first open question for `/ws` and `/wrapup`. Until they answer, `/deploy` refuses to
+   ship the wave (`.claude/commands/deploy.md` Step 1.3). When they answer, replace the last
+   line with their words and the date on a `docs/<scope>-preview` branch merged into `main`.
 3. Merge the wave branch into `main` by pull request: read CI on the pinned head SHA, then
    merge in a separate command with a merge commit (task-delivery § Branches, pull requests
-   and merging). This needs no confirmation — unless the project profile says
-   `main_auto_deploys: yes`, where merging is deploying: then it needs the user's
-   confirmation and respects any deploy hold (`.harness/rules/autonomous-execution.md`
-   § What needs the user).
+   and merging). Merging deploys nothing and needs no confirmation, except while the project
+   profile's `main_deploys_live` is `unknown` (`.harness/rules/autonomous-execution.md`
+   § What needs the user). If this merge waits for the user, stop here: steps 4 and 5 run after
+   it, and `/ws` lists the waiting merge.
 4. Run `/codify` on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md`
    § When it runs).
 5. Reconcile specs on a `docs/wNN-spec-reconcile` branch: for each spec this wave built, remove

@@ -42,7 +42,7 @@ Answer "yes" or "no".
 
 ## Approval Gates
 
-At plan approval (end of `/todos`), ask all four — each catches a different failure. Other decisions — a deploy, a rollback, an escalation — use the five-part shape in § Asking the user to decide; which actions need asking at all is set by `.harness/rules/autonomous-execution.md` § What needs the user.
+At plan approval (end of `/todos`), ask the four questions below — each catches a different failure — then ask for approval in the five-part shape above. Other decisions — a deploy, a rollback, an escalation — use the five-part shape in § Asking the user to decide; which actions need asking at all is set by `.harness/rules/autonomous-execution.md` § What needs the user.
 Skip a gate the user has already passed for the same scope; never re-ask an approval already
 given (`.harness/rules/autonomous-execution.md`):
 

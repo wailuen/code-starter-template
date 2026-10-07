@@ -19,11 +19,11 @@ to (`.claude/commands/deploy.md` § Rollback Mode). If it does, ask the user at 
 format in `.claude/rules/communication.md` § Asking the user to decide — for example: "Users
 can't sign in. Should I undo the last update now? If yes: sign-in works again in about N
 minutes, but feature X disappears until the fix ships. If no: users stay locked out until the
-fix ships, about N hours. I recommend yes. Answer yes or no." Roll back on a yes, then continue
-below with users safe. If there is no rollback target, or rolling back would not help (the
-defect is older than the last deploy, or a migration cannot be undone), say so and go straight
-to the hotfix path. If the product is not deployed at all, an S1 follows the normal path below,
-just first in line.
+fix ships, about N hours. I recommend yes. Answer yes or no." A yes is the user starting the
+rollback; roll back, then continue below with users safe. If there is no rollback target, or
+rolling back would not help (the defect is older than the last deploy, or a migration cannot be
+undone), say so and continue below at once. If the product is not deployed at all, an S1 is
+simply first in line.
 
 One bug has one fix record. A rollback started here continues this record (fill in
 `Deploy hold`); a rollback started from `/deploy --rollback` opened a record already, so
@@ -39,10 +39,15 @@ Severity:
 
 | Severity | Meaning | Path |
 | --- | --- | --- |
-| S1 | Production down, data being lost or exposed, or users cannot do the product's core job | Rollback question first (§ 1), then hotfix (§ 7) |
+| S1 | Production down, data being lost or exposed, or users cannot do the product's core job | Rollback question first (§ 1), then the normal path, first in line |
 | S2 | A major feature is broken or gives wrong results, with no workaround | Normal, next in line |
 | S3 | Broken with a workaround, or not yet released | Normal |
-| S4 | Cosmetic or minor | Normal, may be batched |
+| S4 | Cosmetic or minor | Normal, may be batched (below) |
+
+Batching S4 fixes: up to five S4 records that touch the same area may share one branch
+(`fix/<first-id>-batch`), one review round and one pull request. Each keeps its own record, its
+own failing test and its own `## Closure`; the round's scope is the first fix id, and every
+record names it.
 
 Use this shape for the record and keep it current through every step:
 
@@ -66,7 +71,7 @@ Status: open | in progress | converted to todo | closed
 <the mechanism, file and symbol; why existing tests missed it>
 
 ## Fix
-- Branch: <fix/f007-… or hotfix/f007-…>
+- Branch: <fix/f007-…>
 - Change: <what changed and why it is the minimal root-cause fix>
 - Regression test: <path> — failed before, passes after (quoted output)
 - Sibling cases checked: <…>
@@ -86,11 +91,9 @@ Status: open | in progress | converted to todo | closed
 
 ## 2. Branch
 
-Cut `fix/<id>-<slug>` from `main`. For S1, cut `hotfix/<id>-<slug>` from the bad revision:
-after a rollback, the commit production was rolled back FROM (named in the rollback record), so
-the failing test can fail; without a rollback, the revision production runs now, as
-`deploy_check_command` in `deploy/deployment-config.md` reports it (the local
-`deploy/.last-deployed` file is only a cache).
+Cut `fix/<id>-<slug>` from `main`. For an S1 after a rollback, cut it from the bad commit —
+the one production was rolled back FROM, named in the rollback record — so the failing test can
+fail; it then merges into `main` like any fix.
 
 ## 3. Reproduce first
 
@@ -164,31 +167,23 @@ receipt is needed.
 
 ## 7. Ship
 
-For a security defect, keep details private until the fix is deployed: use the repository's
-private security advisory or a private branch where available, and keep public commit,
-pull-request and issue text to a neutral one-line summary; publishing the details earlier needs
-the user (`.harness/rules/autonomous-execution.md` § What needs the user).
+For a security defect of any severity in a public repository, ask the user before the first
+push: keep the details out of public pull requests, issues and commit text until the fix is
+deployed — work in a private fork or security advisory, or use a minimal neutral description
+(`.harness/rules/autonomous-execution.md` § What needs the user).
 
 Push, open a pull request into `main` with `Fixes #N` under `## Related issues`, read CI on the
 pinned head SHA, then merge as a separate command with a merge commit (task-delivery
-§ Branches, pull requests and merging). If the bug is live, ask the user whether to deploy it
-now (deploying needs their confirmation — `.harness/rules/autonomous-execution.md` § What needs
-the user), then ship with `/deploy`.
+§ Branches, pull requests and merging). Merging into `main` deploys nothing. If the bug is
+live, ask the user to run `/deploy` for that `main` commit (in an S1, at once and in plain
+words), and say what else on `main` would ship with it. Agents never deploy themselves.
 
-S1 hotfix (the rollback question was already asked in § 1), in this order:
-
-1. After the CLEAR round, ask the user quickly and plainly to confirm the emergency deploy,
-   then deploy the `hotfix/` branch head with `/deploy`. Deploying the branch, not
-   `main`, keeps other undeployed `main` work out of an emergency release.
-2. Verify the deploy with the user-visible check: the reported failure no longer happens on
-   the live surface (`/deploy` Step 4).
-3. Merge the branch into `main` through a pull request, the same way as above: CI read on
-   the pinned head SHA, then a separate merge command with a merge commit.
-4. Write a todo proposal (first line `Source: hotfix <fix-id>`) for a full `/redteam` of the
-   affected area that names this fix record (`.harness/rules/autonomous-execution.md` § Problems found along the way),
-   committed with the closure record on the `docs/<fix-id>-closure` branch (§ 8). It joins
-   a wave only through `/todos` plan approval (`.harness/phases/todos.md` § Workflow step 1),
-   then goes through `/redteam`'s normal convergence gate.
+After an S1, also write a todo proposal (first line `Source: hotfix <fix-id>`) for a full
+`/redteam` of the affected area that names this fix record
+(`.harness/rules/autonomous-execution.md` § Problems found along the way), committed with the
+closure record (§ 8). It joins a wave only through `/todos` plan approval
+(`.harness/phases/todos.md` § Workflow step 1), then goes through `/redteam`'s normal
+convergence gate.
 
 ## 8. Close
 

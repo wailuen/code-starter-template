@@ -7,26 +7,33 @@ Read it before relying on the recorder for a real branch.
 
 ## Known residuals — disclosed, not fixed
 
-Found by the independent code and security reviews of the round cap and left open on
-purpose: this is a harness instrument, and gate review (the `/redteam` reviewers and the
-orchestrator who compiles the convergence receipt, per `.harness/rules/redteam-stall-debug.md`)
-remains its backstop. Each is a
-naming or presentation gap, not a way to record an unbounded number of rounds.
+The round budget is an anti-loop aid, not a security control. Gate review (the `/redteam`
+reviewers and the orchestrator who compiles the convergence receipt, per
+`.harness/rules/redteam-stall-debug.md`) remains its backstop.
 
-- Reviewer ids and `escalation_accepts.acceptor` are compared as raw strings: a
-  whitespace, zero-width or fullwidth variant of a spent lens or a reserved word is
-  not folded (no NFKC / control-character normalization). Gate review reads the ids
-  against the dispatch roster; a variant spelling is a fabricated record.
+What it detects: a round number out of order; a partial round; a changed reviewer list without
+a decision record; a debug round reusing a spent lens; a person-only acceptor that is an
+honest mistake (an agent, model, role or placeholder name — `.harness/rules/completion-criterion.md`
+MUST-1). When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
+every round record ever added in the branch's history whose file name is this scope's
+(`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and
+refuses an unreadable, duplicate or gapped history ("Cannot rebuild the review count for <b>
+from its committed round records: <why>…") or a round number that skips ahead ("round N
+refused: … so the next round is K+1"). A renamed or re-cut branch for the same scope keeps its
+count; a todo branch cut from a wave branch starts at round 1.
+
+What it does not detect:
+
+- Deliberate local history rewriting (resetting a branch, rewriting commits, editing a shallow
+  clone, or starting a new scope on a new branch) can restart the count. That is a history rewrite, which needs the user
+  (`.harness/rules/autonomous-execution.md` § What needs the user); the recorder does not try
+  to catch every local git trick.
+- A round recorded but never committed is not counted after the local state is lost.
+- Reviewer ids are compared as written; a variant spelling of a spent lens is a fabricated
+  record that gate review catches against the dispatch roster.
 - Control characters in a reviewer id or a cited path reach the one-line `NEXT:`
   guidance unescaped, so a hostile id could forge or hide a line on a terminal. A
   committed-file control-byte check, if the project has one, does not cover runtime strings.
-- Local state lives in the git-ignored `.claude/learning/`. When it is missing, the recorder
-  rebuilds the branch's history from every `04-validate/round-*.json` or
-  `.harness/reviews/round-*.json` ever added on the branch's own first-parent, non-merge commits,
-  as first committed; deleting or editing a record later changes nothing, and an unreadable,
-  duplicate or gapped history makes it refuse. A round recorded but never committed is not
-  counted after that. A branch cut from a branch with recorded rounds inherits them and
-  continues their numbering.
 - The recorder verifies the branch exists and the head is on it, not that the work is new.
 - The branch check compares against `refs/heads`, not the invoking checkout's `HEAD`,
   because the CLI may legitimately run from the main checkout for a worktree branch.

@@ -35,7 +35,8 @@ new session to read `.session-notes` first).
 If content doesn't fit one of those four, it belongs in the journal or a todo instead — put it
 there before running `/wrapup`.
 
-**Deploy drift:** if `deploy/deployment-config.md` exists, run `/deploy --check` and put any
+**Deploy drift:** if `deploy/deployment-config.md` exists, follow `.claude/commands/deploy.md` § Check Mode
+(read-only) and put any
 drift ("N production-touching commits not deployed") under Outstanding work, and ask the user
 under Open questions whether to deploy. Do not deploy just because the session is ending.
 

@@ -22,7 +22,10 @@ A todo's id comes from its filename: `w03-07-invite-flow.md` has id `w03-07` (wa
 
 ## What it does
 
-1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. For a
+1. **Status queries** — read `todos/active/` and `todos/completed/` and report by wave. While a
+   wave branch `feat/wNN-<slug>` is open, read that wave's todos from it
+   (`git ls-tree -r --name-only feat/wNN-<slug> -- workspaces/<project>/todos/`): completed
+   todos stay there until the wave merges. For a
    completed todo, run the read-only
    `node .harness/bin/check-redteam-convergence-receipt.mjs --workspace workspaces/<project> --todo <id>`:
    exit 0 means `CLOSED` (or `grandfathered — pre-gate` when it says so); anything else is
@@ -46,6 +49,7 @@ Never add, renumber or reorder todos or waves: that is planning (`/todos`, plan 
 
 - w02-11-<slug>.md — active
 - w02-13-<slug>.md — implemented, awaiting wave convergence
+- w01-03-<slug>.md — closed (wave 1 converged)
   (N active, M implemented this wave)
 - Parked proposals: P (oldest: <slug>, <age>; hotfix follow-ups: <fix-ids or none>)
 - Problems found: <misfiled or unlisted files, or none>

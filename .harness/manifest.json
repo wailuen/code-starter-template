@@ -6,7 +6,7 @@
     "implement": "Implement an approved todo using the shared harness; use for /implement or harness implementation requests.",
     "redteam": "Independently review an accepted scope using the shared harness; use for /redteam or harness convergence review requests.",
     "debug": "Reassess a stalled review loop (recorder exit 2: REPLAN or DEBUG_ROUND) using the shared harness; use for /debug. A new bug report goes to /fix instead.",
-    "fix": "Fix a reported bug in already-built behavior: intake with severity S1-S4, reproduce with a failing test, minimal root-cause fix, one independent review, ship (hotfix path for S1). Use for /fix, a bug report, or a production incident.",
+    "fix": "Fix a reported bug in already-built behavior: intake with severity S1-S4, reproduce with a failing test, minimal root-cause fix, one independent review, ship (S1 asks first to roll back). Use for /fix, a bug report, or a production incident.",
     "codify": "Fold lessons from recent sessions and /learn's open list into the harness's own phases, rules, roles, guides, skills and agents, then review and commit them. Use for /codify or after a session surfaced a reusable correction.",
     "learn": "Read-only report of harness lessons (harness-tagged journal entries and harness backlog items) not yet folded into the harness, grouped for /codify. Use for /learn."
   },

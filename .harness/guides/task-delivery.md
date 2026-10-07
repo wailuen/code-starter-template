@@ -67,7 +67,8 @@ begins. A genuinely minor (INCREMENTAL) finding may be deferred as
 `.harness/rules/product-completion-first.md` MUST-2 describes; it is listed under "left for
 later" in the wave preview, where the user ratifies or overrides it. Record the pass at
 `04-validate/<scope>-boundary-walk.md` (steps, observations, disposition per flow) and cite it,
-with the preview, in the wave's DECISION journal entry (the receipt has no field for it);
+with the preview, in a new DECISION journal entry written after the receipt (the receipt has no
+field for it, and the entry committed with the receipt is never edited);
 `/redteam` § 2 runs it. This composes
 with, and does not replace, the per-todo review/walk each shard already does.
 
@@ -108,9 +109,9 @@ two silently inflates the product backlog with items the user never asked for an
 compete for review attention with the work they actually want. A harness/tooling
 self-maintenance item discovered mid-review (`/debug`, `/implement`, `/redteam`) goes to
 `.harness/backlog/harness-NN-<slug>.md` instead — a flat, incrementing, cross-project
-numbering (check the highest existing number on the current branch, on `main` and on every
-unmerged local branch before assigning a new one; do not restart per project and do not reuse
-a number). See `.harness/backlog/README.md`.
+numbering: take one above the highest number ever used in git history, including items since
+deleted (`git log --all --diff-filter=A --name-only --format= -- .harness/backlog/`); do not
+restart per project and never reuse a number. See `.harness/backlog/README.md`.
 
 A genuine PRODUCT idea that was found or preserved (e.g. an abandoned WIP branch worth
 keeping discoverable) but is not on the approved plan and not scheduled goes to
@@ -130,6 +131,29 @@ A bug report against already-built behavior is neither: it goes through `/fix`
 This is the execution contract for `/analyze`, `/todos`, `/implement`, `/redteam`,
 `/debug` and `/fix`. Product security and acceptance obligations remain blocking. A
 retry limit changes the approach; it never makes broken code done.
+
+## Light mode
+
+For a small project — one person, a prototype or hobby, no real users' data and no money
+moving — the project profile can say `delivery_mode: light`. `/analyze` recommends the mode in
+plain words; the user chooses it at plan approval, and switching later (light to standard)
+is a plan change the user approves. Light mode changes only this:
+
+- No separate analysis or planning review rounds. The user still approves the plan, and the
+  acceptance list still carries their approval record.
+- No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
+  walk receipts and `## Verification`.
+- The wave gets one review round that must be CLEAR, with a security reviewer when any security
+  surface changed (`.harness/phases/redteam.md` § 1). No convergence receipt, no launch ledger,
+  and no `--sweep` job in CI.
+- Records (reports, round records, journal entries, preview, fix closure) are committed on the
+  wave or fix branch before it merges; anything written after the merge (a deploy record, a
+  preview answer) rides along with the next branch. There are no separate record-only pull
+  requests.
+
+Everything else is unchanged: tests, `.harness/rules/autonomous-execution.md` § What needs the
+user, the security rules, `/fix` and `/deploy`. The phases say "in light mode, see
+task-delivery § Light mode" where they differ.
 
 ## Workspace file layout
 
@@ -176,15 +200,17 @@ id inside a workspace. A completed todo whose name does not parse fails
 Scopes: a wave's scope is `wNN`, a todo's checkpoint scope is its id `wNN-MM`, a planning
 review's scope is `wNN-plan`, an analysis review's scope is `analysis-<slug>` (the slug of
 its `docs/<slug>` branch, so a later analysis never overwrites an earlier one's round and
-report files), a codify review's scope is `codify-<slug>` (and `codify-<slug>-ask` for its ask-first part), and a fix's scope is its fix id. The acceptance list for scope
+report files), a codify review's scope is `codify-<slug>` (and `codify-<slug>-ask` for its ask-first part), and a fix's scope is its fix id (a batch of S4 fixes uses the first one's). The acceptance list for scope
 `wNN` names `wNN` and every todo id in the wave; it is committed before the wave's work and
 must be byte-identical at the verdict commit, so a change of acceptance means a new scope
 name, not an edit (`.harness/phases/todos.md` § Changing or cancelling approved scope).
 
 ## Branches, pull requests and merging
 
-The round recorder keeps one round budget per branch (§ Review protocol and circuit
-breaker), so each kind of review runs on its own branch and cannot spend another's rounds.
+The round recorder counts the rounds recorded for the same scope or on the same branch
+(§ Review protocol and circuit breaker), so each kind of review runs on its own branch and
+scope and does not spend another's rounds. Production runs the `production` branch (or a
+release tag), which only `/deploy` moves; merging into `main` never deploys.
 
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
@@ -192,23 +218,23 @@ breaker), so each kind of review runs on its own branch and cannot spend another
 | Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`) | `main`, after plan approval |
 | Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 |
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`) | the wave branch, after a CLEAR round and its receipts |
-| Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main` | fix review (`<fix-id>`) | `main` |
-| S1 hotfix (`/fix`) | `hotfix/<fix-id>-<slug>` | the bad revision production was rolled back FROM (its commit, from the rollback record), or the revision production runs now when there was no rollback (`deploy_check_command`) | fix review (`<fix-id>`) | deploy the branch head with `/deploy` and verify it live first, then `main` (`.harness/phases/fix.md` § 7) |
+| Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
+| Production | `production` | moved only by `/deploy`, to a commit already on `main` (rolled back by `/deploy --rollback`) | none | never merged; the host deploys it |
 | Fix closure record (`/fix` § 8) | `docs/<fix-id>-closure` | `main` | none (record only) | `main` |
 | Deployment record (`/deploy`) | `docs/deploy-<date>` | `main` | none (record only) | `main` |
 | Sweep report (`/sweep`) | `docs/sweep-<date>` | `main` | none (record only) | `main` |
 | Wave preview answer (`/redteam` § 4) | `docs/<scope>-preview` | `main` | none (record only) | `main` |
 | Spec reconciliation after a wave (`/redteam` § 4) | `docs/wNN-spec-reconcile` | `main` | none (spec text; the next wave's review reads it) | `main` |
-| Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when every file is on the allowlist (`.harness/phases/codify.md` § Automatic runs) |
-| Harness change (`/codify`), ask-first part | `docs/codify-<slug>-ask` | `main` | codify review (`codify-<slug>-ask`) | `main`, after the user approves |
-| User's answer to a waiting harness change | `docs/codify-<slug>-answer` | `main` | none (records the user's answer) | `main`, in the session the user answered |
+| Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when `check-codify-allowlist.mjs` exits 0 (`.harness/phases/codify.md` § Automatic runs) |
+| Harness change (`/codify`), ask-first part | `docs/codify-<slug>-ask` | `main` | codify review (`codify-<slug>-ask`) | `main`, when the user says yes, at its reviewed head |
+| User's answer to a waiting harness change | `docs/codify-<slug>-answer` | `main` | none (appends log rows quoting the user's answer, nothing else) | `main`, in the session the user answered |
 | Release prep | `release/v<X.Y.Z>` | `main` | none (metadata only) | `main` |
 
 A `/fix` branch is reviewed by one CLEAR round and merges straight into `main`; it does not
 pass through a wave's two-clean-round convergence check, because a fix record lives outside
 `todos/` and outside any wave. That is intended: a fix is narrow and has its own failing
-regression test. An S1 hotfix, reviewed under emergency pressure, additionally gets a
-follow-up `/redteam` todo proposal (`.harness/phases/fix.md` § 7).
+regression test. An S1 fix, reviewed under emergency pressure, additionally gets a follow-up
+`/redteam` todo proposal (`.harness/phases/fix.md` § 7).
 
 For every branch:
 
@@ -229,12 +255,11 @@ For every branch:
    Never merge over a red or pending required check; fix it on the same branch and push. If
    the repository has no required checks, `gh pr checks` passing proves nothing: run the
    project profile's Local CI parity command on a checkout of `$head` first, and say in the
-   pull request that this was the gate. If the project profile says `main_auto_deploys: yes`,
-   every merge into `main` is a production deploy: it needs the user's confirmation, respects
-   any open `Deploy hold: yes`, and is verified with `/deploy` Step 4 afterwards. Whether a merge needs the user is set in
-   `.harness/rules/autonomous-execution.md` § What needs the user (for example, a merge whose
-   gate passed does not, unless `main` deploys itself; `--admin` always does, and never in an
-   automatic run).
+   pull request that this was the gate; while the profile row is `n/a — no code yet`, say that
+   instead. Whether a merge needs the user is set in `.harness/rules/autonomous-execution.md`
+   § What needs the user — a merge whose gate passed does not, except while the project
+   profile's `main_deploys_live` is still `unknown` on a repository connected to a host;
+   `--admin` always does, and never in an automatic run.
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
    `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
    allow merge commits before the first wave (a repository-settings change, so ask the user).
@@ -273,7 +298,7 @@ the orchestrator follows these steps.
 4. Add release notes to the changelog, written for the people who use the product.
 5. Push, open the pull request and merge as in § Branches, pull requests and merging.
 6. Tag the merge commit on `main` (`git tag -a v<X.Y.Z> <merge-sha>`) and push the tag, then
-   publish with the profile's publish command, or ship with `/deploy`. Pushing a tag and
+   publish with the profile's publish command, or ask the user to run `/deploy`. Pushing a tag and
    publishing are public and need the user's confirmation
    (`.harness/rules/autonomous-execution.md` § What needs the user).
 
@@ -337,14 +362,8 @@ infrastructure), `isolated-cluster` or `exclusive-cluster` (§ Implement and ver
 `approved_by` is the name of the person who approved the plan this contract belongs to — the
 user, the same name as the acceptance list's approval record (§ Workspace file layout). Fill it
 only after the user approved the plan (`.harness/phases/todos.md` § Workflow step 11), never
-before. The same person check applies there, to a receipt's `acceptance_list.ratified_by` and
-`residuals[].accepted_by`, and to the recorder's `escalation_accepts.acceptor` and
-`replan_accepts[].acceptor`. It normalises the value (lookalike letters folded, invisible
-characters and extra spaces removed, punctuation trimmed, lowercased) and refuses model or
-vendor names with or without a version ("gpt5", "sonnet4", "opus4.5", "o3", "chatgpt",
-"anthropic"), run-together or letter-spaced spellings, noreply or bot emails, and values made
-only of role or filler words ("the user", "Project owner", "operator", "myself"). A real name
-passes, even next to a role ("Jane, owner").
+before. Write the name as the user gave it. The tools check this and the other person-only
+fields for honest mistakes only (`.harness/rules/completion-criterion.md` MUST-1).
 
 Run `node .harness/bin/check-task-contract.mjs <todo.md>` before implementation.
 It checks structural readiness, not truth, security sufficiency, or human approval.
@@ -496,14 +515,17 @@ full commit SHA on it, and real report paths):
 
 From the repository root run `node .harness/bin/record-review-round.mjs <round.json>`, then
 commit the round file and its reports on the branch. The recorder keeps its budget in local
-state; when that state is missing (a fresh clone, another machine) it rebuilds the branch's
-history from every `round-*.json` ever added on the branch's own commits, as first committed
-(later edits and deletions change nothing; an unreadable, duplicate or gapped history makes it
-refuse, and a missing or edited history is never a fresh budget). A branch cut from a branch
-with recorded rounds inherits them and continues their numbering, so a new branch name is not a
-new budget. It refuses a round above 1 with no history at all, so an uncommitted round record
-is a lost round. A branch that exists only on the remote must be created locally first
-(`git switch <branch>`). Write
+state; when that state is missing (a fresh clone, another machine) it rebuilds the count from
+every round record ever added in the branch's history whose file name is this scope's
+(`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed (an
+unreadable, duplicate or gapped history makes it refuse). So a renamed or re-cut branch for the
+same scope keeps its count, and a todo branch cut from a wave branch starts at round 1. An
+uncommitted round record is a lost round. The budget is an anti-loop aid, not a security
+control: rewriting local history (a reset, or a new scope on a new branch) can restart the
+count, and rewriting history already needs the user
+(`.harness/guides/review-round-recorder.md` lists what it detects).
+Delete a round file the recorder refused instead of committing it. A branch that exists only
+on the remote must be created locally first (`git switch <branch>`). Write
 every cited path (`evidence`, `replan`, `escalation_accepts.record`) relative to the
 repository root, as above. The recorder looks for it from the round file's own directory and
 from the current directory only, so `04-validate/<file>.md` (relative to the workspace) is
@@ -515,16 +537,16 @@ It is a retry-control instrument; the convergence-receipt checker still decides 
 Its last lines start with `NEXT:` and list the branch's known root causes and budget — read them.
 How many clean rounds a scope needs: one complete CLEAR round for a todo checkpoint (scope
 `wNN-MM`), a `/fix` branch (`<fix-id>`), a planning review (`wNN-plan`), an analysis review
-(`analysis-<slug>`) and a codify review (`codify-<slug>`); two consecutive clean rounds on one
+(`analysis-<slug>`) and a codify review (`codify-<slug>`, `codify-<slug>-ask`); two consecutive clean rounds on one
 unchanged commit only for wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
 prints `dispatch round N+1`; at a one-round checkpoint do not dispatch it.
 
 Exit codes: `0` — keep going (`FIX`, `REVIEW`, `REPAIR_ENVIRONMENT`, or
 `VERIFY_CONVERGENCE_RECEIPT` after two clean rounds on one unchanged commit); `1` — the round
 was refused or invalid and nothing was recorded; `2` — `REPLAN` or `DEBUG_ROUND`; `3` —
-`ESCALATE_TO_HUMAN`. A refused round records nothing: exit 1, or 2/3 when the refusal is the
-cap, debug or `REPLAN` gate itself (stderr explains it). A round was recorded only when the
-recorder printed its JSON line on stdout. Committing a round's record, reports or launch rows
+`ESCALATE_TO_HUMAN`. Exit 2 and 3 can mean either a recorded round (its JSON line is printed on
+stdout — commit it) or a refusal at the cap, debug or `REPLAN` gate (stderr explains it;
+nothing recorded). A round was recorded only when the recorder printed its JSON line. Committing a round's record, reports or launch rows
 does not reset the clean-round count while `head` stays the same; only a new reviewed head does.
 
 `ESCALATE_TO_HUMAN` and a residual that needs acceptance are questions for the user: ask them
@@ -532,7 +554,7 @@ in the format in `.claude/rules/communication.md` § Asking the user to decide �
 means for their users, what the alternatives (split the work, drop it, one more round) cost,
 and your recommendation — never as a recorder message or a file path.
 
-The budget is per branch (`.harness/lib/redteam-stall.cjs`):
+The budget counts rounds of the same scope or branch (`.harness/lib/redteam-stall.cjs`):
 
 - **Three rounds per branch.** A branch gets three counted rounds in total
   (`TOTAL_ROUND_CAP = 3`) — clean, non-clear or charged-error alike — and nothing resets that
@@ -543,7 +565,8 @@ The budget is per branch (`.harness/lib/redteam-stall.cjs`):
   the debug round does not converge, the recorder returns exit 3 / `ESCALATE_TO_HUMAN`: stop.
   Each further round needs `"escalation_accepts": {"acceptor", "record"}` — a named human and
   a new acceptance record of theirs for every round. Past the cap the recorder also admits,
-  once, the same-head confirmation that follows a first clean round.
+  once, the same-head confirmation that follows a first clean round; after a clean debug round
+  that confirmation reuses the `-debug` reviewer ids and omits `"debug": true`.
 - **Recurrence.** A non-clear round returns exit 2 / `REPLAN` when one of its root-cause keys
   was recorded in ANY earlier non-clear round on this branch — clean rounds in between do not
   reset it — or was marked closed by an earlier `replan_closes`. Keys a decision record
@@ -574,11 +597,12 @@ The convergence receipt is tied to these files: each reviewer's `evidence` is th
 repository-root path of that round's saved report, committed no later than the receipt; every
 round the receipt lists has its committed `round-<scope>-<n>.json` with the same head, lenses,
 evidence and verdicts; and the receipt ends at the scope's highest recorded round. The checker also reads every committed round
-record of the scope: it refuses `cap_hit: false` when they show the cap was passed without the
-debug round or an escalation (`cap-hit-understated`), a copied, duplicate, edited or gapped
-record (`round-records-invalid`), a record whose `branch` differs from the receipt's
-(`round-record-mismatch`), and any round record committed after the receipt
-(`round-record-after-receipt`). Commit every
+record of the same scope or branch: it refuses `cap_hit: false` when they show the cap was
+passed without the debug round or an escalation (`cap-hit-understated`); a copied, duplicate or
+gapped record, counted rounds that do not start at round 1, or a record deleted and re-added
+with different content (`round-records-invalid`); a record whose `branch` differs from the
+receipt's (`round-record-mismatch`); and any scope record added or changed after the receipt's
+commit, its pin (`round-record-after-receipt` — a recorded round is never rewritten). Commit every
 report and round record before committing the receipt.
 
 Two complete clean rounds on the same unchanged commit remain necessary for convergence. A

@@ -31,15 +31,21 @@ either harmless by omission. Small, related fixes follow
 `.harness/rules/autonomous-execution.md` § Problems found along the way.
 
 **Person-only fields** — `ratified_by`, `approved_by`, `residuals[].accepted_by`, and the
-recorder's `escalation_accepts.acceptor` and `replan_accepts[].acceptor` — go through one
-identity check, `.harness/lib/agent-identity.cjs`. It first normalises the value (NFKC,
-invisible characters removed, lookalike letters folded, spaces collapsed, punctuation
-trimmed, lowercased), then refuses: model and vendor names with or without versions
-(`gpt5`, `sonnet4`, `opus4.5`, `o1`/`o3`, ChatGPT, OpenAI, Anthropic, Grok, DeepSeek, Mistral,
-Llama), names run together or letter-spaced, no-reply and bot email addresses, and values
-made only of role or filler words ("the user", "Project owner", "operator", "myself",
-"User (chat approval)"). A real name passes, also next to a role ("Jane, owner"). The check
-cannot tell a real name from an invented one, so never write a name the user did not give.
+recorder's `escalation_accepts.acceptor` and `replan_accepts[].acceptor` — hold the name of
+the user who decided, written only after they answered. One check,
+`.harness/lib/agent-identity.cjs`, catches honest mistakes on the whole value, never a word
+inside a name: an agent writing its own name or a placeholder. It normalises the value
+(letter forms, invisible characters, Cyrillic, Greek and Cherokee lookalikes and small
+capitals folded, digits used as letters folded for comparison, spacing collapsed,
+surrounding punctuation trimmed, lowercased) and refuses it when every word, ignoring
+versions and dates, is an agent, model, vendor, tool, role, review-lens, placeholder or
+filler word ("claude", "gpt-5", "reviewer", "the user", "project owner", "TBD"); when such
+words are run together or letter-spaced; when it is a model family with a version
+("gpt-6-sol"), a shipped agent, role or Codex model name, a `harness-*` name, `o1` or `o3`;
+when it contains a `<…>`, `{…}` or `[…]` placeholder; when it is a no-reply or bot address;
+or when it starts "approved by", "user's" or "user (". Real names pass even when they
+contain such a word ("Claude Monet", "Jean-Claude", "Tan Ai Ling", "Will Self"). It cannot
+prove a person approved; that rests on the agent never writing a name the user did not give.
 
 ## MUST-2 — Preserve gating obligations and triage discoveries
 
@@ -54,7 +60,8 @@ routine review backlog.
 ## MUST-3 — Evidence follows artifact state
 
 Only complete reviews on the same pinned commit count toward the two clean rounds
-required by the final convergence checker. A shared dependency change invalidates
+required by the final convergence checker (in light mode, see
+`.harness/guides/task-delivery.md` § Light mode). A shared dependency change invalidates
 evidence for its affected consumers. A duplicate reviewer delivery is not another
 round; one clear reviewer cannot clear a failing peer. Errored/missing evidence is
 not clean. Unchanged deterministic checks may be reused with exact source/environment
@@ -65,7 +72,9 @@ identity, but new or disputed properties require independent verification.
 Run `.harness/bin/record-review-round.mjs` after each complete round. It enforces two
 limits (exact behavior: `.harness/rules/redteam-stall-debug.md`):
 
-- **Round cap.** A branch gets three counted rounds in total; the count never resets. A
+- **Round cap.** A scope gets three counted rounds in total, counted from the committed
+  round records of that scope or branch (`.harness/rules/redteam-stall-debug.md` MUST-2;
+  the convergence checker counts the same way, from round 1). A
   non-clean round at or past the cap makes the next round the branch's single `/debug`
   round; if that does not converge, a named human must accept each further round.
 - **REPLAN.** A root cause recorded in any earlier non-clear round on the branch comes

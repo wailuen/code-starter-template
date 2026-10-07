@@ -5,7 +5,7 @@
 // Run from the repository root: `node --test ".harness/tests/*.mjs"`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync, realpathSync, symlinkSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync, realpathSync, symlinkSync, unlinkSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -220,8 +220,33 @@ test("one identity denylist refuses agent, model, role and harness names, and ac
     "owner.", "me.", "I", "myself", "operator", "maintainer", "admin", "system"]) {
     assert.equal(isAgentIdentity(v), true, v);
   }
-  for (const v of ["Jane Doe", "Fixture Owner", "Fixture Owner (synthetic)", "Wai Luen", "Jane, owner", "Сергей Иванов"])
+  // Whole values only: placeholders, lenses, pronouns, leetspeak, small capitals and more tools.
+  for (const v of ["<the user's name>", "<name>", "{approver}", "[name]", "pending", "approver", "the approver", "you", "yourself",
+    "correctness", "security", "security-debug", "Cl4ude", "ᴄʟᴀᴜᴅᴇ", "Ꮯlaude", "Cursor", "Devin", "Qwen", "User's approval",
+    "Approved by user on 2026-10-07", "User via chat 2026-10-07", "user (yes)", "Owner: yes", "user 1", "owner, verbally",
+    "Claude 3.5 Sonnet", "gpt-4o", "co-authored", "TBD", "C0dex Agent", "Approved by Jane Doe", "User (Jane Doe)"]) {
+    assert.equal(isAgentIdentity(v), true, v);
+  }
+  // Real names that merely contain such a word pass.
+  for (const v of ["Jane Doe", "Fixture Owner", "Fixture Owner (synthetic)", "Wai Luen", "Jane, owner", "Сергей Иванов",
+    "Claude Monet", "Jean-Claude", "Claudette", "Tan Ai Ling", "Will Self", "Laurie Main", "Wim Bot", "Madison Nettles",
+    "Eric Laudet", "王伟", "Siobhán O'Brien", "Mark Model"])
     assert.equal(isAgentIdentity(v), false, v);
+});
+
+test("the delivery-contract example in task-delivery.md, copied verbatim, is not ready until a real name is filled in", (t) => {
+  const text = readFileSync(join(root, ".harness/guides/task-delivery.md"), "utf8");
+  const example = text.slice(text.indexOf('"approved_by": "<the user\'s name>"') - 2000).match(/```json\n(\{[\s\S]*?"approved_by": "<the user's name>"[\s\S]*?\})\n```/);
+  assert.ok(example, "task-delivery.md still carries the placeholder contract example");
+  const dir = tempDir(t, "harness-contract-example-");
+  const run = (json) => {
+    put(dir, "todo.md", "# t\n\n## Delivery contract\n\n```json\n" + json + "\n```\n");
+    return node([join(root, ".harness/bin/check-task-contract.mjs"), join(dir, "todo.md")]);
+  };
+  const verbatim = run(example[1]);
+  assert.equal(verbatim.status, 1, verbatim.stdout);
+  assert.match(verbatim.stdout, /approved_by must name the person/);
+  assert.equal(run(example[1].replace("<the user's name>", "Jane Doe")).status, 0, "control: the example with a real name passes");
 });
 
 test("a delivery contract approved by an agent is not ready", (t) => {
@@ -334,7 +359,7 @@ test("partial rounds, gaps and an unchanged-head confirmation are judged exactly
 
 // ---- recorder CLI in a real repository -------------------------------------------------------
 
-function recorderRepo(t) {
+function recorderRepo(t, { ws = "workspaces/demo" } = {}) {
   const repo = tempDir(t, "harness-recorder-");
   git(repo, "init", "-q", "-b", "main");
   put(repo, ".gitignore", ".claude/learning/\n");
@@ -343,13 +368,14 @@ function recorderRepo(t) {
   const heads = [];
   for (let n = 1; n <= 4; n++) {
     put(repo, `src/v${n}.txt`, `${n}\n`);
-    for (const id of ["correctness", "security"]) put(repo, `workspaces/demo/04-validate/w01-${id}-r${n}.md`, "Verdict: NOT_CLEAR\n");
+    for (const id of ["correctness", "security"]) put(repo, `${ws}/04-validate/w01-${id}-r${n}.md`, "Verdict: NOT_CLEAR\n");
     git(repo, "add", "-A"); git(repo, "commit", "-qm", `work ${n}`);
     heads.push(git(repo, "rev-parse", "HEAD"));
   }
-  const record = (n, verdict, extra = {}) => {
-    const file = `workspaces/demo/04-validate/round-w01-${n}.json`;
-    const reviewers = ["correctness", "security"].map((id) => ({ id, verdict, evidence: `workspaces/demo/04-validate/w01-${id}-r${n}.md` }));
+  // `scope` names the record file (round-<scope>-<n>.json); the recorder counts by scope or branch.
+  const record = (n, verdict, extra = {}, scope = "w01") => {
+    const file = `${ws}/04-validate/round-${scope}-${n}.json`;
+    const reviewers = ["correctness", "security"].map((id) => ({ id, verdict, evidence: `${ws}/04-validate/w01-${id}-r${n}.md` }));
     put(repo, file, JSON.stringify({ branch: "feat/w01", round: n, head: heads[n - 1], expected_reviewers: ["correctness", "security"],
       reviewers, root_causes: verdict === "NOT_CLEAR" ? [`cause-${n}`] : [], ...extra }));
     return node([join(root, ".harness/bin/record-review-round.mjs"), file], { cwd: repo });
@@ -387,7 +413,7 @@ test("a deleted state file or a fresh clone rebuilds the spent budget from commi
   const bare = recorderRepo(t);
   const orphan = bare.record(3, "NOT_CLEAR");
   assert.equal(orphan.status, 1, orphan.stdout + orphan.stderr);
-  assert.match(orphan.stderr, /never a fresh budget/);
+  assert.match(orphan.stderr, /hold no rounds, so the first round is 1/);
 });
 
 test("deleting, editing or re-adding committed round records, or renaming the branch, never resets the budget", (t) => {
@@ -407,7 +433,7 @@ test("deleting, editing or re-adding committed round records, or renaming the br
   rmSync(state(deleted.repo));
   const restart = deleted.record(1, "NOT_CLEAR");
   assert.equal(restart.status, 1, restart.stdout + restart.stderr);
-  assert.match(restart.stderr, /already holds rounds 1-3/);
+  assert.match(restart.stderr, /already hold rounds 1-3/);
   // Edited later (branch renamed in the record, JSON broken): the first-added content counts.
   const edited = capped();
   for (const n of [1, 2, 3]) put(edited.repo, `workspaces/demo/04-validate/round-w01-${n}.json`, '{"branch":"decoy"} //');
@@ -420,18 +446,18 @@ test("deleting, editing or re-adding committed round records, or renaming the br
   git(edited.repo, "branch", "feat/w01-v2");
   const renamed = edited.record(1, "NOT_CLEAR", { branch: "feat/w01-v2" });
   assert.equal(renamed.status, 1, renamed.stdout + renamed.stderr);
-  assert.match(renamed.stderr, /already holds rounds 1-3/);
+  assert.match(renamed.stderr, /already hold rounds 1-3/);
 });
 
 test("rebuilding fails closed on a malformed record or two different records for one round", (t) => {
   const malformed = recorderRepo(t);
   assert.equal(malformed.record(1, "NOT_CLEAR").status, 0);
-  put(malformed.repo, "workspaces/demo/04-validate/round-w01-x.json", "{");
+  put(malformed.repo, "workspaces/demo/04-validate/round-w01-5.json", "{");
   git(malformed.repo, "add", "-A"); git(malformed.repo, "commit", "-qm", "records");
   rmSync(join(malformed.repo, ".claude/learning/redteam-stall-state.json"));
   const broken = malformed.record(2, "NOT_CLEAR");
   assert.equal(broken.status, 1, broken.stdout + broken.stderr);
-  assert.match(broken.stderr, /round-w01-x\.json as added in [0-9a-f]{12} is not a complete round record/);
+  assert.match(broken.stderr, /round-w01-5\.json as added in [0-9a-f]{12} is not a complete round record/);
   const dupe = recorderRepo(t);
   assert.equal(dupe.record(1, "NOT_CLEAR").status, 0);
   git(dupe.repo, "add", "-A"); git(dupe.repo, "commit", "-qm", "round 1");
@@ -457,8 +483,9 @@ test("a branch that exists only on a remote gets a create-it-locally message", (
 
 // A converged wave w01 on branch feat/w01: two clean rounds, both lenses, receipt committed.
 // `tweak` edits the receipt / records / files just before the receipt commit.
-function wave(t, tweak = () => {}, { securityAgent = "harness-security-reviewer", lenses = ["correctness", "security"], preRounds = 0, after } = {}) {
-  const dir = tempDir(t, "harness-wave-"), ws = "workspaces/demo", branch = "feat/w01";
+function wave(t, tweak = () => {}, { securityAgent = "harness-security-reviewer", lenses = ["correctness", "security"], preRounds = 0,
+  preBranch, after, ws = "workspaces/demo", firstN } = {}) {
+  const dir = tempDir(t, "harness-wave-"), branch = "feat/w01";
   git(dir, "init", "-q", "-b", "main");
   put(dir, ".gitignore", ".claude/learning/\n");
   put(dir, `${ws}/04-validate/acceptance-w01.md`, "# Acceptance w01\nw01-01 A1: echo returns its input. Approved by Fixture Owner (synthetic).\n");
@@ -477,11 +504,12 @@ function wave(t, tweak = () => {}, { securityAgent = "harness-security-reviewer"
   // Earlier NOT_CLEAR rounds on the branch, honestly recorded (distinct heads and root causes).
   for (let k = 1; k <= preRounds; k++) {
     for (const lens of lenses) put(dir, `${ws}/04-validate/w01-${lens}-r${k}.md`, "Synthetic fixture report.\nVerdict: NOT_CLEAR\n");
-    put(dir, `${ws}/04-validate/round-w01-${k}.json`, JSON.stringify({ branch, round: k, head: String(k).repeat(40), expected_reviewers: lenses,
+    put(dir, `${ws}/04-validate/round-w01-${k}.json`, JSON.stringify({ branch: preBranch ?? branch, round: k, head: String(k).repeat(40), expected_reviewers: lenses,
       reviewers: lenses.map((id) => ({ id, verdict: "NOT_CLEAR", evidence: `${ws}/04-validate/w01-${id}-r${k}.md` })), root_causes: [`cause-${k}`] }));
     git(dir, "add", "-A"); git(dir, "commit", "-qm", `earlier round ${k}`);
   }
-  for (let n = preRounds + 1; n <= preRounds + 2; n++) {
+  const first = firstN ?? preRounds + 1;
+  for (let n = first; n <= first + 1; n++) {
     const reviewers = lenses.map((lens) => {
       const agent = /^security/.test(lens) ? securityAgent : "harness-reviewer";
       const launch_id = `fixture-${n}-${lens}`;
@@ -500,8 +528,9 @@ function wave(t, tweak = () => {}, { securityAgent = "harness-security-reviewer"
   tweak({ dir, ws, receipt, head, put: (p, c) => put(dir, p, c), rm: (p) => unlinkSync(join(dir, p)) });
   put(dir, `${ws}/04-validate/convergence-w01.json`, JSON.stringify(receipt));
   git(dir, "add", "-A"); git(dir, "commit", "-qm", "receipt");
-  if (after) { after({ dir, ws, head, put: (p, c) => put(dir, p, c) }); }
-  return node([join(root, ".harness/bin/check-redteam-convergence-receipt.mjs"), "--workspace", resolve(dir, ws), "--scope", "w01"], { cwd: dir });
+  if (after) { after({ dir, ws, head, receipt, put: (p, c) => put(dir, p, c) }); }
+  const check = (...args) => node([join(root, ".harness/bin/check-redteam-convergence-receipt.mjs"), "--workspace", resolve(dir, ws), ...args], { cwd: dir });
+  return Object.assign(check("--scope", "w01"), { dir, ws, branch, receipt, check });
 }
 
 test("convergence receipt control: the honest fixture converges", (t) => {
@@ -597,4 +626,184 @@ test("convergence receipt ties every round to a saved report and a matching comm
     assert.equal(result.status, 1, `${label}: ${result.stdout}`);
     assert.match(result.stdout, expected, label);
   }
+});
+
+// ---- round 3: counting by scope or branch, receipt pin, non-ASCII paths, codify allowlist -------
+
+test("the rebuilt count follows the scope or the branch: a todo branch cut from a wave branch starts at round 1", (t) => {
+  const fx = recorderRepo(t);
+  for (const n of [1, 2]) assert.equal(fx.record(n, "NOT_CLEAR").status, 0);
+  git(fx.repo, "add", "-A"); git(fx.repo, "commit", "-qm", "wave rounds");
+  git(fx.repo, "checkout", "-qb", "fix/w01-01");
+  rmSync(join(fx.repo, ".claude/learning/redteam-stall-state.json"));
+  const todo = fx.record(1, "NOT_CLEAR", { branch: "fix/w01-01" }, "w01-01");
+  assert.equal(todo.status, 0, `another scope on another branch does not inherit: ${todo.stdout}${todo.stderr}`);
+  rmSync(join(fx.repo, ".claude/learning/redteam-stall-state.json"));
+  const sameScope = fx.record(1, "NOT_CLEAR", { branch: "fix/w01-01" }, "w01");
+  assert.equal(sameScope.status, 1, "the same scope on a new branch does inherit");
+  assert.match(sameScope.stderr, /already hold rounds 1-2/);
+});
+
+test("a rebuilt count must start at round 1", (t) => {
+  const fx = recorderRepo(t);
+  assert.equal(fx.record(1, "NOT_CLEAR").status, 0);
+  assert.equal(fx.record(2, "NOT_CLEAR").status, 0);
+  rmSync(join(fx.repo, "workspaces/demo/04-validate/round-w01-1.json"));
+  git(fx.repo, "add", "-A"); git(fx.repo, "commit", "-qm", "only round 2 committed");
+  rmSync(join(fx.repo, ".claude/learning/redteam-stall-state.json"));
+  const third = fx.record(3, "NOT_CLEAR");
+  assert.equal(third.status, 1, third.stdout + third.stderr);
+  assert.match(third.stderr, /the earliest committed record is round 2, not round 1/);
+});
+
+test("a non-ASCII workspace name: the rebuild still finds the records and an honest receipt converges", (t) => {
+  const fx = recorderRepo(t, { ws: "workspaces/café" });
+  for (const n of [1, 2]) assert.equal(fx.record(n, "NOT_CLEAR").status, 0);
+  assert.equal(fx.record(3, "NOT_CLEAR").status, 2);
+  git(fx.repo, "add", "-A"); git(fx.repo, "commit", "-qm", "round records");
+  rmSync(join(fx.repo, ".claude/learning/redteam-stall-state.json"));
+  const again = fx.record(1, "NOT_CLEAR");
+  assert.equal(again.status, 1, again.stdout + again.stderr);
+  assert.match(again.stderr, /already hold rounds 1-3/);
+  const receipt = wave(t, () => {}, { ws: "workspaces/café" });
+  assert.equal(receipt.status, 0, receipt.stdout + receipt.stderr);
+});
+
+test("the checker counts by scope or branch from round 1: inherited failed rounds, missing early rounds and re-added records", (t) => {
+  const inherited = wave(t, () => {}, { preRounds: 4, preBranch: "feat/w01-old" });
+  assert.equal(inherited.status, 1, inherited.stdout);
+  assert.match(inherited.stdout, /cap-hit-understated/);
+  const missing = wave(t, ({ ws, rm }) => { rm(`${ws}/04-validate/round-w01-1.json`); }, { preRounds: 1 });
+  assert.equal(missing.status, 0, `a record deleted later still counts as first added: ${missing.stdout}`);
+  const startsLate = wave(t, ({ receipt, ws, dir, put: p, rm }) => {
+    // Rounds 5 and 6 only: renumber the two clean records and the receipt, no rounds 1-4 anywhere.
+    for (const [from, to] of [[1, 5], [2, 6]]) {
+      const rec = JSON.parse(readFileSync(join(dir, `${ws}/04-validate/round-w01-${from}.json`), "utf8"));
+      p(`${ws}/04-validate/round-w01-${to}.json`, JSON.stringify({ ...rec, round: to }));
+      rm(`${ws}/04-validate/round-w01-${from}.json`);
+    }
+    receipt.rounds[0].n = 5; receipt.rounds[1].n = 6;
+  });
+  assert.equal(startsLate.status, 1, startsLate.stdout);
+  assert.match(startsLate.stdout, /round-records-invalid — the recorded rounds of feat\/w01 skip from 2 to 5/, "renamed records still count as first added");
+  const neverEarlier = wave(t, () => {}, { firstN: 5 });
+  assert.equal(neverEarlier.status, 1, neverEarlier.stdout);
+  assert.match(neverEarlier.stdout, /round-records-invalid — the recorded rounds of scope w01 \/ branch feat\/w01 start at round 5, not round 1/);
+  // Deleted and re-added with different content before the receipt: refused as invalid history.
+  const readded = wave(t, ({ dir, ws, put: p }) => {
+    const file = `${ws}/04-validate/round-w01-1.json`;
+    const rec = JSON.parse(readFileSync(join(dir, file), "utf8"));
+    git(dir, "rm", "-q", file); git(dir, "commit", "-qm", "remove");
+    p(file, JSON.stringify({ ...rec, root_causes: ["late"], reviewers: rec.reviewers.map((r) => ({ ...r, verdict: "NOT_CLEAR" })) }));
+  });
+  assert.equal(readded.status, 1, readded.stdout);
+  assert.match(readded.stdout, /round-records-invalid — .*round-w01-1\.json was deleted and re-added with different content/);
+  // Changed after the receipt: --scope reports it.
+  const later = wave(t, () => {}, { after: ({ dir, ws }) => {
+    const file = `${ws}/04-validate/round-w01-1.json`;
+    const rec = JSON.parse(readFileSync(join(dir, file), "utf8"));
+    put(dir, file, JSON.stringify({ ...rec, head: "9".repeat(40) }));
+    git(dir, "add", "-A"); git(dir, "commit", "-qm", "rewrite a record");
+  } });
+  assert.equal(later.status, 1, later.stdout);
+  assert.match(later.stdout, /round-record-after-receipt — .*round-w01-1\.json changed after the receipt/);
+});
+
+test("before the merge a refused receipt is corrected in a later commit; after the merge it is immutable", (t) => {
+  const refused = wave(t, ({ receipt }) => { receipt.acceptance_list.ratified_by = "codex"; });
+  assert.equal(refused.status, 1);
+  const { dir, ws, branch, receipt, check } = refused;
+  const path = `${ws}/04-validate/convergence-w01.json`;
+  put(dir, path, JSON.stringify({ ...receipt, acceptance_list: { ...receipt.acceptance_list, ratified_by: "Fixture Owner" } }));
+  const uncommitted = check("--scope", "w01");
+  assert.equal(uncommitted.status, 1, "an uncommitted correction is not judged");
+  assert.match(uncommitted.stdout, /receipt-rewritten — .*uncommitted changes/);
+  git(dir, "add", "-A"); git(dir, "commit", "-qm", "correct the receipt");
+  const corrected = check("--scope", "w01");
+  assert.equal(corrected.status, 0, corrected.stdout + corrected.stderr);
+  git(dir, "checkout", "-q", "main"); git(dir, "merge", "--no-ff", "-qm", "merge wave", branch);
+  assert.equal(check("--todo", "w01-01").status, 0, "closed as merged");
+  put(dir, path, JSON.stringify({ ...receipt, acceptance_list: { ...receipt.acceptance_list, ratified_by: "Someone Else" } }));
+  git(dir, "add", "-A"); git(dir, "commit", "-qm", "edit after merge");
+  const edited = check("--scope", "w01");
+  assert.equal(edited.status, 1, edited.stdout);
+  assert.match(edited.stdout, /receipt-rewritten — .*immutable once merged/);
+});
+
+test("browser-walk not-applicable reasons: two words and eight letters", (t) => {
+  const dir = tempDir(t, "harness-walk-reason-");
+  const run = (reason) => {
+    put(dir, "todo.md", `# w01-01\n\n## Verification\n\nBrowser walk: not applicable — ${reason}\n`);
+    return node([join(root, ".harness/bin/check-browser-walk-receipts.mjs"), join(dir, "todo.md")]).status;
+  };
+  for (const weak of ["backend", "no UI", "CLI only", "infrastructure"]) assert.equal(run(weak), 1, weak);
+  assert.equal(run("backend only"), 0, "control: a short real reason passes");
+});
+
+function codifyRepo(t) {
+  const dir = tempDir(t, "harness-codify-");
+  git(dir, "init", "-q", "-b", "main");
+  const log = "# Codify log\n\n| Date | Run (branch / pull request) | Lesson (path) | Outcome | Detail |\n| --- | --- | --- | --- | --- |\n" +
+    "| 2026-10-01 | docs/codify-a | .harness/backlog/harness-01-a.md | declined | already covered |\n";
+  for (const [p, c] of [[".harness/guides/task-delivery.md", "gates\n"], [".harness/guides/project-profile.md", "commands\n"],
+    [".harness/guides/other.md", "guide\n"], [".harness/codify-log.md", log], [".harness/backlog/README.md", "backlog\n"],
+    ["workspaces/demo/journal/0001-DECISION-start.md", "start\n"], [".claude/skills/x/SKILL.md", "skill\n"]]) put(dir, p, c);
+  git(dir, "add", "-A"); git(dir, "commit", "-qm", "base");
+  // `change` returning "staged" has staged its own index entries (a case-variant path cannot be
+  // created through a case-insensitive filesystem, so those go in with git plumbing).
+  const branch = (name, change) => {
+    git(dir, "checkout", "-q", "-b", name, "main");
+    if (change() !== "staged") git(dir, "add", "-A");
+    git(dir, "commit", "-qm", name, "--allow-empty");
+    // Forced: in this throwaway fixture a case-variant entry leaves the case-insensitive tree "modified".
+    git(dir, "checkout", "-f", "-q", "main");
+    return node([join(root, ".harness/bin/check-codify-allowlist.mjs"), "main", name], { cwd: dir });
+  };
+  const stageBlob = (path, content) => {
+    const blob = spawnSync("git", ["hash-object", "-w", "--stdin"], { cwd: dir, input: content, encoding: "utf8" }).stdout.trim();
+    git(dir, "update-index", "--add", "--cacheinfo", `100644,${blob},${path}`);
+    return "staged";
+  };
+  return { dir, log, branch, stageBlob };
+}
+
+test("codify allowlist: allowlisted guide, backlog, appended log rows and evidence may merge without the user", (t) => {
+  const { dir, log, branch } = codifyRepo(t);
+  const ok = branch("docs/codify-ok", () => {
+    put(dir, ".harness/guides/other.md", "guide, clearer\n");
+    put(dir, ".harness/backlog/harness-02-b.md", "item\n");
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-ok | .harness/backlog/harness-02-b.md | awaiting user | PR #7 |\n");
+    put(dir, ".harness/reviews/codify-ok-correctness-r1.md", "Verdict: CLEAR\n");
+    put(dir, ".harness/reviews/round-codify-ok-1.json", "{}\n");
+    put(dir, "workspaces/demo/journal/0002-DECISION-codify-ok.md", "summary\n");
+  });
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+});
+
+test("codify allowlist refuses case collisions, excluded guides, renames, deletions, symlinks, modes, edited or user-answer log rows and other paths", (t) => {
+  let fx;
+  const cases = {
+    "case-collision": () => fx.stageBlob(".harness/guides/Task-Delivery.md", "EVIL\n"),
+    "case-collision-other": () => fx.stageBlob(".harness/guides/Other.md", "shadow\n"),
+    "excluded-guide": () => put(fx.dir, ".harness/guides/task-delivery.md", "weaker gates\n"),
+    "excluded-guide-new-case": () => fx.stageBlob(".harness/guides/PROJECT-PROFILE.md", "x\n"),
+    "rename": () => git(fx.dir, "mv", ".harness/guides/other.md", ".harness/guides/renamed.md"),
+    "deletion": () => git(fx.dir, "rm", "-q", ".harness/backlog/README.md"),
+    "symlink": () => symlinkSync("other.md", join(fx.dir, ".harness/guides/link.md")),
+    "mode": () => chmodSync(join(fx.dir, ".harness/guides/other.md"), 0o755),
+    "edited-log-row": () => put(fx.dir, ".harness/codify-log.md", fx.log.replace("already covered", "covered")),
+    "user-answer-row": () => put(fx.dir, ".harness/codify-log.md", fx.log + "| 2026-10-08 | docs/codify-x | .harness/backlog/harness-01-a.md | folded in | the user approved it on 2026-10-08 |\n"),
+    "bad-outcome": () => put(fx.dir, ".harness/codify-log.md", fx.log + "| 2026-10-08 | docs/codify-x | x.md | accepted | x |\n"),
+    "edited-evidence": () => put(fx.dir, "workspaces/demo/journal/0001-DECISION-start.md", "rewritten\n"),
+    "skill": () => put(fx.dir, ".claude/skills/x/SKILL.md", "skill with a new tool grant\n"),
+    "wrong-case-prefix": () => fx.stageBlob(".Harness/guides/new.md", "x\n"),
+  };
+  // A fresh repository per case: a case-variant entry in one case must not leak into the next.
+  for (const [name, change] of Object.entries(cases)) {
+    fx = codifyRepo(t);
+    const result = fx.branch(`docs/codify-${name}`, change);
+    assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, /^FAIL /m, name);
+  }
+  assert.equal(node([join(root, ".harness/bin/check-codify-allowlist.mjs"), "main"], { cwd: fx.dir }).status, 2, "usage error");
 });

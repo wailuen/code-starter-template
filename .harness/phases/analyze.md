@@ -14,9 +14,12 @@ does today, from the code, in `specs/` (§ 6); fill the project profile from the
 test and CI scripts (§ 5); check that the repository allows merge commits
 (`.harness/guides/task-delivery.md` § Branches, pull requests and merging, step 5); merge the
 harness's `.gitignore` entries into the project's own; if the repository requires a person's
-approving review on pull requests, tell the user that each merge will wait for that person; and
-write the user's intended change as
-the first brief. The output trees in § Output-Completeness Gate still apply — the analysis
+approving review on pull requests, tell the user that each merge will wait for that person;
+in standard mode, plan a first-wave todo that adds the
+`check-redteam-convergence-receipt.mjs --sweep workspaces` job to the existing CI (on `main`
+only, `.harness/phases/todos.md` § Workflow step 2); if the project already deploys from
+`main`, `/deploy --onboard` moves it to a `production` branch; and write the user's intended
+change as the first brief. The output trees in § Output-Completeness Gate still apply — the analysis
 documents the current system and the change.
 
 ## Phase Check
@@ -82,6 +85,10 @@ Document analysis in `workspaces/<project>/01-analysis/`, plans in `workspaces/<
 If `.harness/guides/project-profile.md` still has `<unset>` values that this analysis can now
 determine — project name, primary language(s), application shape, source/test roots, the
 commands, test infrastructure — propose concrete values alongside the stack recommendation.
+Recommend a delivery mode in plain words (`.harness/guides/task-delivery.md` § Light mode):
+light for a one-person prototype or hobby with no real users' data or money, standard
+otherwise; the user chooses at plan approval. In light mode this phase has no separate review
+round (see task-delivery § Light mode).
 The stack recommendation includes where the product will run (§ Production in the profile):
 a hosting option with its expected monthly cost, whether it needs a domain and a production
 database, and one cheaper or simpler alternative, in plain words the user can choose between.
@@ -139,7 +146,7 @@ There is no dedicated agent in this harness for buyer value-proposition critique
 have the analyst cover that lens directly, or write a `value-auditor` agent (same shape as the
 others in `.claude/agents/`) once the product's target buyer is defined.
 
-Review against explicit acceptance, with task-delivery's complete-round recorder and reassessment limits. Commit analysis on a `docs/<slug>` branch, never `main`, and record its review rounds there (scope `analysis-<slug>`, so a later analysis does not overwrite this one's round and report files), so they don't spend another branch's round budget (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). Repeated gaps trigger a design decision; an absence-of-findings search over unlimited scope is not a completion criterion.
+Review against explicit acceptance, with task-delivery's complete-round recorder and reassessment limits. Commit analysis on a `docs/<slug>` branch, never `main`, and record its review rounds there (scope `analysis-<slug>`, so a later analysis does not overwrite this one's round and report files), so they don't spend another branch's round budget (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). Repeated gaps trigger a design decision; an absence-of-findings search over unlimited scope is not a completion criterion. In light mode there is no analysis review round (task-delivery § Light mode).
 
 ### Journal (MUST — phase-complete gate)
 

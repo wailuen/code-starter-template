@@ -43,7 +43,7 @@ pick it up.
 | Release | ask for a release | The AI recommends the version number; version bump, release notes, tag | A tagged version |
 | Deployment and rollback | `/deploy` | First time: recommend hosting with its cost and set up health checks, alerts and backups with you. Then: deploy, prove users see the new version, check for drift (`--check`), roll back (`--rollback`) | `deploy/deployments/`, a journal entry |
 | Operating | `/deploy`, `/ws` | Health checks and alerts tell the person you named when production is down; `/ws` shows undeployed changes and open incidents | Alerts set up at onboarding |
-| Bug fixes and incidents | `/fix` | Record the bug with a severity (S1–S4), reproduce it with a failing test, fix the root cause, one independent review; S1 takes the hotfix path | `fixes/<id>-<slug>.md` |
+| Bug fixes and incidents | `/fix` | Record the bug with a severity (S1–S4), reproduce it with a failing test, fix the root cause, one independent review; an S1 first asks you whether to undo the last update | `fixes/<id>-<slug>.md` |
 | Maintenance and housekeeping | `/sweep`, `/validate`, `/ws` | Audit outstanding work, dependency and security updates (run `/sweep` at least monthly), check standards, show status | A sweep report |
 | Retiring the product | `/deploy --decommission` | Export the data you keep, take the service down, stop the costs — each step with your OK | A decommission record |
 | Learning | `/journal`, `/learn`, `/codify` | Record decisions and discoveries; `/codify` folds lessons about the harness itself back into it automatically after each wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug fix that taught something | `journal/`, harness updates by pull request |
@@ -53,7 +53,10 @@ pick it up.
 
 1. **Set up once.** Create a repository from this template, run `/start`, then `/analyze`
    with a description of what you want to build. `/analyze` proposes the tech stack and fills
-   in `.harness/guides/project-profile.md` once you agree.
+   in `.harness/guides/project-profile.md` once you agree. For a small personal project (a
+   prototype or hobby with no real users' data or money) it suggests **light mode**: fewer
+   review rounds and less paperwork, the same tests and the same questions to you
+   (`.harness/guides/task-delivery.md` § Light mode).
 2. **Plan a wave.** Run `/todos`. Review the plan it shows you and approve it — nothing is
    built until you do. Approval freezes that wave's scope; changing your mind later is
    supported, but it means re-planning that part under a new name.
@@ -64,7 +67,9 @@ pick it up.
    request. If review keeps failing, it routes to `/debug` instead of looping.
 5. **Ship.** Run `/deploy`. The first time, it recommends where to host the product and what
    that costs, walks you through anything only you can do (an account, billing, a domain),
-   and sets up health checks and alerts that reach you. If users are hurt, `/fix` asks first
+   and sets up health checks and alerts that reach you. Production runs a separate
+   `production` branch, so merging work into `main` never changes what users see; only
+   `/deploy` does. If users are hurt, `/fix` asks first
    whether to undo the last update (`/deploy --rollback`), then fixes the cause.
 6. **Repeat** steps 2–5 wave by wave.
 

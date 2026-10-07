@@ -51,7 +51,10 @@ Use `$analyze`, `$todos`, `$implement`, `$redteam`, `$debug`, `$fix`, `$codify`,
 For helper procedures (`start`, `ws`, `wrapup`, `sweep`, `journal`, `deploy`,
 `validate`, `test`, `design`, `doctor`, `worktree`, `autonomize`), read the existing
 `.claude/commands/<name>.md` directly when requested or referenced by a phase.
-These helpers do not need separate Codex skill folders.
+These helpers do not need separate Codex skill folders. `deploy` (except its read-only
+§ Check Mode) and `autonomize` run only when the user asks for them in their own words in this
+session; Codex has no equivalent of Claude's `disable-model-invocation`, so never start them
+yourself.
 Select the skill in clients that use a skill picker. A shared `/name` reference
 means the matching skill/procedure, never a shell command. `$ARGUMENTS` means the
 user's actual arguments. The helper's authorization gates and read-only

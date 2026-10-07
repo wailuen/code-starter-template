@@ -52,7 +52,8 @@ errored round (MUST-3 (d)), which may cite the record the errored round cited. A
 (keys knowingly left recurring). Leaving a key recurring is accepting a known risk, so each
 `replan_accepts` acceptor is the user's name, given after they agreed
 (`.harness/rules/autonomous-execution.md` § What needs the user), and is held to the same
-identity check as every other person-only field (`.harness/lib/agent-identity.cjs`).
+identity check as every other person-only field (`.harness/rules/completion-criterion.md`
+MUST-1).
 
 Record a finding under the earlier round's key when the reviewer's evidence names it as
 the same mechanism; do not mint a fresh key for a named recurrence. The recorder matches
@@ -68,27 +69,28 @@ budget (`roundsRecorded`, `reviewersSeen`, `debugRound`, `acceptancesConsumed`,
 `replansConsumed`). State written before the budget existed is seeded from the round
 number, the last recorded lens set and decision record, and — through the CLI — the
 branch's earlier `round-*.json` files beside the one being recorded, so a spent record
-stays spent; the round count can only over-count. When a checkout has no state for
-the branch at all (the gitignored state file was deleted, or the repository was cloned
-fresh), the recorder rebuilds the budget from every round record
-(`workspaces/<project>/04-validate/round-*.json` or `.harness/reviews/round-*.json`) ever
-added on the branch's own first-parent, non-merge commits, each read as it was first
-committed — a later edit or deletion of a record changes nothing, and a record that does not
-parse makes the recorder refuse rather than skip it ("Cannot rebuild the review budget …; a
-missing or edited history is never a fresh budget"). A round number that does not follow
-the committed ones is refused ("… the branch's committed history already holds rounds
-1-K …, so the next round is K+1"). Commit each round record before the next round. A
-branch cut from a branch with recorded rounds inherits them and continues their
-numbering; a new branch never starts a new budget.
+stays spent.
 
-The convergence checker reads the same committed records. It refuses a receipt whose
-`cap_hit` says the cap was not hit while the records show more counted rounds than the cap
-with no debug round or escalation (`cap-hit-understated`); records that do not parse,
-repeat a round (including records copied into a new scope), were deleted and re-added with
-different content, or leave a gap (`round-records-invalid`); a record of the scope committed
-after the receipt's first commit, or left uncommitted (`round-record-after-receipt`); and a
-record whose round, head, reviewers, verdicts or `branch` disagree with the receipt
-(`round-record-mismatch`).
+The round budget is an aid against endless repair loops, not a security control. Commit
+each round record (`round-<scope>-<n>.json`) before the next round. When a checkout has no
+state for the branch (the gitignored state file was deleted, or the repository was cloned
+fresh), the recorder rebuilds the count from the round records committed in the branch's
+history, each read as it was first committed, counting a record when its file name
+carries the scope being recorded (`round-<scope>-<n>.json`) or its `branch` is this branch.
+So a renamed or re-cut branch for the same scope keeps its count, and a todo branch cut from
+a wave branch starts at round 1. What the recorder detects: a record that does not parse, a
+round number that does not follow the counted ones, and a record later edited or deleted
+(the first-committed content is what counts); it then refuses and names the problem. It
+does not try to detect every local git manipulation: rewriting local history (a reset, or a
+new scope on a new branch) can restart the count, and rewriting history already needs the
+user (`.harness/rules/autonomous-execution.md` § What needs the user).
+
+The convergence checker counts the same way: the counted rounds for the scope must start at
+round 1 with no gap, its cap check replays those same records, and a recorded round is
+never rewritten after the receipt's commit. The checker's findings
+(`cap-hit-understated`, `round-records-invalid`, `round-record-after-receipt`,
+`round-record-mismatch`) are explained in its own output and in
+`.harness/guides/review-round-recorder.md`.
 
 Duplicate rounds cannot increment; conflicting or out-of-order rounds are refused;
 errors and partial results never count as clean. Every recorded round prints the
@@ -100,10 +102,9 @@ receipt, read against the dispatch roster and the round files — is the backsto
 a new key should have reused an existing one.
 Writes are serialized by `redteam-round.lock`; a busy or stale lock or corrupt state is
 reported, never reset silently. Exit codes: 0 with a `NEXT:` line (`FIX`, `REVIEW`,
-`REPAIR_ENVIRONMENT` or `VERIFY_CONVERGENCE_RECEIPT`) when the round was recorded; a
-refusal records nothing and exits 1, or 2/3 when the refusal is the cap, debug-round or
-REPLAN gate (2 = `REPLAN`/`DEBUG_ROUND`, 3 = `ESCALATE_TO_HUMAN`). After a round is
-recorded, commit its `round-<scope>-<n>.json` before the next round. The recorder runs only through its CLI,
+`REPAIR_ENVIRONMENT` or `VERIFY_CONVERGENCE_RECEIPT`); 2 for `REPLAN` or `DEBUG_ROUND` and 3
+for `ESCALATE_TO_HUMAN`, whether the round was recorded (its JSON is printed) or refused at
+that gate (nothing recorded); 1 for any other refusal, with nothing recorded. The recorder runs only through its CLI,
 `.harness/bin/record-review-round.mjs`, which takes complete structured round JSON; there
 is no hook entry point. Individual prose
 verdicts are never round evidence — the orchestrator aggregates them and records the
@@ -127,6 +128,8 @@ without recording it:
   out, not the branch tip: committing the round's own record, reports and ledger rows on top
   does not move it, but any change to the reviewed code is a new cycle. Once the pair has closed, another round with the same
   lenses on the unchanged head reviews nothing and is refused inside or outside the cap.
+  The confirmation after a clean debug round reuses the debug lenses but omits
+  `"debug": true` — with the flag it would be a second debug round and is refused.
 - **(b) The branch's single debug round:** `debug: true`, a new decision record in
   `replan`, and `expected_reviewers` disjoint from every reviewer id ever recorded on
   the branch, named `<lens>-debug` (for example `correctness-debug`, `security-debug`;
@@ -153,11 +156,9 @@ budget. An errored debug attempt must be re-run as a debug round, and a fabricat
 
 Every cited file — evidence, `replan`, acceptance record — must be a non-empty file
 inside the checkout the round is recorded from, and `branch` must be a branch of that
-repository with `head` a commit on it (the recorder verifies both, so a renamed branch
-string is not a fresh budget). A cited file is tracked by where it really is (resolved
+repository with `head` a commit on it (the recorder verifies both). A cited file is tracked by where it really is (resolved
 through symlinks, relative to that checkout), never by how the citation was spelled:
-`./x`, `x/./x` and an absolute path are one record and consume once. A new branch cut
-from a branch with recorded rounds inherits them through its history (MUST-2).
+`./x`, `x/./x` and an absolute path are one record and consume once. Which earlier rounds a branch counts is set in MUST-2.
 
 ```json
 // DO — round 4 is the debug round: the flag, a new record, lenses the branch has never seen
@@ -167,15 +168,15 @@ from a branch with recorded rounds inherits them through its history (MUST-2).
 ```
 
 "The four-round counter never fired, so the loop is healthy", "one more debug round will
-do it", "the lead accepted the escalation" and "a new branch name is a new budget" are
-the usual ways around this; none of them is a recorded human acceptance.
+do it", and "the lead accepted the escalation" are the usual ways around this; neither is a
+recorded acceptance by the user.
 
 **Why:** MUST-1 bounds rounds since a reassessment; nothing else bounds the branch
 total, so legitimate replanning can itself be the runaway. The fresh-lens check is a
 naming discipline the state can audit (`debugRound`, `reviewersSeen`), not a proof of
 context freshness — the round JSON carries no agent identity — and the acceptor is a
-named string checked against the shared denylist (`.harness/lib/agent-identity.cjs`),
-not a verified human. Both are floors that gate review confirms against
+named string checked for honest mistakes (`.harness/rules/completion-criterion.md` MUST-1),
+not proof that a person approved. Both are floors that gate review confirms against
 the dispatch roster.
 
 ## Recorder limits

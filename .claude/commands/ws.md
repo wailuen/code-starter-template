@@ -20,23 +20,30 @@ waiting for you." Check each of these:
   `ESCALATE_TO_HUMAN` (the recorder's state, or a `round-<scope>-<n>.json` after the debug round
   with no later round), or a residual in a receipt or decision record that names no human
   acceptor yet.
-- **Merges that would deploy** — when the profile says `main_auto_deploys: yes`, any certified
-  wave or fix waiting to merge, because merging it ships it to users.
+- **Deploy setup not finished** — when the project profile's `main_deploys_live` is still
+  `unknown` and the repository is connected to a host: every merge into `main` waits for the
+  user's OK until `/deploy --onboard` confirms `main` does not deploy; list those merges.
 - **Undeployed changes** — when `deploy/deployment-config.md` exists, the drift from
-  `/deploy --check`, and any open fix record with `Deploy hold: yes`.
+  `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly), and any open fix
+  record with `Deploy hold: yes`. Ask the user whether to run `/deploy`.
 - **Open S1/S2 bugs** — fix records in `workspaces/*/fixes/` whose `Status:` is not `closed`,
   with what users are affected by.
 - **Harness changes awaiting your OK** — lessons whose latest `.harness/codify-log.md` row is
-  `awaiting user` (classify exactly as `.harness/phases/learn.md` step 1), with the pull request
-  or backlog item holding the change; say in one line what it would change for the user.
+  `awaiting user` (classify exactly as `.harness/phases/learn.md` step 1), with the
+  `docs/codify-<slug>-ask` pull request or branch holding the change; say in one line what it
+  would change for the user. Lessons "in progress" in an open codify pull request are listed
+  under § 2, not here.
 - **Open product questions** — journal `GAP` entries without the `harness` tag and with no
   later entry that resolves them.
-- **Update check due** — when the newest `04-validate/sweep-<date>.md` that ran Sweep 9 (or no
+- **Open pull requests into `main`** — any not merged after its gate passed (for example
+  waiting for the user), with what it is waiting for.
+- **Sweep decisions** — every decision point in the newest sweep report
+  (`workspaces/*/04-validate/sweep-<date>.md` or a root `SWEEP-<date>.md`) not yet answered.
+- **Update check due** — when the newest sweep report (either location) that ran Sweep 9 (or no
   such report at all, once the product is deployed) is more than a month old: "Dependency and
   security updates were last checked N days ago. Run `/sweep`?"
 - **External setup the next wave needs** — any credential or account the plan asked the user
-  for (`.harness/guides/task-delivery.md` § Before a wave starts) and not yet provided, and any
-  decision point from the latest `/sweep` report not yet answered.
+  for (`.harness/guides/task-delivery.md` § Before a wave starts) and not yet provided.
 - **Parked hotfix follow-ups** — parked proposals whose first line is `Source: hotfix <fix-id>`:
   that area shipped on an emergency review and still needs its full review through `/todos`.
 
@@ -49,8 +56,10 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
 - Current phase, from the most advanced of these that is true (each needs its own artifact,
   not just a folder). Read `main` and the open wave branch (`feat/wNN-<slug>`): completed todos
   and wave review rounds live on the wave branch until it merges.
-  - `convergence-wNN.json` on `main` for the latest wave → wave NN reviewed and merged
-  - a `round-wNN-<n>.json` without a converged receipt → wave NN in review (`/redteam`)
+  - a `convergence-wNN*.json` receipt (`wNN`, `wNNb`, …) on `main` for the latest wave → wave
+    NN reviewed and merged (in light mode, the wave's CLEAR round record and its merge into
+    `main`; `.harness/guides/task-delivery.md` § Light mode)
+  - a `round-wNN*-<n>.json` without a merged receipt → wave NN in review (`/redteam`)
   - `todos/completed/` files for the current wave → building wave NN (`/implement`)
   - `04-validate/acceptance-wNN.md` → wave NN approved, ready to build
   - `todos/active/` files with no acceptance list → plan written, awaiting approval
@@ -63,7 +72,7 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
   exits 0 — either a converged `/redteam` receipt covers it (`CLOSED`), or it was completed
   before the gate existed (`grandfathered — pre-gate`, shown as such, never as awaiting);
   otherwise show it as `implemented — awaiting convergence`, never "done".
-- Harness lessons: the open count (and that `/codify` will run at the next trigger,
+- Harness lessons: the in-progress ones with their codify pull request, the open count (and that `/codify` will run at the next trigger,
   `.harness/phases/codify.md` § When it runs) and deferred lessons with their revisit condition.
 - If `.session-notes` exists at the repository root, its contents and age.
 

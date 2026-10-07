@@ -17,6 +17,7 @@ derives it from the repository — it never guesses.
 | Source roots | `<unset>` | e.g. `src/`, `app/`, `cmd/`, `web/`. |
 | Test roots | `<unset>` | e.g. `tests/`, `__tests__/`, `*_test.go`. |
 | UI framework and design system | `<unset>` | e.g. React + the project's component library; `n/a` with no user interface. |
+| `delivery_mode` | `standard` | `standard` or `light` (`.harness/guides/task-delivery.md` § Light mode); `/analyze` recommends, the user chooses at plan approval. |
 
 ## Commands
 
@@ -63,7 +64,7 @@ confirms them with the user and writes the operational detail to `deploy/deploym
 | Domain (address users type) | `<unset>` |
 | Production database and its backups | `<unset>` |
 | Who is alerted when production is down, and how | `<unset>` |
-| `main_auto_deploys` — does every push to `main` deploy? | `<unset>` (`yes` or `no`, set by `/deploy --onboard`; `yes` makes every merge into `main` a deploy) |
+| `main_deploys_live` — can a merge into `main` change what is live? | `unknown` (set to `no` by `/deploy --onboard` once the host deploys only from the `production` branch; while `unknown` on a repository connected to a host, every merge into `main` asks the user) |
 
 ## Test infrastructure
 
