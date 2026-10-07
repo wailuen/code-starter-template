@@ -5,16 +5,23 @@ description: "Show workspace status dashboard. Read-only."
 
 Display the current workspace status. Do not modify any files.
 
-1. List all directories under `workspaces/` (excluding `instructions/` and every directory whose name starts with `_`).
+1. **Harness lessons — always, even when no workspace exists.** Classify lessons exactly as
+   `.harness/phases/learn.md` step 1 does. Show the open count (and, if any, that `/codify` will
+   run at the next trigger, `.harness/phases/codify.md` § When it runs); list every waiting
+   lesson as `!! WAITING FOR YOU: <lesson path> — <backlog item path>` (a harness change
+   `/codify` prepared that needs the user's confirmation); list deferred lessons with their
+   revisit condition.
 
-2. For the most recently modified workspace (or `$ARGUMENTS` if specified):
+2. List all directories under `workspaces/` (excluding `instructions/` and every directory whose name starts with `_`).
+
+3. For the most recently modified workspace (or `$ARGUMENTS` if specified):
    - Show workspace name and path
    - Derive current phase from filesystem:
      - Has `01-analysis/` files -> Analysis done
      - Has `todos/active/` files -> Todos created
      - Has `todos/completed/` files -> Implementation in progress
      - Has `04-validate/` files -> Validation done
-     - A `/codify` DECISION entry exists in `journal/` -> Codification done
+     - No open lessons (`.harness/phases/learn.md` step 1) -> Codification up to date
    - Count files in `todos/active/` vs `todos/completed/`, and open records in `fixes/` (Status not `closed`)
    - Count pending todo proposals in `todos/parked/` and name the oldest with its age; flag every
      proposal whose first line is `Source: hotfix <fix-id>` (`!! HOTFIX FOLLOW-UP:`) — that area
@@ -47,4 +54,4 @@ corresponding phase has not run yet. The flag is advisory.
 - Count total entries and entries by type
 - Show the 3 most recent entries (number, type, date, topic)
 
-3. Present as a compact summary.
+4. Present as a compact summary.

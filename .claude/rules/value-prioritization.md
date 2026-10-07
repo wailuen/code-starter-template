@@ -63,7 +63,7 @@ regression-locked. Other items remain Carried-forward.
 ```
 
 **User-anchored sources are a closed list:** (a) the user's brief in this session, (b)
-`briefs/` in the active workspace, (c) journal `DECISION-` entries, (d) a literal user
+`briefs/` in the active workspace, (c) journal `DECISION-` entries whose `author:` is `human` or `co-authored`, (d) a literal user
 quote in this session's transcript, (e) a spec § success criterion the user authored or
 approved. A primary value ranking must cite one of these, because only these record what
 the user asked for.

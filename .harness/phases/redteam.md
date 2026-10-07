@@ -113,8 +113,9 @@ Only exit 0 permits a convergence claim. Committed certificates remain immutable
 subsequent changes use a new certificate scope. The round recorder does not replace
 this final verifier. Then merge the wave branch into `main` by pull request, reading CI on
 the pinned head SHA before a separate merge command, with a merge commit (task-delivery
-§ Branches, pull requests and merging). At a wave boundary continue with learning capture,
-spec/todo reconciliation and value re-ranking before the next wave.
+§ Branches, pull requests and merging). At a wave boundary, right after the merge, run
+`/codify` — on a `docs/codify-<slug>` branch cut from `main` (`.harness/phases/codify.md` §
+When it runs) — then spec/todo reconciliation and value re-ranking before the next wave.
 
 ## Conditional checks
 

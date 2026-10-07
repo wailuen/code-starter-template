@@ -54,6 +54,14 @@ Proceed autonomously within existing authorization. If the decision changes prod
 behavior, authority or accepted security risk, surface the concrete choice now. Never
 queue that choice until convergence; it may be what convergence depends on.
 
+If the mechanism lies in the harness itself — a misleading rule, a missing check, a wrong
+role brief — rather than in the product, file it as a `.harness/backlog/` item on this branch
+(`.harness/rules/autonomous-execution.md` § Problems found along the way). `/codify` picks it
+up automatically when the wave merges into `main` (`.harness/phases/codify.md` § When it
+runs); until then this branch keeps working under the harness text it already has and is not
+merged with `main` mid-review (`.harness/guides/task-delivery.md` § Branches, pull requests
+and merging).
+
 ## 4. Resume with evidence
 
 Update the current todo's contract; run the readiness checker and the discriminating

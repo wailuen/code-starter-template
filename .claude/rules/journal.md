@@ -32,8 +32,14 @@ This is the canonical contract the `/journal` command (`.claude/commands/journal
 the two must agree, so change both together. The harness has no cryptographic operator identity and no per-session
 provenance ledger to verify `author:` against — set it honestly by judgment.
 
-**Author decision tree**: `human` — user stated the conclusion before the AI did. `agent` — AI
-surfaced it unprompted. `co-authored` — it evolved through exchange (default when uncertain).
+**Author decision tree**: `human` — user stated the conclusion before the AI did.
+`co-authored` — a message from the user in this session shaped the conclusion (cite or quote
+it in the entry). `agent` — everything else, including entries the AI wrote with no user
+input, every automatic `/codify` record and review receipts; use `agent` when uncertain.
+The label matters: a `DECISION` entry marked `human` or `co-authored` counts as a user
+decision that later work may rely on without asking again
+(`.harness/rules/autonomous-execution.md`), so never mark an entry `co-authored` unless the
+user's own words shaped it.
 
 ## Entry Types
 

@@ -152,6 +152,7 @@ breaker), so each kind of review runs on its own branch and cannot spend another
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`) | the wave branch, after a CLEAR round and its receipts |
 | Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main` | fix review (`<fix-id>`) | `main` |
 | S1 hotfix (`/fix`) | `hotfix/<fix-id>-<slug>` | the deployed commit (`deploy/.last-deployed`), else `main` | fix review (`<fix-id>`) | deploy the branch head with `/deploy` and verify it live first, then `main` (`.harness/phases/fix.md` § 7) |
+| Fix closure record (`/fix` § 8) | `docs/<fix-id>-closure` | `main` | none (record only) | `main` |
 | Harness change (`/codify`) | `docs/codify-<slug>` | `main` | codify review, when dispatched (`codify-<slug>`) | `main` |
 | Release prep | `release/v<X.Y.Z>` | `main` | none (metadata only) | `main` |
 

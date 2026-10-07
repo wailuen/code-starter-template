@@ -10,7 +10,9 @@ within it. Explicit user authorization persists across turns: never re-request a
 approval the user already gave, and don't stop merely to propose work already
 authorized. Stop to ask only when you are genuinely uncertain and the point is not
 already covered by a user decision (a brief, a ratified plan, a journal `DECISION-`
-entry, or something the user said this session). Destructive, hard-to-reverse or
+entry whose `author:` is `human` or `co-authored`, or something the user said this
+session). An entry an agent wrote on its own (`author: agent`) — including every record an
+automatic `/codify` run writes — is not a user decision. Destructive, hard-to-reverse or
 outward-facing actions still need confirmation unless the user already gave it for that
 action.
 

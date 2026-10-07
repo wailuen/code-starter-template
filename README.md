@@ -40,7 +40,7 @@ pick it up.
 | Deployment and rollback | `/deploy` | Deploy, prove users see the new version, check for drift (`--check`), roll back (`--rollback`) | `deploy/.last-deployed`, a journal entry |
 | Bug fixes and incidents | `/fix` | Record the bug with a severity (S1–S4), reproduce it with a failing test, fix the root cause, one independent review; S1 takes the hotfix path | `fixes/<id>-<slug>.md` |
 | Maintenance and housekeeping | `/sweep`, `/validate`, `/ws` | Audit outstanding work, check standards, show status | — |
-| Learning | `/learn`, `/codify`, `/journal` | Record decisions and discoveries; fold lessons back into the harness itself | `journal/`, harness updates |
+| Learning | `/journal`, `/learn`, `/codify` | Record decisions and discoveries; `/codify` folds lessons back into the harness automatically after each wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug fix that taught something | `journal/`, harness updates by pull request |
 | Session continuity | `/wrapup` | Save where things stand; the next session reads it first | `.session-notes` |
 
 ## How to use it, day to day
@@ -68,7 +68,13 @@ Along the way:
   or a harness backlog item) — never dropped.
 - **Ending a session** → `/wrapup`. **Starting one** → the next session reads the notes
   automatically; `/ws` shows where everything stands.
-- **Every few waves** → `/learn` to list lessons, `/codify` to fold them into the harness.
+- **The harness learns as it goes.** Lessons are written to the journal as they happen, and
+  `/codify` folds them into the harness's own rules and guides automatically — after each
+  wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug
+  fix that taught something. Each update is independently reviewed and merged by pull
+  request. Changes that loosen a rule, touch security or git safety, change what you must
+  approve, or give the AI more freedom wait for your OK; `/ws` shows how many lessons and
+  approvals are waiting.
 
 You decide at a few fixed points — plan approval, anything destructive or hard to reverse,
 deploying, and questions only you can answer. Between those points the agents proceed on

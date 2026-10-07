@@ -35,6 +35,12 @@ there before running `/wrapup`.
 **Deploy drift:** if `deploy/deployment-config.md` exists, run `/deploy --check` and put any
 drift ("N production-touching commits not deployed") under Outstanding work.
 
+**Lessons:** run `/learn`. If it reports open lessons and the moment is right
+(`.harness/phases/codify.md` § When it runs — the right moment and what counts), run
+`/codify` before writing the notes. Otherwise don't codify: list the open lessons under
+Outstanding work so the next session runs `/codify` first. List waiting lessons (awaiting the
+user's confirmation) under Outstanding work too, as questions for the user.
+
 ## Format
 
 Overwrite `.session-notes` at the repository root — the one location every command reads

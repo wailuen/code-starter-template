@@ -200,8 +200,9 @@ convention — say so explicitly and name the evidence that would raise it.
 Whether to stop for ratification:
 
 - **Escalate before acting** when the point is not already covered by a user decision (a
-  brief, a ratified plan, a journal `DECISION-` entry, or something the user said this
-  session). Recommend the pick (MUST-1/2/3), state the confidence, name what would raise
+  brief, a ratified plan, a journal `DECISION-` entry whose `author:` is `human` or
+  `co-authored`, or something the user said this session; an `author: agent` entry, such
+  as an automatic `/codify` record, does not count). Recommend the pick (MUST-1/2/3), state the confidence, name what would raise
   it, and ask a yes/no or single decision point (MUST-5).
 - **Proceed** when a user decision already covers the point — never re-ask an approval the
   user already gave (`.harness/rules/autonomous-execution.md`). Put the pick and its

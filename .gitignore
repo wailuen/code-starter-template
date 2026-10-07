@@ -16,3 +16,6 @@ CLAUDE.local.md
 
 # OS / editor noise
 .DS_Store
+
+# Per-session notes written by /wrapup (local to this checkout)
+.session-notes

@@ -15,4 +15,4 @@ run `/ws` for the workspace state.
 
 Phases, in order: `/analyze` → `/todos` → `/implement` → `/redteam` → `/codify`, with `/debug`
 for a stalled review loop, `/fix` for a reported bug, `/learn` for open lessons, and `/deploy`
-to ship. End a session with `/wrapup`. New users: `/start`.
+to ship. `/codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs). End a session with `/wrapup`. New users: `/start`.

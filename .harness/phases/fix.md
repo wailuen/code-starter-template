@@ -168,5 +168,7 @@ Fill in `## Closure`: pull request, merge commit, deploy record, the live check.
 issue with a comment that cites the merge commit or pull request (`.claude/rules/git.md`
 § Discipline). Tell the reporter in plain words what was wrong and what changed. If the bug
 taught something reusable — a missing test pattern, a misleading rule — create a journal
-entry (`/journal new DISCOVERY <slug>`) so `/learn` and `/codify` can pick it up. Set
-`Status: closed`.
+entry (`/journal new DISCOVERY <slug>`). Set `Status: closed`, and commit the record and any
+journal entry on a short `docs/<fix-id>-closure` branch cut from `main`, merged by pull
+request like any other branch to `main`. Then, if you created that entry, run `/codify`
+(`.harness/phases/codify.md` § When it runs).

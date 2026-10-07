@@ -15,4 +15,5 @@ This repository uses a shared delivery harness that Claude Code and Codex both f
 
 Phase skills, in order: `$analyze` → `$todos` → `$implement` → `$redteam` → `$codify`, with
 `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
+`$codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs).
 All commands are listed in `.harness/README.md`.

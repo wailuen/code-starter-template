@@ -24,7 +24,7 @@ The AI handles all the technical work — writing code, testing, security checks
 | 2. Planning | `/todos` | Create a complete project roadmap | Approve the plan before building starts |
 | 3. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
 | 4. Testing | `/redteam` | Test everything from a real user's perspective | Review results |
-| 5. Knowledge | `/codify` | Capture what we learned for future sessions | Confirm the knowledge is accurate |
+| 5. Knowledge | `/codify` | Capture what we learned for future sessions — runs on its own after each wave and at `/wrapup` | Nothing, unless a change would loosen a rule, touch security or git safety, change what you approve, give the AI more freedom, or change an AI model setting; those wait for your OK |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.
