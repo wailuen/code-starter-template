@@ -4,6 +4,10 @@ A starter template for building any software project with Claude Code (and optio
 Codex), in any language. It ships a delivery harness — phases, rules, agents, skills and a
 few checking tools — that takes a project from requirements to a reviewed, deployed change.
 
+**New to vibe coding? Start with the step-by-step tutorial:** [docs/tutorial.pdf](docs/tutorial.pdf)
+(with drawings) or [docs/tutorial.md](docs/tutorial.md). It walks you from writing a PRD to a
+live app, with the exact prompts to type at each step.
+
 ## Use it
 
 1. Click **Use this template** on GitHub (or copy `.claude/`, `.harness/`, `AGENTS.md` and the
@@ -100,6 +104,7 @@ layout, the shared rules and what the harness deliberately does not include.
 
 ## Layout
 
+- `docs/` — the beginner tutorial (`tutorial.pdf` to share, `tutorial.md` to edit).
 - `.claude/` — Claude Code entry point (`CLAUDE.md`), rules, agents, skills and commands.
 - `.harness/` — shared phases, roles, guides, rules and tools used by both Claude Code and Codex.
 - `AGENTS.md` — Codex entry point. Codex users run
