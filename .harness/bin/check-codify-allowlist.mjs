@@ -22,8 +22,9 @@
  *         `.harness/reviews/round-codify-*.json`, `workspaces/<p>/04-validate/codify-*.md`,
  *         `workspaces/<p>/04-validate/round-codify-*.json` and
  *         `workspaces/<p>/journal/<NNNN>-DECISION-*.md` whose front matter (between the opening
- *         and closing `---` lines) has exactly one `author:` key, equal to `agent`, and no
- *         `human` or `co-authored` anywhere in it; the body is not read;
+ *         and closing `---` lines) is plain unquoted `key: value` lines, each key once, with
+ *         `author: agent` and no `human` or `co-authored` anywhere in it, and no second `---` or
+ *         `...` line anywhere after it; the body is not otherwise read;
  *     `.harness/guides/**` is NOT on it: guides are instruction files (`.claude/rules/security.md`
  *     § Untrusted Content), so a guide change is ask-first;
  *   - nothing is deleted, renamed, copied, a symlink, a submodule, or changes mode (only plain
@@ -94,16 +95,31 @@ function parseRaw(out) {
 const lessonKey = (cell) => cell.replace(/^`([^`]*)`$/, "$1");
 const tableCells = (line) => line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
 
-/** Why the run's journal entry is not an agent's record, or null when it is. Reads front matter only. */
+// A front-matter line the check accepts: a plain lowercase key, one space, a plain value. No
+// quoted or indented keys, no quoted, block, anchor, alias, tag or comment values, no escapes.
+const FRONT_LINE_RE = /^([a-z][a-z0-9_-]*): ([^\s"'\\{}|>&*!%@`#][^\\]*)$/;
+
+/**
+ * Why the run's journal entry is not an agent's record, or null when it is. Reads front matter
+ * only. The file holds exactly one front-matter block, first; every line in it is a plain
+ * `key: value` line, each key once; `author` is exactly `agent`; no `human` or `co-authored`.
+ */
 export function journalAuthorProblem(text) {
   const lines = (text || "").split(/\r?\n/);
   if (lines[0] !== "---") return "the run's journal entry must open with front matter holding `author: agent`";
   const end = lines.indexOf("---", 1);
   if (end < 0) return "the run's journal entry has no closing `---`; its front matter must hold `author: agent`";
+  if (lines.slice(end + 1).some((l) => /^(?:---|\.\.\.)\s*$/.test(l))) return "the run's journal entry has a second front-matter block or document marker (`---` or `...`); it has exactly one front matter, holding `author: agent`";
   const front = lines.slice(1, end);
-  const authors = front.filter((l) => /^\s*author\s*:/i.test(l));
-  if (authors.length !== 1) return `the run's journal entry must have exactly one \`author:\` key, \`author: agent\` (found ${authors.length})`;
-  if (!/^author:[ \t]*agent[ \t]*$/.test(authors[0])) return "the run's journal entry must have `author: agent`, nothing else on that line";
+  if (!front.length) return "the run's journal entry has empty front matter; it must hold `author: agent`";
+  const keys = new Map();
+  for (const l of front) {
+    const m = l.match(FRONT_LINE_RE);
+    if (!m) return `the run's journal entry front matter must be plain unquoted \`key: value\` lines (no quotes, escapes, indentation or comments); refused ${JSON.stringify(l.slice(0, 60))} — it must hold \`author: agent\``;
+    if (keys.has(m[1])) return `the run's journal entry front matter repeats the key \`${m[1]}\`; it must have exactly one \`author: agent\``;
+    keys.set(m[1], m[2].replace(/[ \t]+$/, ""));
+  }
+  if (keys.get("author") !== "agent") return "the run's journal entry must have exactly one `author:` key, `author: agent`, nothing else on that line";
   if (front.some((l) => /human|co-?authored/i.test(l))) return "the run's journal entry must have `author: agent` and no `human` or `co-authored` in its front matter";
   return null;
 }

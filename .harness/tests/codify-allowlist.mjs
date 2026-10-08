@@ -131,11 +131,24 @@ test("the run's journal entry is judged by its front matter only", (t) => {
     "docs/codify-nofm": "author: agent\nsummary\n",
     "docs/codify-unclosed": "---\ntype: DECISION\nauthor: agent\nsummary\n",
     "docs/codify-agentish": "---\ntype: DECISION\nauthor: agent, human\n---\nsummary\n",
+    // Only plain unquoted `key: value` lines; one front-matter block in the whole file.
+    "docs/codify-quotedkey": "---\ntype: DECISION\nauthor: agent\n\"author\": \"hum\\u0061n\"\n---\nsummary\n",
+    "docs/codify-singlequotedkey": "---\ntype: DECISION\nauthor: agent\n'author': x\n---\nsummary\n",
+    "docs/codify-quotedvalue": "---\ntype: DECISION\nauthor: \"agent\"\n---\nsummary\n",
+    "docs/codify-escape": "---\ntype: DECISION\nauthor: agent\ntopic: a\\x20b\n---\nsummary\n",
+    "docs/codify-nospace": "---\ntype: DECISION\nauthor:agent\n---\nsummary\n",
+    "docs/codify-indented": "---\ntype: DECISION\nauthor: agent\nmeta:\n  author: x\n---\nsummary\n",
+    "docs/codify-secondafter": "---\ntype: DECISION\nauthor: agent\n---\n---\nauthor: x\n---\nsummary\n",
+    "docs/codify-secondlater": "---\ntype: DECISION\nauthor: agent\n---\nsummary\n\n---\nauthor: x\n---\n",
+    "docs/codify-docend": "---\ntype: DECISION\nauthor: agent\n---\nsummary\n...\n",
+    "docs/codify-emptyfirst": "---\n---\n---\ntype: DECISION\nauthor: agent\n---\nsummary\n",
   })) {
     const r = entry(name, text);
     assert.equal(r.status, 1, `${name}\n${out(r)}`);
-    assert.match(r.stdout, /author: agent/, name);
+    assert.match(r.stdout, /author: agent|front matter/, name);
   }
+  const full = entry("docs/codify-fullfm", "---\ntype: DECISION\ndate: 2026-10-08\nauthor: agent\nproject: demo\ntopic: codify run, the user's lessons\nphase: codify\ntags: [codify]\n---\nsummary\n");
+  assert.equal(full.status, 0, `control: the journal command's full front matter may merge\n${out(full)}`);
 });
 
 // ---- guides are instruction files (security M3) ------------------------------------------------
