@@ -169,7 +169,9 @@ any file name, a conflict resolved or code edited inside the merge into `main`, 
 fast-forward merge makes `--todo` and `--sweep` refuse the wave on `main` and at pull-request
 time (`landed-content-not-reviewed`, `round-record-after-receipt`, `merge-commit-changed-code`,
 `wave-merge-not-a-merge-commit`). New code means new review rounds and a corrected receipt
-before the merge.
+before the merge. Delete the wave branch once it has merged: work added to a reused wave branch
+after it has taken in `main` again looks to the checker like new work cut from `main`, so it is
+judged only by that new work's own review, not by this receipt.
 
 After the receipt check exits 0, in this order:
 

@@ -99,6 +99,11 @@ one, so the rest are still shown next time. If no record has the line yet, nothi
 confirmed: summarize the whole config as onboarding step 8 does and ask. Check mode never asks:
 it stops (§ Check Mode).
 
+This comparison is an instruction, not a tool: nothing checks that a new `Confirmed config:` hash
+was actually shown to the user. So a record whose hash differs from the previous record's must
+quote the user's words from that run; a changed hash with no quoted yes is a finding for `/redteam`
+and `/sweep`.
+
 #### Step 2: Pre-Deploy Gates
 
 Run the gate commands from config (typically: tests, lint, security scan). Block on failure. `--skip-gates` is allowed only when the user said, in their own words in this session, to skip a named gate; record their words in the deployment record.

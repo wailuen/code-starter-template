@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, lstatSync, realpathSync } from "node:fs";
 import { dirname, join, resolve, basename, relative, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
+import { normalizeIdentity } from "../lib/agent-identity.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 
 // 2 = reassess before another round (REPLAN, or the cap's single debug round);
@@ -87,16 +88,23 @@ function committedRoundRecords(cwd, roundFile) {
 function deliveryMode(profile) {
   const KEY = /^[\s`*_]*delivery[_ -]?mode[\s`*_]*$/i;
   const values = [];
-  for (const line of profile.split("\n")) {
-    if (!/delivery[_ -]?mode/i.test(line)) continue;
+  for (const rawLine of profile.split("\n")) {
+    // Fold look-alike letters, invisible characters and full-width punctuation first, so a line
+    // that a person reads as naming the delivery mode is always judged.
+    const mentions = /delivery[_ -]?mode/i.test(normalizeIdentity(rawLine));
+    if (!mentions) continue;
+    const line = rawLine.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+    let found = false;
     if (/^\s*\|/.test(line)) {
       const cells = line.trim().replace(/^\||\|$/g, "").split("|");
       const at = cells.findIndex((cell) => KEY.test(cell));
-      if (at >= 0) values.push(at + 1 < cells.length ? cells[at + 1] : "");
+      if (at >= 0) { values.push(at + 1 < cells.length ? cells[at + 1] : ""); found = true; }
     } else {
-      const m = line.match(/^\s*(?:[-*+>]\s+)?[`*_]*delivery[_ -]?mode[`*_\s]*[:=](.*)$/i);
-      if (m) values.push(m[1]);
+      const m = line.match(/^\s*(?:#{1,6}\s+|[-*+>]\s+)?[`*_]*delivery[_ -]?mode[`*_\s]*[:=](.*)$/i);
+      if (m) { values.push(m[1]); found = true; }
     }
+    if (!found)
+      throw new Error(`.harness/guides/project-profile.md mentions the delivery mode in a line the recorder cannot read: ${JSON.stringify(rawLine.trim())}; write it as the profile's table row or as "delivery_mode: standard|light", then record the round`);
   }
   const modes = values.map((raw) => {
     const v = raw

@@ -102,9 +102,14 @@ export function parseApprovals(text) {
   return text.split(/^## Approval\b.*$/m).slice(1).map((body) => {
     const field = (name) => body.match(new RegExp(`^${name}:[ \\t]*(.*)$`, "m"))?.[1].trim() ?? "";
     const hashes = {};
-    for (const pair of list(field("hashes"))) { const [p, h = ""] = pair.split("=").map((s) => s.trim()); hashes[p] = h; }
+    const repeated = [];
+    for (const pair of list(field("hashes"))) {
+      const [p, h = ""] = pair.split("=").map((s) => s.trim());
+      if (Object.hasOwn(hashes, p)) repeated.push(p);
+      hashes[p] = h;
+    }
     return { approved_by: field("approved_by"), approved_on: field("approved_on"), approval: field("approval"),
-      phases: field("phases"), held: field("held"), hashes };
+      phases: field("phases"), held: field("held"), hashes, repeated };
   });
 }
 
@@ -169,6 +174,19 @@ const fileHash = (path) => sha(TEXT.test(path) ? readText(path) : readFileSync(p
 function baseApprovals(dir, ref) {
   const git = (...a) => spawnSync("git", ["-C", dir, ...a], { encoding: "utf8" });
   if (git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`).status !== 0) return { usage: `--base ${ref} is not a commit here` };
+  // The base is the default branch the prototype merges into, never a ref the caller picks: with an
+  // origin remote, origin's default branch after a fetch; with no remote, the local main.
+  const hasOrigin = git("remote").stdout.split("\n").includes("origin");
+  let expected;
+  if (hasOrigin) {
+    const head = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD").stdout.trim().replace(/^origin\//, "") || "main";
+    if (git("fetch", "--quiet", "origin", head).status !== 0) return { usage: `cannot fetch origin/${head} to check --base` };
+    expected = `refs/remotes/origin/${head}`;
+  } else expected = "refs/heads/main";
+  const want = git("rev-parse", "--verify", "--quiet", `${expected}^{commit}`).stdout.trim();
+  const got = git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`).stdout.trim();
+  if (!want || want !== got)
+    return { usage: `--base ${ref} must be the branch the prototype merges into (${expected.replace(/^refs\/(?:heads|remotes)\//, "")}${want ? ` at ${want.slice(0, 12)}` : ", which does not exist"})` };
   if (git("cat-file", "-e", `${ref}:./APPROVAL.md`).status !== 0) return { text: "" };
   const shown = git("show", `${ref}:./APPROVAL.md`);
   return shown.status === 0 ? { text: lf(shown.stdout) } : { usage: `cannot read APPROVAL.md at ${ref}: ${shown.stderr.trim()}` };
@@ -269,7 +287,10 @@ export function checkPrototype(workspace, { requireApproval = false, base = null
   if (base !== null) {
     const b = baseApprovals(dir, base);
     if (b.usage) return { usage: b.usage };
-    if (!(approvalText ?? "").startsWith(b.text))
+    // Compare whole lines: text added to the end of the base's last line is an edit, not an append.
+    const baseLines = b.text === "" || b.text.endsWith("\n") ? b.text : `${b.text}\n`;
+    const head = approvalText ?? "";
+    if (head !== b.text && !head.startsWith(baseLines))
       errors.push(`APPROVAL.md changes or drops an earlier record from ${base}: records are append-only; restore them and add a new '## Approval <n>' record`);
   }
   if (approvalText !== null) {
@@ -289,6 +310,7 @@ export function checkPrototype(workspace, { requireApproval = false, base = null
         errors.push(`approval ${n}: phases must list PRD phases, e.g. 0, 1, 2 (and held: the phases the user held)`);
       for (const p of approved) {
         if (held.includes(p)) errors.push(`approval ${n}: phase ${p} is both approved and held`);
+        if (a.repeated.includes(p)) errors.push(`approval ${n}: hashes names phase ${p} more than once`);
         if (!/^[0-9a-f]{16}$/.test(a.hashes[p] ?? "")) errors.push(`approval ${n}: hashes has no entry for phase ${p} (copy it from this checker's output)`);
       }
       for (const p of approved) if (phases[p]) {

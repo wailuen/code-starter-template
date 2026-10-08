@@ -500,3 +500,29 @@ test("--base: APPROVAL.md must start with the base branch's text unchanged (RR-4
   const cli = spawnSync(process.execPath, [join(root, ".harness/bin/check-prototype.mjs"), "--base", "no-such-ref", ws], { encoding: "utf8" });
   assert.equal(cli.status, 2);
 });
+
+test("--base: the base is the branch the prototype merges into; an append must start on a new line; a phase hashed twice is refused", (t) => {
+  const ws = fixture(t);
+  const git = (...a) => spawnSync("git", ["-C", ws, ...a], { encoding: "utf8" });
+  const commit = (m) => git("-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-qm", m);
+  git("init", "-q", "-b", "main");
+  approve(ws, 1, { phases: ["0", "1"] });
+  const path = join(ws, "prototype/APPROVAL.md");
+  writeFileSync(path, readFileSync(path, "utf8").replace(/\n+$/, ""));   // base file without a final newline
+  git("add", "-A");
+  commit("base");
+  git("checkout", "-qb", "docs/prototype-2");
+  // Extending the last line of the old record is an edit, not an append.
+  writeFileSync(path, readFileSync(path, "utf8") + ", 0=0000000000000000");
+  assert.match(errorsOf(ws, { base: "main" }), /APPROVAL\.md changes or drops an earlier record/);
+  // A phase named twice in one record's hashes is refused on its own.
+  const twice = readFileSync(path, "utf8");
+  assert.match(errorsOf(ws), /hashes names phase 0 more than once/);
+  writeFileSync(path, twice.replace(/, 0=0000000000000000$/, ""));
+  // Only the branch the prototype merges into may be the base.
+  put(ws, "prototype/screens/p1-recipes.html", "<p>v2</p>");
+  git("add", "-A"); commit("prototype work");
+  assert.match(checkPrototype(ws, { base: "HEAD" }).usage ?? "", /must be the branch the prototype merges into/);
+  assert.match(checkPrototype(ws, { base: "docs/prototype-2" }).usage ?? "", /must be the branch the prototype merges into/);
+  assert.equal(checkPrototype(ws, { base: "main" }).usage, undefined, "control: main, with no remote, is the base");
+});

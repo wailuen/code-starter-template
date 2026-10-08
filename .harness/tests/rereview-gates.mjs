@@ -205,6 +205,21 @@ test("delivery_mode: light in any honest spelling is light mode; a value that is
   }
 });
 
+test("a line that names the delivery mode but cannot be read is an error, never a silent standard", (t) => {
+  for (const line of ["Delivery mode for this project: light", "The delivery_mode is light.", "1. delivery_mode: light",
+    "| delivery mode (standard/light) | light |", "| `delivеry_mode` | light |", "delivery\u200b_mode: light", "delivery_mode\uff1alight"]) {
+    const fx = recorderRepo(t);
+    fx.profile(`${line}\n`);
+    const r = fx.record();
+    assert.equal(r.status, 1, `${JSON.stringify(line)}: ${r.stdout}${r.stderr}`);
+  }
+  const heading = recorderRepo(t);
+  heading.profile("## delivery_mode: light\n");
+  const h = heading.record();
+  assert.equal(h.status, 1, "a heading that says light is light mode");
+  assert.match(h.stderr, /light-mode wave round always includes a security reviewer/);
+});
+
 test("in light mode a round on a wave branch, or under any wave-like scope, needs the security seat", (t) => {
   const light = "| `delivery_mode` | `light` | |\n";
   for (const scope of ["wave1", "w01-final", "W1", "final"]) {

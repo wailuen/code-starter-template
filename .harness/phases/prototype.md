@@ -172,7 +172,8 @@ Rules for the pages:
      reconciled to built code is not edited here: a design change to a built screen goes in the
      todo that rebuilds it, and the spec changes when that wave's reconciliation runs;
    - run `node .harness/bin/check-prototype.mjs --require-approval --base origin/main workspaces/<project>`
-     (`--base main` when the repository has no remote). It exits 0 only when every phase is
+     (`--base main` when the repository has no remote; any other base is refused, and it fetches
+     origin first, so the comparison is with the branch the prototype merges into). It exits 0 only when every phase is
      approved for the pages it has now, or held by the user; the screen check passed for these
      pages (or a named person accepted it as owed); and `APPROVAL.md` starts with the base
      branch's `APPROVAL.md` unchanged, so earlier records were only appended to. Commit, open the pull

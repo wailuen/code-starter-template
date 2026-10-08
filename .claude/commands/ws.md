@@ -13,9 +13,9 @@ List every decision only the user can make, each as a question in the format in
 waiting for you." Check each of these:
 
 - **Instruction files changed** — if any agent instruction file in this checkout — anything under
-  a `.claude/` or `.harness/` folder at any depth, any `AGENTS*.md`, `CLAUDE*.md` or `GEMINI.md`
+  a `.claude/`, `.harness/`, `.agents/` or `.codex/` folder at any depth, any `AGENTS*.md`, `CLAUDE*.md` or `GEMINI.md`
   — differs from `origin/main` as last fetched, say so first. Check with the pathspecs
-  `':(glob)**/.claude/**' ':(glob)**/.harness/**' ':(glob)**/AGENTS*.md' ':(glob)**/CLAUDE*.md' ':(glob)**/GEMINI.md'`: `git diff --name-only origin/main...HEAD -- <pathspecs>` for
+  `':(glob)**/.claude/**' ':(glob)**/.harness/**' ':(glob)**/.agents/**' ':(glob)**/.codex/**' ':(glob)**/AGENTS*.md' ':(glob)**/CLAUDE*.md' ':(glob)**/GEMINI.md'`: `git diff --name-only origin/main...HEAD -- <pathspecs>` for
   committed changes and `git status --porcelain --untracked-files=all -- <pathspecs>` for
   uncommitted and new files; if either prints anything, say so first, in plain words, naming the
   files: this session follows those files, and changes that are not on `main` have not been
