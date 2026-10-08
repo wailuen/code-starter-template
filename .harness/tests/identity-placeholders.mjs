@@ -34,3 +34,19 @@ test("names that happen to split into filler words are people, not run-together 
   for (const name of ["Toby", "Anna", "Tobias", "Theo"]) assert.equal(isAgentIdentity(name), false, name);
   for (const label of ["ClaudeCode", "codexagent", "userowner", "theagent", "aibot"]) assert.equal(isAgentIdentity(label), true, label);
 });
+
+test("deferred, anonymous and role-abbreviation placeholders are refused as an identity", () => {
+  for (const v of ["Owner (verbal)", "owner (chat)", "Owners (verbal)", "PO", "P.O.", "Will confirm", "will approve later",
+    "TBD later", "later", "Soon", "no one", "No-one", "noone", "anonymous", "Anon", "same", "Same as above", "PO approved"]) {
+    assert.equal(isAgentIdentity(v), true, v);
+  }
+});
+
+test("real names that share a word with those placeholders still pass", () => {
+  // "Will", "Soon" and "Po" are real given names: refused only as the whole value or inside a
+  // placeholder phrase, never as one word of a longer name.
+  for (const v of ["Toby", "Anna", "Claudia", "Agent Smith", "Will Smith", "Will Self", "Soon-Yi Lee", "Po Chen",
+    "Nona", "Simone", "Poon Wai", "Leone", "Will Confirmed-Smith", "Sameer Khan"]) {
+    assert.equal(isAgentIdentity(v), false, v);
+  }
+});
