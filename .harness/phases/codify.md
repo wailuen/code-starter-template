@@ -75,7 +75,8 @@ over the workflow where they differ.
   `awaiting user` (never a row recording a user's answer); and the run's own evidence, added
   only — its review report and round record (in `workspaces/<project>/04-validate/` or
   `.harness/reviews/`) and its `DECISION` journal summary, whose front matter has exactly one
-  `author:` line, `author: agent`, and no `human` or `co-authored`.
+  `author:` line, `author: agent`, and no `human` or `co-authored`. Its front matter holds only
+  plain unquoted `key: value` lines, and its body has no `---` line (use a heading instead).
   Before any merge without the user, run
   `node .harness/bin/check-codify-allowlist.mjs origin/main --pr <number>` with a GitHub
   remote (`node .harness/bin/check-codify-allowlist.mjs origin/main docs/codify-<slug>` with
