@@ -97,7 +97,10 @@ credential isn't available yet, never silently.
 Write each request so a non-technical user can complete it alone: the site to open, each
 click, which value to copy, and where to put it safely (the git-ignored `.env`, or the
 deployed environment's secret store from `.harness/guides/project-profile.md` § Configuration
-— never in chat, a commit or an issue), plus any cost or free-tier limit.
+— never in chat, a commit or an issue), plus any cost or free-tier limit. Ask for the
+provider's test or sandbox key where one exists. A live key that can send real messages,
+charge money or write real records is used in tests only after the user's yes, given knowing
+what it can do (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ## Harness backlog — `todos/` holds product scope only
 
@@ -142,7 +145,8 @@ first wave; the first plan's approval record quotes that choice. Until the user 
 standard applies. Light mode changes only this:
 
 - No analysis or planning review rounds. The analysis pull request merges into `main` once the
-  user has approved the stack and mode, the plan pull request once they have approved the plan;
+  user has approved the stack, hosting and mode (the same approval standard mode needs,
+  `.harness/phases/analyze.md` § 5), the plan pull request once they have approved the plan;
   the acceptance list still carries their approval record.
 - No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
   walk receipts and `## Verification`.
@@ -154,18 +158,22 @@ standard applies. Light mode changes only this:
 - A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
   `/implement` say so and do not run the convergence checker.
 - `/codify`'s wave trigger fires when the wave branch merges.
-- Review reports, round records and journal entries ride on the wave or fix branch. Records that
-  gate a deploy — the wave preview and the user's answer, deployment records, the deploy hold
-  and fix records — still go to `main` at once on their own record-only branch, exactly as in
-  standard mode, because `/deploy` reads them on `main`.
+- Review reports, round records and journal entries ride on the wave or fix branch. Deployment
+  records, the deploy hold and fix records still go to `main` at once on their own record-only
+  branch, exactly as in standard mode, because `/deploy` reads them on `main`. The wave preview
+  and the user's answer follow `.harness/phases/redteam.md` § 4, the same in both modes.
 
 Everything else is unchanged: tests, `.harness/rules/autonomous-execution.md` § What needs the
 user, the security rules, `/fix` and `/deploy`. The phases say "in light mode, see
 task-delivery § Light mode" where they differ.
 
-Switching from light to standard is a plan change the user approves. At the switch, set
+Switching from light to standard is a plan change the user approves. Make it on the next
+wave's plan branch (`docs/wNN-plan`): set the profile's `delivery_mode` to `standard`, set
 `grandfather_pin` in `.harness/manifest.json` to `main`'s tip (so light-mode todos are not
-re-audited), then add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2).
+re-audited), and add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2). That
+plan is the first standard-mode plan, so it gets its planning review round (`wNN-plan`), and
+its approval record names all three changes and quotes the user's yes to the switch and to
+pushing the CI job (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ## Workspace file layout
 
@@ -234,10 +242,12 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |
 | Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
 | Production | `production` | moved only by `/deploy`, to a commit already on `main` (rolled back by `/deploy --rollback`) | none | never merged; the host deploys it |
-| Fix record — opened, updated, closed (`/fix`, `/deploy --rollback`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
-| Deploy onboarding (`/deploy --onboard`) | `docs/deploy-onboard` | `main` | one CLEAR review (`deploy-onboard`) | `main` |
-| Deployment record (`/deploy`) | `docs/deploy-<date>` | `main` | none (record only) | `main` |
-| Sweep report (`/sweep`) | `docs/sweep-<date>` | `main` | none (record only) | `main` |
+| Fix record — opened, updated (including its `Fix commit:` line when the fix merges), closed (`/fix`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
+| Deploy onboarding (`/deploy --onboard`), `<n>` counting each onboarding run | `docs/deploy-onboard-<n>` | `main` | one CLEAR review (`deploy-onboard-<n>`) | `main` |
+| Deployment record (`/deploy`) | `docs/deploy-<YYYY-MM-DD-HHMMSS>`, the record's time stamp | `main` | none (record only) | `main`, at once |
+| Rollback or decommission record, with any fix record the rollback opened or put on hold (`/deploy --rollback`, `--decommission`) | `docs/deploy-<YYYY-MM-DD-HHMMSS>-rollback` or `-decommission` | `main` | none (record only) | `main`, at once |
+| Sweep report (`/sweep`) | `docs/sweep-<date>`, with `-2`, `-3`, … added when that name is taken | `main` | none (record only) | `main` |
+| Light → standard switch (§ Light mode) | the next wave's `docs/wNN-plan` | `main` | planning review (`wNN-plan`) | `main`, after plan approval |
 | Wave preview answer (`/redteam` § 4) | `docs/<scope>-preview` | `main` | none (record only) | `main` |
 | Spec reconciliation after a wave (`/redteam` § 4) | `docs/wNN-spec-reconcile` | `main` | none (spec text; the next wave's review reads it) | `main` |
 | Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when `check-codify-allowlist.mjs` exits 0 (`.harness/phases/codify.md` § Automatic runs) |

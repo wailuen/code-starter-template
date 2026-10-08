@@ -45,7 +45,8 @@ harness lesson.
 
 - local commits;
 - pushing a `feat/`, `fix/`, `docs/` or `release/v*` branch, unless it changes
-  CI workflow files (below);
+  CI workflow files, or CI hands secrets to work-branch runs and the push changes code that
+  run executes (both below);
 - opening a pull request in this repository (for a security fix, see the disclosure item
   below);
 - merging a todo branch into its wave branch;
@@ -56,8 +57,10 @@ harness lesson.
     exited 0; in light mode, its one review round was recorded CLEAR
     (`.harness/guides/task-delivery.md` § Light mode);
   - a fix: its one CLEAR review round was recorded;
-  - an analysis (`docs/<slug>`) or a plan (`docs/wNN-plan`): after its CLEAR review round, or
-    in light mode after the user approved; a plan always only after the user approved it;
+  - an analysis (`docs/<slug>`): after its CLEAR review round (none in light mode) and the
+    user's approval of the stack, hosting and delivery mode (below);
+  - a plan (`docs/wNN-plan`): after its CLEAR review round (none in light mode) and the user's
+    approval of the plan;
   - a prototype (`docs/prototype-<n>`): only after the user approved it, in the session they
     gave the words, with `check-prototype.mjs --require-approval` exiting 0 — every phase
     approved for the pages it has now, or held by the user;
@@ -84,9 +87,13 @@ fields hold the user's name and are never filled before they answer
 
 Decisions about the work:
 
-- approving the plan (`.harness/phases/todos.md`), including the stack and hosting choice
-  `/analyze` proposes and, for the first wave, the push of its CI workflow — the plan names
-  that push and the approval record quotes the user's yes to it;
+- approving the stack, hosting and delivery mode `/analyze` proposes
+  (`.harness/phases/analyze.md` § 5), before the analysis merges, recorded in a journal
+  `DECISION` entry with `author: co-authored` that quotes the user's words;
+- approving the plan (`.harness/phases/todos.md`), including, for the first wave, the push of
+  its CI workflow, and at the switch from light to standard mode the `--sweep` CI job and the
+  `grandfather_pin` change (`.harness/guides/task-delivery.md` § Light mode) — the plan names
+  each push and the approval record quotes the user's yes to it;
 - approving the prototype (`.harness/phases/prototype.md`) or some of its phases, holding a
   phase, a change to an approved one, and showing the user a prototype whose screen check is
   still owed;
@@ -102,6 +109,8 @@ Decisions about the work:
 - a user-visible deviation from a spec (`.claude/rules/specs-authority.md` Rule 6);
 - breaking a public surface without a deprecation period (`.claude/rules/zero-tolerance.md`
   Rule 6a);
+- adding a dependency or upgrading one — each brings outside code into the product and into
+  CI runs — unless the approved plan or todo names that dependency and version;
 - removing a dependency the product still uses, or downgrading one.
 
 Production and releases. Code reaches users only from the `production` branch (or a
@@ -110,7 +119,11 @@ changes production; an agent never deploys on its own.
 
 - deploying: moving `production` to a commit already on `main` through the project's deploy
   command. The user confirms by running `/deploy`; when an S1 fix is ready, ask them quickly,
-  in plain words, to run it. The first deploy creates the `production` branch;
+  in plain words, to run it. The first deploy creates the `production` branch. Starting
+  `/deploy` does not cover three things, which each need their own yes in that run
+  (`.claude/commands/deploy.md`): deploy settings changed since the user last confirmed them,
+  shipping a wave whose preview is unanswered or answered "no" (Step 1.3), and a production
+  migration that removes or narrows data (Step 3);
 - every merge into `main` while the project profile says `main_deploys_live: unknown` (the
   default until `/deploy` onboarding has checked that `main` does not deploy) and the product
   may already be live. **May already be live** means any of: the profile's § Production says the product
@@ -131,10 +144,19 @@ Anything outside this repository:
 - publishing details of a security fix, of any severity, before the fix is deployed: in a
   public repository keep the work on a private fork or a private security advisory, or keep
   public commit, pull request and issue text to a minimal description, until the user has
-  confirmed the deploy;
+  confirmed the deploy, in the order `.harness/phases/fix.md` § 7 sets out. Security review
+  findings and security exceptions in a public repository stay in a private place, with
+  only an id and verdict committed, until the fix is deployed and the user agrees to publish
+  them (`.claude/rules/security.md` § Public Repositories — Security Findings Stay Private);
 - pushing a change to CI workflow files (for example `.github/workflows/**`), which runs with
-  the repository's secrets as soon as it is pushed — except the first wave's workflow the user
-  approved with the plan (above).
+  the repository's secrets as soon as it is pushed — except a workflow change the user
+  approved with the plan (above);
+- pushing a work branch that changes code a secret-holding CI run executes — build and test
+  scripts, package scripts, dependency manifests — while CI hands the repository's secrets to
+  runs on work branches. Recommend scoping secrets to a protected environment or to jobs that
+  run only on `main` or `production` (a repository-settings change); once the user has
+  confirmed CI is set up that way, recorded in a journal `DECISION` entry, this item no longer
+  applies.
 
 Destructive or exposing actions:
 
@@ -142,6 +164,11 @@ Destructive or exposing actions:
   above);
 - killing processes you did not start, or overwriting uncommitted changes you did not make;
 - dropping tables or running migrations against a shared or production database;
+- writing to production or shared data from tests, scripts or tooling (test records belong in
+  a local or throwaway instance, `.harness/rules/e2e-god-mode.md` Rule 1);
+- running tests or tools with a live third-party key that can send real messages, charge
+  money or write real records; use the provider's test or sandbox key where one exists, and
+  name what a live key can do when asking;
 - force-pushing, or rewriting history — published history, or local history that holds
   review records (rewriting it to win back review rounds is exactly this);
 - raising content's exposure — a secret or personal data into a commit, journal or doc,
@@ -163,7 +190,8 @@ passing proves nothing. Before merging, run the Local CI parity command from
 pull request that you did.
 
 `/autonomize` removes check-ins on technical choices. It widens nothing on this list except
-the actions the user explicitly names when they invoke it, and it never changes approved
+the actions the user explicitly names when they invoke it, for that session only (a saved
+memory never carries such a widening into a later session), and it never changes approved
 scope.
 
 Ask in the shape `.claude/rules/communication.md` § Asking the user to decide sets out.

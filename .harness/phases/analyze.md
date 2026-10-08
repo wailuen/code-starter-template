@@ -91,19 +91,21 @@ determine — project name, primary language(s), application shape, source/test 
 commands, test infrastructure — propose concrete values alongside the stack recommendation.
 Recommend a delivery mode in plain words (`.harness/guides/task-delivery.md` § Light mode):
 light for a one-person prototype or hobby with no real users' data or money, standard
-otherwise. The user picks it together with the stack, before `/todos`; write it to the profile's
-`delivery_mode` row (standard until they choose). In light mode this phase has no review round,
-and the analysis pull request merges once the user has approved the stack and mode
-(task-delivery § Light mode).
+otherwise. The user picks it together with the stack, in this phase; write it to the profile's
+`delivery_mode` row (standard until they choose). The analysis pull request merges only after
+both its gate and that approval: in standard mode its CLEAR review round, in light mode no
+review round (task-delivery § Light mode). Record the approval of the stack, hosting and mode in
+a journal `DECISION` entry with `author: co-authored` that quotes the user's words, committed on the
+analysis branch.
 The stack recommendation includes where the product will run (§ Production in the profile):
 a hosting option with its expected monthly cost, whether it needs a domain and a production
 database, and one cheaper or simpler alternative, in plain words the user can choose between.
 Once the user approves the stack, write them into the profile, and replace the project-name
 and one-line description placeholders at the top of `.claude/CLAUDE.md` and `AGENTS.md`. Leave a row `<unset>` when it
 is genuinely still unknown, and `n/a` (with a reason) when the project has no such step;
-never guess a command. Later phases read commands only from the profile. Choosing the stack
-and where it runs is the user's decision (`.harness/rules/autonomous-execution.md` § What needs
-the user). While the repository has no code yet, this analysis branch pushes without running
+never guess a command. Later phases read commands only from the profile. Choosing the stack,
+where it runs and the delivery mode is the user's decision, made here and not again at plan
+approval (`.harness/rules/autonomous-execution.md` § What needs the user). While the repository has no code yet, this analysis branch pushes without running
 Local CI parity (there is nothing for it to test); say "no code yet" in the commit body.
 
 ### 6. Create specs/ (MUST — before red team)

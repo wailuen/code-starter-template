@@ -23,6 +23,9 @@
 //     ("ClaudeCode", "C l a u d e");
 //   - it is the name of an agent, role or Codex model this repository ships (read from
 //     `.harness/manifest.json` and `.claude/agents/**/*.md`), or any `harness-*` name;
+//   - it opens by saying nobody has approved yet ("Not yet approved", "To be confirmed"), or every
+//     word is such a placeholder or an automation account ("Awaiting user", "TBC", "github-actions",
+//     "dependabot", "Implementer agent (auto)");
 //   - it contains a placeholder bracket (`<…>`, `{…}`, `[…]`), is a no-reply or bot address, an
 //     o-series model id ("o3"), or starts with "approved by", "user's" or "user (".
 const fs = require("node:fs");
@@ -50,7 +53,13 @@ const DENY_WORDS = new Set([
   "independent", "planning", "plan", "chat", "message", "approval", "approved", "approves", "confirmed", "said", "says", "yes", "verbally", "who", "asked",
   "requesting", "request", "session", "this", "current", "my", "our", "your", "repo", "repository", "account",
   "github", "slack", "email",
+  // "nobody has approved yet" placeholders ("Awaiting user", "TBC", "Unconfirmed")
+  "awaiting", "waiting", "await", "tbc", "unconfirmed", "unapproved", "unassigned", "confirm", "decided", "determined",
+  // automation accounts and auto-filled labels ("github-actions", "dependabot", "Implementer agent (auto)")
+  "actions", "dependabot", "renovate", "auto", "automated", "automatic", "automation",
 ]);
+// A value that opens by saying the approval has not happened ("Not yet approved", "To be confirmed").
+const NOT_YET_RE = /^(?:not yet|yet to|to be|not (?:approved|confirmed|decided))(?: |$)/;
 // Fold these to Latin before anything else (they survive NFKC and lowercasing).
 const LOOKALIKES = {
   // Cyrillic
@@ -139,7 +148,7 @@ function isAgentIdentity(value) {
   const v = normalizeIdentity(value);
   if (!v) return true;
   if (BOT_EMAIL_RE.test(v) || O_SERIES_RE.test(v) || /^harness-/.test(v)) return true;
-  if (/^(?:approved by|user['’]s|user \()/.test(v)) return true;
+  if (/^(?:approved by|user['’]s|user \()/.test(v) || NOT_YET_RE.test(v)) return true;
   if (SHIPPED.has(v) || SHIPPED.has(v.replace(/\s+/g, "-")) || SHIPPED.has(v.replace(TRAILING_VERSION_RE, "").replace(/[\s-]+$/, ""))) return true;
   const raw = v.split(/[^\p{L}\p{N}@$]+/u).filter(Boolean);
   if (raw.length >= 2 && MODEL_FAMILIES.has(raw[0]) && VERSION_RE.test(raw[1])) return true;
