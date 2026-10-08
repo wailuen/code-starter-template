@@ -59,7 +59,8 @@ harness lesson.
   - an analysis (`docs/<slug>`) or a plan (`docs/wNN-plan`): after its CLEAR review round, or
     in light mode after the user approved; a plan always only after the user approved it;
   - a prototype (`docs/prototype-<n>`): only after the user approved it, in the session they
-    gave the words, with `check-prototype.mjs --require-approval` exiting 0;
+    gave the words, with `check-prototype.mjs --require-approval` exiting 0 — every phase
+    approved for the pages it has now, or held by the user;
   - a record-only pull request: it changes only records — review reports, round records,
     journal entries, fix records, deploy records under `deploy/deployments/`, a sweep report or
     a wave preview; never plans, specs, todos or code. A record of the user's own decision (an
@@ -86,7 +87,9 @@ Decisions about the work:
 - approving the plan (`.harness/phases/todos.md`), including the stack and hosting choice
   `/analyze` proposes and, for the first wave, the push of its CI workflow — the plan names
   that push and the approval record quotes the user's yes to it;
-- approving the prototype (`.harness/phases/prototype.md`), or a change to an approved one;
+- approving the prototype (`.harness/phases/prototype.md`) or some of its phases, holding a
+  phase, a change to an approved one, and showing the user a prototype whose screen check is
+  still owed;
 - changing approved scope — adding, dropping or swapping approved work, mid-wave or not
   (`.harness/phases/todos.md` § Changing or cancelling approved scope). `/autonomize` does
   not override this;

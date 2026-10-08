@@ -16,8 +16,14 @@ waiting for you." Check each of these:
   no `04-validate/acceptance-wNN.md` on that branch (one that has it is approved and only
   waiting to merge).
 - **Prototype awaiting approval** — a `docs/prototype-<n>` branch (local or on the remote)
-  whose `prototype/APPROVAL.md` has no more approval records than `main`'s
+  that is not yet merged into `main` (`git merge-base --is-ancestor <branch> main` fails) and
+  whose `prototype/APPROVAL.md` has no more approval records than `main`'s; and, on `main`, any
+  PRD phase that `node .harness/bin/check-prototype.mjs workspaces/<project>` reports as
+  `awaiting approval` (held by the user, or changed since its approval). Name the phases
   (`.harness/phases/prototype.md` step 8).
+- **Prototype screen check owed** — `prototype/SCREENS.md` on `main` ends with
+  `Screen check: owed`; the design was shown unchecked and the check still has to run
+  (`.harness/phases/prototype.md` step 5).
 - **Wave preview** — any `04-validate/<scope>-preview.md` still ending `User answer: pending`
   (`.harness/phases/redteam.md` § 4).
 - **Review stopped for a decision** — a branch whose latest round record led to
@@ -69,8 +75,9 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
   - `todos/completed/` files for the current wave → building wave NN (`/implement`)
   - `04-validate/acceptance-wNN.md` → wave NN approved, ready to build
   - `todos/active/` files with no acceptance list → plan written, awaiting approval
-  - `prototype/APPROVAL.md` on `main`, or `prototype/00-no-screens.md` → screens approved (or
-    none needed); next is `/todos`
+  - `prototype/APPROVAL.md` on `main` with at least one phase the checker reports `approved`,
+    or `prototype/00-no-screens.md` as the only file in `prototype/` → screens approved (or
+    none needed); next is `/todos` (name any phase still awaiting approval)
   - `01-analysis/` files → analysis done; next is `/prototype` (or `/todos` for a product with
     no screens)
   - `briefs/` only → next is `/analyze`

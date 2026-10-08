@@ -2,7 +2,7 @@
 // Run from the repository root: `node --test ".harness/tests/*.mjs"`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdirSync, mkdtempSync, rmSync, realpathSync, unlinkSync, symlinkSync } from "node:fs";
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync, realpathSync, unlinkSync, symlinkSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -12,23 +12,16 @@ import { root } from "../bin/check-adapters.mjs";
 function put(dir, path, content) {
   const p = join(dir, path); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, content);
 }
-const SCREENS = `# Screens
+const SCREENS = `# Screen list
 
-| Screen | Phase | File | Serves | States |
-| --- | --- | --- | --- | --- |
-| Sign in | 0 | \`screens/p0-sign-in.html\` | 03-user-flows/01-join.md | default, error |
-| Recipes | 1 | \`screens/p1-recipes.html\` | specs/recipes.md § List | data, empty |
+## Screens
+
+| Screen | Phase | File | Serves | States | Approval |
+| --- | --- | --- | --- | --- | --- |
+| Sign in | 0 | \`screens/p0-sign-in.html\` | 03-user-flows/01-join.md | default, error | awaiting approval |
+| Recipes | 1 | \`screens/p1-recipes.html\` | specs/recipes.md § List | data, empty | awaiting approval |
 
 Screen check: passed 2026-10-08 at abc1234
-`;
-const APPROVAL = `# Prototype approvals
-
-## Approval 1
-approved_by: Mei Tan
-approved_on: 2026-10-08
-approval: "I approve every screen for all phases."
-phases: 0, 1
-screens: 2
 `;
 
 // A complete, valid prototype; each test breaks one thing.
@@ -37,25 +30,175 @@ function fixture(t) {
   t.after(() => rmSync(ws, { recursive: true, force: true }));
   put(ws, "prototype/index.html", `<link rel="stylesheet" href="styles.css">
 <a href="screens/p0-sign-in.html">Sign in</a> <a href="views.html?screen=screens/p0-sign-in.html">sizes</a>
-<a href="screens/p1-recipes.html#top">Recipes</a> <a href="https://example.com/help">help</a>`);
+<a href="screens/p1-recipes.html#top">Recipes</a> <a href="views.html?screen=screens%2Fp1-recipes.html">sizes</a>
+<a href="https://example.com/help">help</a>`);
   put(ws, "prototype/views.html", `<script>/* frames */</script><a href="index.html">back</a>`);
   put(ws, "prototype/styles.css", `body{margin:0} .logo{background:url("img/logo.svg")}`);
-  put(ws, "prototype/img/logo.svg", "<svg/>");
+  put(ws, "prototype/img/logo.svg", `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use href="#a"/></svg>`);
   put(ws, "prototype/SCREENS.md", SCREENS);
   put(ws, "prototype/DESIGN.md", "Calm, warm colours.");
-  put(ws, "prototype/screens/p0-sign-in.html", `<link rel="stylesheet" href="../styles.css"><a href="p1-recipes.html">Go</a><a href="p0-sign-in--error.html">error</a>`);
+  put(ws, "prototype/screens/p0-sign-in.html", `<link rel="stylesheet" href="../styles.css"><a href="p1-recipes.html">Go</a><a href="p0-sign-in--error.html">error</a>
+<svg xmlns="http://www.w3.org/2000/svg"><use href="#icon"/></svg><script>document.createElementNS("http://www.w3.org/2000/svg", "g")</script>`);
   put(ws, "prototype/screens/p0-sign-in--error.html", `<a href="p0-sign-in.html">back</a>`);
-  put(ws, "prototype/screens/p1-recipes.html", `<img src="../img/logo.svg" alt="logo"><a href="#empty">empty</a><a href="mailto:a@b.c">mail</a>`);
+  put(ws, "prototype/screens/p1-recipes.html", `<img src="../img/logo.svg" alt="logo"><a href="#empty">empty</a><a href="mailto:a@b.c">mail</a><a href="?state=error">e</a>`);
   put(ws, "prototype/.screenshots/p0.png", "not scanned");
   return ws;
 }
 const errorsOf = (ws, opts) => checkPrototype(ws, opts).errors.join("\n");
+const hashOf = (ws, phase) => checkPrototype(ws).phases[phase].hash;
+
+// Append an approval record the way prototype.md step 8 does: hashes copied from the checker.
+function approve(ws, n, { phases, held = "", by = "Mei Tan", on = "2026-10-08" }) {
+  const hashes = phases.map((p) => `${p}=${hashOf(ws, p)}`).join(", ");
+  const path = join(ws, "prototype/APPROVAL.md");
+  let text = "# Prototype approvals\n";
+  try { text = readFileSync(path, "utf8"); } catch { /* first record */ }
+  writeFileSync(path, `${text}
+## Approval ${n}
+approved_by: ${by}
+approved_on: ${on}
+approval: "I approve these screens."
+phases: ${phases.join(", ")}
+${held ? `held: ${held}\n` : ""}hashes: ${hashes}
+`);
+}
+// Set each row's Approval cell: `status` maps a phase to its value.
+function markScreens(ws, status) {
+  const path = join(ws, "prototype/SCREENS.md");
+  const text = readFileSync(path, "utf8").replace(/^(\| [^|]+ \| (\w+) \|.*\| )(approved|awaiting approval)( \|)$/gm,
+    (all, head, phase, _old, tail) => (status[phase] ? head + status[phase] + tail : all));
+  writeFileSync(path, text);
+}
 
 test("a complete prototype passes, before and after approval", (t) => {
   const ws = fixture(t);
-  assert.deepEqual(checkPrototype(ws), { ok: true, screens: 2, approvals: 0, errors: [] });
-  put(ws, "prototype/APPROVAL.md", APPROVAL);
-  assert.deepEqual(checkPrototype(ws, { requireApproval: true }), { ok: true, screens: 2, approvals: 1, errors: [] });
+  const before = checkPrototype(ws);
+  assert.deepEqual(before.errors, []);
+  assert.equal(before.ok, true);
+  assert.equal(before.screens, 2);
+  assert.equal(before.phases["0"].status, "awaiting approval");
+  assert.match(before.phases["0"].hash, /^[0-9a-f]{16}$/);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  const after = checkPrototype(ws, { requireApproval: true });
+  assert.deepEqual(after.errors, []);
+  assert.equal(after.approvals, 1);
+  assert.equal(after.phases["1"].status, "approved");
+  assert.equal(after.screen_check, "passed");
+});
+
+test("an approval taken before a page changed does not approve the changed page (H1)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  put(ws, "prototype/screens/p0-sign-in--error.html", `<a href="p0-sign-in.html">back, redesigned</a>`);
+  const r = checkPrototype(ws, { requireApproval: true });
+  assert.equal(r.ok, false);
+  assert.equal(r.phases["0"].status, "awaiting approval");
+  assert.equal(r.phases["1"].status, "approved");
+  assert.match(r.errors.join("\n"), /phase 0: changed since approval 1/);
+  // While designing, the row still saying "approved" is caught too.
+  assert.match(errorsOf(ws), /"Sign in" says "approved" but phase 0 is awaiting approval/);
+});
+
+test("a shared style change re-opens every phase; a new phase needs its own approval (H1)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  put(ws, "prototype/styles.css", `body{margin:0;color:#222} .logo{background:url("img/logo.svg")}`);
+  let r = checkPrototype(ws, { requireApproval: true });
+  assert.match(r.errors.join("\n"), /phase 0: changed since approval 1/);
+  assert.match(r.errors.join("\n"), /phase 1: changed since approval 1/);
+
+  const ws2 = fixture(t);
+  approve(ws2, 1, { phases: ["0", "1"] });
+  markScreens(ws2, { 0: "approved", 1: "approved" });
+  put(ws2, "prototype/SCREENS.md", readFileSync(join(ws2, "prototype/SCREENS.md"), "utf8").replace("\nScreen check",
+    "| Share | 2 | `screens/p2-share.html` | specs/share.md | default | awaiting approval |\n\nScreen check"));
+  put(ws2, "prototype/screens/p2-share.html", "<p>share</p>");
+  put(ws2, "prototype/index.html", readFileSync(join(ws2, "prototype/index.html"), "utf8")
+    + `<a href="screens/p2-share.html">Share</a><a href="views.html?screen=screens/p2-share.html">sizes</a>`);
+  r = checkPrototype(ws2, { requireApproval: true });
+  assert.equal(r.phases["0"].status, "approved");
+  assert.match(r.errors.join("\n"), /phase 2: no approval record names it/);
+});
+
+test("a held phase stays awaiting approval; the newest record naming a phase decides (H2)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  put(ws, "prototype/screens/p0-sign-in--error.html", `<a href="p0-sign-in.html">v2</a>`);
+  put(ws, "prototype/screens/p1-recipes.html", `<p>v2 recipes</p>`);
+  approve(ws, 2, { phases: ["0"], held: "1" });
+  markScreens(ws, { 0: "approved", 1: "awaiting approval" });
+  const r = checkPrototype(ws, { requireApproval: true });
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual([r.phases["0"].status, r.phases["0"].approval], ["approved", 2]);
+  assert.equal(r.phases["1"].status, "awaiting approval");
+  assert.match(r.phases["1"].reason, /held by the user in approval 2/);
+  // A held phase marked approved in SCREENS.md is a finding.
+  markScreens(ws, { 1: "approved" });
+  assert.match(errorsOf(ws), /"Recipes" says "approved" but phase 1 is awaiting approval/);
+});
+
+test("--require-approval needs at least one approved phase and a valid record shape", (t) => {
+  const ws = fixture(t);
+  assert.match(errorsOf(ws, { requireApproval: true }), /missing APPROVAL\.md/);
+  put(ws, "prototype/APPROVAL.md", `# Prototype approvals
+
+## Approval 1
+approved_by: Mei Tan
+approved_on: 2026-10-08
+approval: "Hold everything for now."
+phases:
+held: 0, 1
+`);
+  assert.match(errorsOf(ws, { requireApproval: true }), /no PRD phase is approved/);
+  put(ws, "prototype/APPROVAL.md", `# Prototype approvals
+
+## Approval 1
+approved_by: Mei Tan
+approved_on: 2026-10-08
+approval: "Yes."
+phases: 0, 1
+hashes: 0=${hashOf(ws, "0")}
+`);
+  assert.match(errorsOf(ws), /approval 1: hashes has no entry for phase 1/);
+});
+
+test("approval records need a person, a real date, quoted words and phase names", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  approve(ws, 2, { phases: ["0"], by: "Claude", on: "8 Oct" });
+  approve(ws, 3, { phases: ["0"], on: "2026-13-45" });
+  approve(ws, 4, { phases: ["0"], on: "2026-02-30" });
+  put(ws, "prototype/APPROVAL.md", readFileSync(join(ws, "prototype/APPROVAL.md"), "utf8")
+    + `\n## Approval 5\napproved_by: Mei Tan\napproved_on: 2026-10-08\napproval: I approve\nphases: all of them\nhashes: 0=xyz\n`);
+  const e = errorsOf(ws);
+  assert.match(e, /approval 2: approved_by must name the person/);
+  assert.match(e, /approval 2: approved_on must be a real date/);
+  assert.match(e, /approval 3: approved_on must be a real date/);
+  assert.match(e, /approval 4: approved_on must be a real date/);
+  assert.match(e, /approval 5: approval must quote/);
+  assert.match(e, /approval 5: phases must list PRD phases/);
+  assert.doesNotMatch(e, /approval 1:/);
+  put(ws, "prototype/APPROVAL.md", "# Prototype approvals\n");
+  assert.match(errorsOf(ws), /no '## Approval <n>' record/);
+});
+
+test("an owed screen check passes --require-approval only when the user accepted it (M2)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  const screens = readFileSync(join(ws, "prototype/SCREENS.md"), "utf8");
+  put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*/, "Screen check: owed — no browser on this machine"));
+  assert.match(errorsOf(ws, { requireApproval: true }), /screen check is owed and no person accepted/);
+  assert.equal(checkPrototype(ws).screen_check, "owed");
+  put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*/, "Screen check: owed — no browser on this machine; accepted by Mei Tan 2026-10-08"));
+  assert.deepEqual(errorsOf(ws, { requireApproval: true }), "");
+  put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*/, "Screen check: owed — no browser; accepted by agent"));
+  assert.match(errorsOf(ws, { requireApproval: true }), /screen check is owed and no person accepted/);
+  put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*\n/, ""));
+  assert.match(errorsOf(ws, { requireApproval: true }), /SCREENS\.md has no 'Screen check:' line/);
 });
 
 test("a missing required file, a missing screen page and an unlisted page are reported", (t) => {
@@ -63,36 +206,67 @@ test("a missing required file, a missing screen page and an unlisted page are re
   unlinkSync(join(ws, "prototype/DESIGN.md"));
   unlinkSync(join(ws, "prototype/screens/p1-recipes.html"));
   put(ws, "prototype/screens/p2-extra.html", "<p>x</p>");
+  put(ws, "prototype/screens/.p9-secret.html", "<p>hidden</p>");
   const e = errorsOf(ws);
   assert.match(e, /missing DESIGN\.md/);
   assert.match(e, /screen file missing or outside prototype\/: screens\/p1-recipes\.html/);
   assert.match(e, /page not listed in SCREENS\.md: screens\/p2-extra\.html/);
+  assert.match(e, /page not listed in SCREENS\.md: screens\/\.p9-secret\.html/);
 });
 
-test("SCREENS.md rows need a phase number and a backticked file, once each", (t) => {
+test("SCREENS.md rows need a phase and a backticked page under screens/, once each", (t) => {
   const ws = fixture(t);
-  put(ws, "prototype/SCREENS.md", SCREENS.replace("| 1 | `screens/p1-recipes.html`", "| later | screens/p1-recipes.html")
-    + "| Again | 0 | `screens/p0-sign-in.html` | x | y |\n");
+  put(ws, "prototype/SCREENS.md", SCREENS.replace("| 1 | `screens/p1-recipes.html`", "| later on | screens/p1-recipes.html")
+    .replace("\nScreen check", "| Again | 0 | `screens/p0-sign-in.html` | x | y | awaiting approval |\n| Sizes | 0 | `views.html` | x | y | awaiting approval |\n\nScreen check"));
   const e = errorsOf(ws);
   assert.match(e, /no file in backticks/);
   assert.match(e, /listed twice: screens\/p0-sign-in\.html/);
-  put(ws, "prototype/SCREENS.md", SCREENS.replace("| 1 |", "| one |"));
-  assert.match(errorsOf(ws), /"Recipes" has no PRD phase number/);
+  assert.match(e, /screen file must be a page under screens\/: views\.html/);
+  put(ws, "prototype/SCREENS.md", SCREENS.replace("| 1 |", "| one! |"));
+  assert.match(errorsOf(ws), /"Recipes" has no PRD phase/);
+  put(ws, "prototype/SCREENS.md", SCREENS.replace(/ \| Approval \|/, " |").replace(/\| --- \| --- \|\n/, "| --- |\n"));
+  assert.match(errorsOf(ws), /SCREENS\.md table needs an Approval column/);
+  put(ws, "prototype/SCREENS.md", SCREENS.replace("## Screens", "## List"));
+  assert.match(errorsOf(ws), /SCREENS\.md has no '## Screens' heading/);
 });
 
-test("index.html must link every screen", (t) => {
+test("SCREENS.md: only the first table under ## Screens is read; alignment rows, escaped pipes and lettered phases are fine (L4, L5)", (t) => {
   const ws = fixture(t);
-  put(ws, "prototype/index.html", `<a href="screens/p0-sign-in.html">Sign in</a>`);
-  assert.match(errorsOf(ws), /index\.html does not link screens\/p1-recipes\.html/);
+  put(ws, "prototype/SCREENS.md", SCREENS
+    .replace("| --- | --- | --- | --- | --- | --- |", "|:---|:---:|---:|:---|:---|:---|")
+    .replace("| Sign in |", "| Sign in \\| out |")
+    .replace("| 1 |", "| 1a |")
+    + "\n## Screen check history\n\n| Date | Result |\n| --- | --- |\n| 2026-10-08 | passed |\n");
+  const r = checkPrototype(ws);
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(Object.keys(r.phases).sort(), ["0", "1a"]);
 });
 
-test("broken links and paths leaving prototype/ are reported", (t) => {
+test("index.html must link every screen and its phone · tablet · desktop view (L1, L2, L6)", (t) => {
   const ws = fixture(t);
-  put(ws, "prototype/screens/p0-sign-in.html", `<a href="p9-missing.html">x</a><img src="../../secret.png">`);
+  put(ws, "prototype/index.html", `<a href="screens/p0-sign-in.html">Sign in</a><!-- <a href="screens/p1-recipes.html">x</a> -->`);
+  let e = errorsOf(ws);
+  assert.match(e, /index\.html does not link screens\/p1-recipes\.html/);
+  assert.match(e, /index\.html does not link the phone · tablet · desktop view of screens\/p0-sign-in\.html/);
+  // Unquoted and percent-encoded links count.
+  put(ws, "prototype/SCREENS.md", SCREENS.replace("p1-recipes.html", "p1 recipes.html"));
+  unlinkSync(join(ws, "prototype/screens/p1-recipes.html"));
+  put(ws, "prototype/screens/p1 recipes.html", "<p>r</p>");
+  put(ws, "prototype/screens/p0-sign-in.html", `<a href="p1%20recipes.html">Go</a><a href="p0-sign-in--error.html">error</a>`);
+  put(ws, "prototype/index.html", `<a href=screens/p0-sign-in.html>a</a><a href=views.html?screen=screens/p0-sign-in.html>v</a>
+<a href="screens/p1%20recipes.html">b</a><a href='views.html?screen=screens/p1%20recipes.html'>v</a>`);
+  e = errorsOf(ws);
+  assert.equal(e, "");
+});
+
+test("broken links, malformed escapes and paths leaving prototype/ are reported (L3)", (t) => {
+  const ws = fixture(t);
+  put(ws, "prototype/screens/p0-sign-in.html", `<a href="p9-missing.html">x</a><img src="../../secret.png"><a href="p1%E0.html">bad</a>`);
   put(ws, "secret.png", "outside");
   const e = errorsOf(ws);
   assert.match(e, /p0-sign-in\.html points to a missing file or outside prototype\/: p9-missing\.html/);
   assert.match(e, /points to a missing file or outside prototype\/: \.\.\/\.\.\/secret\.png/);
+  assert.match(e, /p0-sign-in\.html has a malformed link: p1%E0\.html/);
 });
 
 test("a symlink that escapes prototype/ is refused even though the path looks local", (t) => {
@@ -100,7 +274,9 @@ test("a symlink that escapes prototype/ is refused even though the path looks lo
   put(ws, "outside/logo.svg", "<svg/>");
   symlinkSync(join(ws, "outside"), join(ws, "prototype/shared"));
   put(ws, "prototype/screens/p1-recipes.html", `<img src="../shared/logo.svg">`);
-  assert.match(errorsOf(ws), /points to a missing file or outside prototype\/: \.\.\/shared\/logo\.svg/);
+  const e = errorsOf(ws);
+  assert.match(e, /points to a missing file or outside prototype\/: \.\.\/shared\/logo\.svg/);
+  assert.match(e, /symlink leaves prototype\/ or is not a file: shared/);
 });
 
 test("anything loaded from the internet is reported; a plain outside link is not", (t) => {
@@ -113,34 +289,59 @@ test("anything loaded from the internet is reported; a plain outside link is not
   assert.match(e, /loads from the internet: \/\/fonts\.example\.com\/f\.css/);
   assert.match(e, /styles\.css loads from the internet: https:\/\/fonts\.example\.com\/a\.css/);
   assert.match(e, /styles\.css loads from the internet: http:\/\/img\.example\.com\/a\.png/);
-  assert.doesNotMatch(e, /https:\/\/example\.com"?$/m);
+  assert.doesNotMatch(e, /example\.com"?$/m);
+  assert.doesNotMatch(e, /w3\.org/);
 });
 
-test("approval records need a person, a date, quoted words and phase numbers", (t) => {
+test("less common ways to load from the internet are reported too (M9, L7)", (t) => {
+  const cases = {
+    "unquoted script": `<script src=https://cdn.example.com/x.js></script>`,
+    "unquoted stylesheet": `<link rel=stylesheet href=https://fonts.example.com/f.css>`,
+    "img srcset": `<img src="../img/logo.svg" srcset="../img/logo.svg 1x, https://img.example.com/a.png 2x">`,
+    "picture source srcset": `<picture><source srcset="https://img.example.com/a.webp"><img src="../img/logo.svg"></picture>`,
+    "object data": `<object data="https://x.example.com/a.svg"></object>`,
+    "svg image href": `<svg><image href="https://x.example.com/a.png"/></svg>`,
+    "svg xlink:href": `<svg><image xlink:href="https://x.example.com/b.png"/></svg>`,
+    "video poster": `<video poster="https://x.example.com/p.jpg"></video>`,
+    "meta refresh": `<meta http-equiv="refresh" content="0;url=https://x.example.com">`,
+    "inline fetch": `<script>fetch("https://x.example.com/data.json")</script>`,
+    "base tag": `<base href="https://cdn.example.com/"><img src="../img/logo.svg">`,
+  };
+  for (const [name, page] of Object.entries(cases)) {
+    const ws = fixture(t);
+    put(ws, "prototype/screens/p1-recipes.html", page);
+    const e = errorsOf(ws);
+    assert.match(e, name === "base tag" ? /p1-recipes\.html uses <base>/ : /p1-recipes\.html (loads from|script refers to) the internet/, name);
+  }
   const ws = fixture(t);
-  assert.match(errorsOf(ws, { requireApproval: true }), /missing APPROVAL\.md/);
-  put(ws, "prototype/APPROVAL.md", APPROVAL + `
-## Approval 2
-approved_by: Claude
-approved_on: 8 Oct
-approval: I approve
-phases: all
-`);
+  put(ws, "prototype/app.js", `import "https://cdn.example.com/lib.js"; // see http://notes`);
+  put(ws, "prototype/a.svg", `<svg xmlns="http://www.w3.org/2000/svg"><image href="https://x.example.com/a.png"/></svg>`);
+  put(ws, "prototype/screens/p1-recipes.html", `<script type="module" src="../app.js"></script><img src="../a.svg">`);
   const e = errorsOf(ws);
-  assert.match(e, /approval 2: approved_by must name the person/);
-  assert.match(e, /approval 2: approved_on must be YYYY-MM-DD/);
-  assert.match(e, /approval 2: approval must quote/);
-  assert.match(e, /approval 2: phases must list PRD phase numbers/);
-  assert.doesNotMatch(e, /approval 1:/);
-  put(ws, "prototype/APPROVAL.md", "# Prototype approvals\n");
-  assert.match(errorsOf(ws), /no '## Approval <n>' record/);
+  assert.match(e, /app\.js script refers to the internet: https:\/\/cdn\.example\.com\/lib\.js/);
+  assert.match(e, /a\.svg loads from the internet: https:\/\/x\.example\.com\/a\.png/);
+  assert.doesNotMatch(e, /http:\/\/notes/);
 });
 
 test("a product with no screens passes with only 00-no-screens.md", (t) => {
   const ws = realpathSync(mkdtempSync(join(tmpdir(), "proto-")));
   t.after(() => rmSync(ws, { recursive: true, force: true }));
   put(ws, "prototype/00-no-screens.md", "An API only; no screens.");
-  assert.equal(checkPrototype(ws, { requireApproval: true }).ok, true);
+  const r = checkPrototype(ws, { requireApproval: true });
+  assert.equal(r.ok, true);
+  assert.match(r.note, /no screens/);
+});
+
+test("00-no-screens.md next to screen pages is a finding, not a pass (H4)", (t) => {
+  const ws = realpathSync(mkdtempSync(join(tmpdir(), "proto-")));
+  t.after(() => rmSync(ws, { recursive: true, force: true }));
+  put(ws, "prototype/00-no-screens.md", "An API only; no screens.");
+  put(ws, "prototype/SCREENS.md", SCREENS);
+  put(ws, "prototype/screens/p0-sign-in.html", `<script src="https://cdn.example.com/x.js"></script>`);
+  const e = errorsOf(ws, { requireApproval: true });
+  assert.match(e, /00-no-screens\.md sits next to screen files/);
+  assert.match(e, /missing APPROVAL\.md/);
+  assert.match(e, /loads from the internet/);
 });
 
 test("the CLI exits 0 clean, 1 on findings and 2 on a usage error or missing folder", (t) => {
@@ -150,8 +351,24 @@ test("the CLI exits 0 clean, 1 on findings and 2 on a usage error or missing fol
   assert.equal(run("--require-approval", ws).status, 1);
   assert.equal(run().status, 2);
   assert.equal(run(join(ws, "nope")).status, 2);
+  put(ws, "prototype/screens/p0-sign-in.html", `<a href="x%E0.html">bad</a>`);
+  let r = run(ws);
+  assert.equal(r.status, 1);
+  assert.match(JSON.parse(r.stdout).errors.join("\n"), /malformed link/);
   unlinkSync(join(ws, "prototype/views.html"));
-  const r = run(ws);
+  r = run(ws);
   assert.equal(r.status, 1);
   assert.match(JSON.parse(r.stdout).errors.join("\n"), /missing views\.html/);
+});
+
+test("the CLI still runs when started through a symlink with --preserve-symlinks-main", (t) => {
+  const ws = fixture(t);
+  // Same layout as .harness/, so the checker's relative import of ../lib still resolves.
+  mkdirSync(join(ws, "tools/bin"), { recursive: true });
+  symlinkSync(join(root, ".harness/lib"), join(ws, "tools/lib"));
+  const link = join(ws, "tools/bin/check-link.mjs");
+  symlinkSync(join(root, ".harness/bin/check-prototype.mjs"), link);
+  const r = spawnSync(process.execPath, ["--preserve-symlinks-main", link, ws], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout).ok, true);
 });

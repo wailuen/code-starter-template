@@ -94,6 +94,7 @@ to CommonJS so a project-level `"type": "module"` cannot change how Node loads t
 | `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace workspaces/<project> --scope <scope>`), whether a todo is closed (`--workspace workspaces/<project> --todo <id>`), sweeps every completed todo (`--sweep workspaces`), and prints a receipt skeleton (`--template <scope>`). |
 | `bin/check-codify-allowlist.mjs` | `<base-ref> <head-ref>`: exit 0 only if an automatic `/codify` change stays inside the allowlist (`phases/codify.md` § Automatic runs); 1 findings, 2 usage or git error. |
 | `bin/check-browser-walk-receipts.mjs` | Checks a todo declares its browser walk (or why it does not apply). |
+| `bin/check-prototype.mjs` | `[--require-approval] workspaces/<project>`: checks the clickable prototype's structure (every screen listed, linked and present; nothing loaded from the internet) and prints each PRD phase's content hash and approval status. With `--require-approval`, exit 0 only when every phase is approved for its current pages or held by the user, and the screen check passed or the user accepted it as owed. Exit 0 ok, 1 findings, 2 usage or no prototype folder. |
 
 ## Not included
 

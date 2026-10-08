@@ -76,7 +76,11 @@ not supply clean evidence. A resumed original dispatch is not a new review round
   `.harness/rules/e2e-god-mode.md` — headed, real-user navigation only (click links/
   buttons/forms; no direct navigation such as `page.goto()` mid-flow, no direct API calls
   to skip a step). API
-  calls and suite counts do not replace the walk.
+  calls and suite counts do not replace the walk. Where the wave built screens from the
+  approved prototype, the walk also puts each built screen beside the prototype page named on
+  its todo's `Prototype screens:` line, at 400, 800 and 1280 pixels wide, and records each
+  difference in layout, words or states; a screen todo with no `Prototype screens:` line, or a
+  difference the owner has not accepted, is a finding.
 - Use the applicable persistent semantic eval corpus for LLM/intent properties per
   `.claude/skills/12-testing-strategies/probe-driven-verification.md`. Accrete actual defects as regressions; classify
   incremental probes consistently. Do not introduce LLM evaluation for a deterministic
