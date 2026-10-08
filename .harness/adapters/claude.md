@@ -1,7 +1,7 @@
 # Claude runtime adapter
 
-Use the generated `/analyze`, `/todos`, `/implement`, `/redteam`, `/debug`, `/fix`, `/codify`
-and `/learn` commands (from `.harness/manifest.json`); the other `.claude/commands/` are
+Use the generated `/analyze`, `/prototype`, `/todos`, `/implement`, `/redteam`, `/debug`, `/fix`,
+`/codify` and `/learn` commands (from `.harness/manifest.json`); the other `.claude/commands/` are
 Claude-only helpers listed in `.harness/README.md`.
 Their procedures and delivery roles live in `.harness/`; edit the shared files.
 Resolve all paths from the repository root. Read the shared task-delivery guide, the
@@ -31,7 +31,7 @@ agent explicitly via the Agent tool, using the `subagent_type` below:
 | GitHub issue/PR filing, CI status, issue hygiene       | `gh-manager`                 | `.claude/agents/management/gh-manager.md` |
 | documentation / cross-reference / terminology validator | `gold-standards-validator` | `.claude/agents/quality/gold-standards-validator.md` |
 | test architecture, E2E generation, infra compliance    | `testing-specialist`         | `.claude/agents/testing/testing-specialist.md` |
-| UI/UX design only (no code): information architecture, AI-interaction UX | `uiux-designer` | `.claude/agents/design/uiux-designer.md` |
+| UI/UX design only (no product code): information architecture, AI-interaction UX, the `/prototype` pages | `uiux-designer` | `.claude/agents/design/uiux-designer.md` |
 
 For a small task inside one of these lenses, doing it directly is usually faster than
 delegating — dispatch a subagent for genuinely independent, sizeable work, not every review
@@ -54,6 +54,19 @@ No Claude hook records reviewer launches by default (`.harness/README.md` § Not
 When `/redteam` dispatches reviewers, record each dispatch's agent type and ID in the
 committed evidence ledger yourself, exactly as `.harness/phases/redteam.md` describes. Never
 invent a launch row for a dispatch that did not happen.
+
+## Prototype design tool and browser
+
+In `/prototype` (`.harness/phases/prototype.md` step 3), Claude Design may be used when its
+tools are available in the session, to explore layouts and show them to the user. If the
+session cannot reach it, tell the user they can type `/design-login` and finish the sign-in in
+their browser, and carry on with the static pages meanwhile; never type the project's own
+`/design` command for this, which only loads design principles. Whatever is explored there,
+the approved design is the copy saved in `workspaces/<project>/prototype/`, which every later
+phase reads.
+
+For the screen check (step 5) before the project has an E2E runner, use a headed browser the
+session can drive (the Playwright or Claude in Chrome tools when connected).
 
 ## External design tools
 

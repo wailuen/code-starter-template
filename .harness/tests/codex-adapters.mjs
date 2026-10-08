@@ -54,7 +54,7 @@ test('explicit Codex check fails a cold install; Codex-only generation never tou
 test('core command wrappers and specialist routes have real sources and explicit settings', () => {
   const manifest = JSON.parse(readFileSync(join(root, '.harness/manifest.json')));
   const rendered = renderAdapters();
-  assert.equal(Object.keys(rendered).filter(p => p.startsWith('.agents/')).length, 8);
+  assert.equal(Object.keys(rendered).filter(p => p.startsWith('.agents/')).length, 9);
   assert.equal(Object.keys(manifest.codex.agents).length, 14);
   for (const name of [...Object.keys(manifest.phases), ...Object.keys(manifest.codex.helpers)]) {
     const source = Object.hasOwn(manifest.phases, name) ? `.harness/phases/${name}.md` : `.claude/commands/${name}.md`;

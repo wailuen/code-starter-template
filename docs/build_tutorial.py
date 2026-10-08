@@ -51,7 +51,7 @@ add(("numbered", [
     "Start a **new session** in the Code tab and pick **that** folder. Always open this folder from now on.",
     "Type `/start` for a short orientation, then `/doctor` to check your computer. Before step 3, `/doctor` says some checks are *not filled in yet* — that is normal; run it again after step 3.",
 ]))
-add(("tip", "`/start` describes the work in five broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.", "Good to know"))
+add(("tip", "`/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.", "Good to know"))
 add(("h2", "Using a terminal instead"))
 add(("p", "A *terminal* is a window where you type commands (on a Mac, the **Terminal** app). Install Claude Code with the steps at **code.claude.com/docs/en/quickstart**, then type `cd` followed by your project folder, press Enter, and type `claude`. Everything else in this guide is the same."))
 add(("h2", "Talking to Claude"))
@@ -72,6 +72,7 @@ add(("table", [
     ["Vertical slice", "A small feature that works end to end: screen, logic and data together"],
     ["Responsive design", "One layout that rearranges itself to fit a phone, tablet or computer screen"],
     ["Mobile-first", "Design the phone layout first, then widen it for bigger screens"],
+    ["Prototype", "Clickable pages that look like the finished app but have nothing behind them, for trying the design before it is built"],
     ["Repository", "Your project's folder on GitHub"],
     ["Clone / copy", "Make a copy of the repository on your computer"],
     ["Commit", "Save a snapshot of the project, with a short note of what changed"],
@@ -112,33 +113,32 @@ add(("decide", "Approve the technology, where the app will run and what it costs
 add(("p", "Now run `/doctor` again: it can check Python and Docker Desktop this time."))
 
 add(("page",))
-add(("h1", "Step 4 — Design the prototype (responsive, mobile-first)"))
-add(("prompt", "Use Claude Design to build a prototype of Phase 0 from the PRD and ADR. Make it responsive and mobile-first: show every screen at phone, tablet and desktop width. Ask me any questions about the design until you are clear.", "Type this"))
+add(("h1", "Step 4 — Design every screen (responsive, mobile-first)"))
+add(("prompt", "/prototype Design every screen of every phase in the PRD.", "Type this"))
+add(("p", "The prototype covers your **whole PRD — every phase** — so you see the complete app before any of it is built. Claude first asks about the look you want: the feel, colours, apps you like, the device your users mostly hold. Answer in your own words, or say *you choose*. Then it lists every screen and builds them as clickable pages, designed for a phone first and rearranging themselves for tablets and computers."))
 add(("fig", "screens", "Responsive design: one design that fits every screen size. Mobile-first: the phone layout is designed first."))
-add(("p", "Claude gives you a link or a file to open. Click it, or ask *Open the prototype in my browser for me.* Start with Phase 0; ask for later phases once Phase 0 looks right."))
-add(("p", "Claude Design comes with the Pro, Max, Team and Enterprise plans (on Enterprise, your admin must turn it on). If Claude says it cannot reach Claude Design, type `/design-login`, finish the sign-in in your browser and try again. If it still does not work, use this instead — the result is just as good for reviewing:"))
-add(("prompt", "Build the Phase 0 prototype as plain web pages that I can open in my browser. Make them responsive and mobile-first, and show me how to see each screen at phone, tablet and desktop width.", "Or type this"))
+add(("p", "Claude checks every screen in a real browser at five widths before showing you, then tells you how to open it — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?*"))
+add(("tip", "Claude may use Claude Design (on the Pro, Max, Team and Enterprise plans; on Enterprise, your admin must turn it on). If it says it cannot reach Claude Design, type `/design-login` and finish the sign-in in your browser — or simply carry on: Claude builds the same clickable pages either way, and those pages are what gets approved.", "Good to know"))
 
 add(("page",))
 add(("h1", "Step 5 — Review the prototype, then approve it"))
-add(("p", "Look at every screen as if you were the user. To see the phone layout on your computer, ask *Show me the phone view in my browser.* To try it on your real phone, ask *How can I open this on my phone?*"))
-add(("p", "Be specific about what you want changed. Type these two for every app:"))
+add(("p", "Walk through every screen as if you were a new user. Be specific about what you want changed. Type these two for every app:"))
 add(("prompt", "Show me every screen when there is no data yet, while it is loading, and when something goes wrong. Write the messages in plain, friendly words.", "For every app"))
-add(("prompt", "Walk me through Phase 0 as a brand-new user, from opening the app to finishing the main task. Point out any step where I would get stuck or confused, then fix those steps.", "For every app"))
+add(("prompt", "Walk me through the app as a brand-new user, from opening it to finishing the main task. Point out any step where I would get stuck or confused, then fix those steps.", "For every app"))
 add(("p", "These three are examples — rewrite them about your own screens:"))
 add(("prompt", "On the home screen the most important information is hard to find. Make it the first thing I see on a phone, and move the filters below it.", "Example"))
 add(("prompt", "Sign-up asks for too much. Keep only name, email and password, and ask for the rest after the first login.", "Example"))
 add(("prompt", "On a phone, the menu covers half the screen. Make it a simple menu button that opens a full-screen list, and keep the main buttons within thumb reach at the bottom.", "Example"))
-add(("p", "Repeat until you are happy. Changes are cheap now and expensive after the code is built."))
-add(("h2", "Approve formally"))
-add(("p", "When the prototype is right, record your approval so every later step follows exactly this design:"))
-add(("prompt", "I, *(your name)*, approve this prototype for Phase 0. Save a copy of it in the project, record my approval in my own words as a decision in the project journal, and update the specifications to match it. From now on, build the screens to match it; ask me before anything differs.", "Type this"))
-add(("decide", "Approve the prototype, in your own words."))
+add(("p", "Repeat until you are happy. Changes are cheap now and expensive after the code is built. If a change adds or drops a feature, Claude says so and updates the PRD with your OK."))
+add(("h2", "Approve it"))
+add(("p", "When you say you are happy, Claude asks you to approve, explaining what yes and no mean. Answer in your own words, for example:"))
+add(("prompt", "Yes, I approve every screen for all phases.", "Type this"))
+add(("decide", "Approve the prototype. Claude records your name, the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and the rest later. To change an approved design later, type `/prototype` again."))
 
 add(("page",))
 add(("h1", "Step 6 — Plan the work"))
-add(("prompt", "/todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together — that matches the approved screens at phone, tablet and desktop width, and names the prototype screens it builds.", "Type this"))
-add(("p", "A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:"))
+add(("prompt", "/todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together.", "Type this"))
+add(("p", "Claude ties each piece of work to the approved screens it builds, and checks the result against them at phone, tablet and desktop size. A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:"))
 add(("bullets", ["Does it cover everything you described?", "Is anything there that you did not ask for?",
                  "Is anything missing that you expected?", "Does the order make sense?"]))
 add(("p", "If the plan is hard to read, ask *Explain each item as what I will be able to do when it is finished.* If you cannot judge the order, ask *Why this order?*"))
@@ -275,7 +275,7 @@ def node(d, x0, y, w, h, num, title, sub, fill, stroke, star=False):
 def fig_journey():
     dw, dh = CW, 235; d = Drawing(dw, dh); w, h = 112, 62; gap = (CW - 4 * w) / 3
     top = [(1, "PRD", ["what & who", "you describe"], False), (2, "Phases", ["MVP = Phase 0", "vertical slices"], False),
-           (3, "Tech (ADR)", ["/analyze", "stack & hosting"], True), (4, "Prototype", ["Claude Design", "responsive"], False)]
+           (3, "Tech (ADR)", ["/analyze", "stack & hosting"], True), (4, "Prototype", ["/prototype", "every screen"], False)]
     bot = [(5, "Review", ["adjust & approve", "the prototype"], True), (6, "Plan", ["/todos", "one wave at a time"], True),
            (7, "Build & ship", ["/implement /redteam", "/deploy"], True)]
     ty = dh - h - 8

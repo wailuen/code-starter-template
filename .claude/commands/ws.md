@@ -15,6 +15,9 @@ waiting for you." Check each of these:
 - **Plan awaiting approval** — a `docs/wNN-plan` branch (local or on the remote) with todos but
   no `04-validate/acceptance-wNN.md` on that branch (one that has it is approved and only
   waiting to merge).
+- **Prototype awaiting approval** — a `docs/prototype-<n>` branch (local or on the remote)
+  whose `prototype/APPROVAL.md` has no more approval records than `main`'s
+  (`.harness/phases/prototype.md` step 8).
 - **Wave preview** — any `04-validate/<scope>-preview.md` still ending `User answer: pending`
   (`.harness/phases/redteam.md` § 4).
 - **Review stopped for a decision** — a branch whose latest round record led to
@@ -66,7 +69,10 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
   - `todos/completed/` files for the current wave → building wave NN (`/implement`)
   - `04-validate/acceptance-wNN.md` → wave NN approved, ready to build
   - `todos/active/` files with no acceptance list → plan written, awaiting approval
-  - `01-analysis/` files → analysis done; next is `/todos`
+  - `prototype/APPROVAL.md` on `main`, or `prototype/00-no-screens.md` → screens approved (or
+    none needed); next is `/todos`
+  - `01-analysis/` files → analysis done; next is `/prototype` (or `/todos` for a product with
+    no screens)
   - `briefs/` only → next is `/analyze`
 - Counts: todos in `todos/active/` vs `todos/completed/`; open records in `fixes/`; pending
   proposals in `todos/parked/` with the oldest's age.

@@ -47,7 +47,9 @@ shared-rule pointers, then root `.session-notes` if present, then follow
 `.harness/guides/project-profile.md` for concrete project commands and
 `.harness/guides/task-delivery.md` for paths, branches and review rounds.
 
-Use `$analyze`, `$todos`, `$implement`, `$redteam`, `$debug`, `$fix`, `$codify`, `$learn`.
+Use `$analyze`, `$prototype`, `$todos`, `$implement`, `$redteam`, `$debug`, `$fix`, `$codify`, `$learn`.
+In `$prototype`, build the static pages directly (Claude Design is a Claude-only tool), and run
+the screen check with the project's E2E runner or a headed browser Codex can drive.
 For helper procedures (`start`, `ws`, `wrapup`, `sweep`, `journal`, `deploy`,
 `validate`, `test`, `design`, `doctor`, `worktree`, `autonomize`), read the existing
 `.claude/commands/<name>.md` directly when requested or referenced by a phase.

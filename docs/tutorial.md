@@ -42,7 +42,7 @@ You approve at a few fixed points: the technology and hosting choice (step 3), t
 7. Start a **new session** in the Code tab and pick **that** folder. Always open this folder from now on.
 8. Type `/start` for a short orientation, then `/doctor` to check your computer. Before step 3, `/doctor` says some checks are *not filled in yet* — that is normal; run it again after step 3.
 
-> **Good to know:** `/start` describes the work in five broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.
+> **Good to know:** `/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.
 
 ### Using a terminal instead
 
@@ -68,6 +68,7 @@ A *terminal* is a window where you type commands (on a Mac, the **Terminal** app
 | Vertical slice | A small feature that works end to end: screen, logic and data together |
 | Responsive design | One layout that rearranges itself to fit a phone, tablet or computer screen |
 | Mobile-first | Design the phone layout first, then widen it for bigger screens |
+| Prototype | Clickable pages that look like the finished app but have nothing behind them, for trying the design before it is built |
 | Repository | Your project's folder on GitHub |
 | Clone / copy | Make a copy of the repository on your computer |
 | Commit | Save a snapshot of the project, with a short note of what changed |
@@ -140,11 +141,13 @@ Now run `/doctor` again: it can check Python and Docker Desktop this time.
 
 ---
 
-## Step 4 — Design the prototype (responsive, mobile-first)
+## Step 4 — Design every screen (responsive, mobile-first)
 
 **Type this:**
 
-> Use Claude Design to build a prototype of Phase 0 from the PRD and ADR. Make it responsive and mobile-first: show every screen at phone, tablet and desktop width. Ask me any questions about the design until you are clear.
+> /prototype Design every screen of every phase in the PRD.
+
+The prototype covers your **whole PRD — every phase** — so you see the complete app before any of it is built. Claude first asks about the look you want: the feel, colours, apps you like, the device your users mostly hold. Answer in your own words, or say *you choose*. Then it lists every screen and builds them as clickable pages, designed for a phone first and rearranging themselves for tablets and computers.
 
 ```
   Phone        Tablet            Desktop
@@ -157,21 +160,15 @@ Now run `/doctor` again: it can check Python and Docker Desktop this time.
 
 *Responsive design: one design that fits every screen size. Mobile-first: the phone layout is designed first.*
 
-Claude gives you a link or a file to open. Click it, or ask *Open the prototype in my browser for me.* Start with Phase 0; ask for later phases once Phase 0 looks right.
+Claude checks every screen in a real browser at five widths before showing you, then tells you how to open it — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?*
 
-Claude Design comes with the Pro, Max, Team and Enterprise plans (on Enterprise, your admin must turn it on). If Claude says it cannot reach Claude Design, type `/design-login`, finish the sign-in in your browser and try again. If it still does not work, use this instead — the result is just as good for reviewing:
-
-**Or type this:**
-
-> Build the Phase 0 prototype as plain web pages that I can open in my browser. Make them responsive and mobile-first, and show me how to see each screen at phone, tablet and desktop width.
+> **Good to know:** Claude may use Claude Design (on the Pro, Max, Team and Enterprise plans; on Enterprise, your admin must turn it on). If it says it cannot reach Claude Design, type `/design-login` and finish the sign-in in your browser — or simply carry on: Claude builds the same clickable pages either way, and those pages are what gets approved.
 
 ---
 
 ## Step 5 — Review the prototype, then approve it
 
-Look at every screen as if you were the user. To see the phone layout on your computer, ask *Show me the phone view in my browser.* To try it on your real phone, ask *How can I open this on my phone?*
-
-Be specific about what you want changed. Type these two for every app:
+Walk through every screen as if you were a new user. Be specific about what you want changed. Type these two for every app:
 
 **For every app:**
 
@@ -179,7 +176,7 @@ Be specific about what you want changed. Type these two for every app:
 
 **For every app:**
 
-> Walk me through Phase 0 as a brand-new user, from opening the app to finishing the main task. Point out any step where I would get stuck or confused, then fix those steps.
+> Walk me through the app as a brand-new user, from opening it to finishing the main task. Point out any step where I would get stuck or confused, then fix those steps.
 
 These three are examples — rewrite them about your own screens:
 
@@ -195,17 +192,17 @@ These three are examples — rewrite them about your own screens:
 
 > On a phone, the menu covers half the screen. Make it a simple menu button that opens a full-screen list, and keep the main buttons within thumb reach at the bottom.
 
-Repeat until you are happy. Changes are cheap now and expensive after the code is built.
+Repeat until you are happy. Changes are cheap now and expensive after the code is built. If a change adds or drops a feature, Claude says so and updates the PRD with your OK.
 
-### Approve formally
+### Approve it
 
-When the prototype is right, record your approval so every later step follows exactly this design:
+When you say you are happy, Claude asks you to approve, explaining what yes and no mean. Answer in your own words, for example:
 
 **Type this:**
 
-> I, *(your name)*, approve this prototype for Phase 0. Save a copy of it in the project, record my approval in my own words as a decision in the project journal, and update the specifications to match it. From now on, build the screens to match it; ask me before anything differs.
+> Yes, I approve every screen for all phases.
 
-> **You decide:** Approve the prototype, in your own words.
+> **You decide:** Approve the prototype. Claude records your name, the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and the rest later. To change an approved design later, type `/prototype` again.
 
 ---
 
@@ -213,9 +210,9 @@ When the prototype is right, record your approval so every later step follows ex
 
 **Type this:**
 
-> /todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together — that matches the approved screens at phone, tablet and desktop width, and names the prototype screens it builds.
+> /todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together.
 
-A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:
+Claude ties each piece of work to the approved screens it builds, and checks the result against them at phone, tablet and desktop size. A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:
 
 - Does it cover everything you described?
 - Is anything there that you did not ask for?

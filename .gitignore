@@ -34,6 +34,9 @@ kubeconfig
 # Local deploy cache — the deployed revision comes from deploy_check_command, not this file
 deploy/.last-deployed
 
+# Prototype screen-check screenshots — local only (`.harness/phases/prototype.md` step 5)
+workspaces/*/prototype/.screenshots/
+
 # Harness runtime state (review-round state, launch ledger) — created on first use
 .claude/learning/
 

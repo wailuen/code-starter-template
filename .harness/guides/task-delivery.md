@@ -173,6 +173,7 @@ The tools read these exact paths; other names are not found.
 | --- | --- | --- |
 | Spec index and domain specs | `specs/_index.md`, `specs/<domain>.md` | `/analyze`; reconciled with built behavior after each wave merges (`/redteam` § 4) |
 | Architecture decision record | `docs/adr/NNNN-<slug>.md` | `/analyze` (analyst) |
+| Clickable prototype, screen list, design language, approval records | `prototype/` (`index.html`, `screens/`, `SCREENS.md`, `DESIGN.md`, `APPROVAL.md`); `prototype/00-no-screens.md` for a product without screens | `/prototype`; `APPROVAL.md` is append-only |
 | Wave plan | `todos/WAVE-SEQUENCE.md` | `/todos` |
 | Todo (being worked) | `todos/active/wNN-MM-<slug>.md` | `/todos` |
 | Todo (implemented) | `todos/completed/wNN-MM-<slug>.md` | `/implement` (moved, same name) |
@@ -225,6 +226,7 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
 | Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round (light mode: after the user approved the stack and mode) |
+| Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates) | `main`, after the user approved |
 | Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
 | Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |

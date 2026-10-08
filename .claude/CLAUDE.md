@@ -14,6 +14,6 @@ This repository uses a shared delivery harness. Start here:
 At the start of a session, read `.session-notes` at the repository root if it exists, then
 run `/ws` for the workspace state.
 
-Phases, in order: `/analyze` → `/todos` → `/implement` → `/redteam` → `/codify`, with `/debug`
-for a stalled review loop, `/fix` for a reported bug, `/learn` for open lessons, and `/deploy`
+Phases, in order: `/analyze` → `/prototype` → `/todos` → `/implement` → `/redteam` → `/codify`, with `/prototype`
+skipped for a product with no screens, `/debug` for a stalled review loop, `/fix` for a reported bug, `/learn` for open lessons, and `/deploy`
 to ship. `/codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs). End a session with `/wrapup`. New users: `/start`.

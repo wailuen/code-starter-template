@@ -35,8 +35,11 @@ git rev-parse --abbrev-ref HEAD
 - `.claude/skills/23-uiux-design-principles/SKILL.md` — the house layout, sizing and
   accessibility defaults, and (while the project has no design system yet) the stock styles
   to avoid.
-- The screen's approved design mock, when the todo names one. Do not build a screen whose
-  design still awaits the owner's review.
+- The approved prototype screens the todo names on its `Prototype screens:` line
+  (`workspaces/<project>/prototype/`, with `DESIGN.md` for colours, type and tone). Match their
+  layout, words, states and phone/tablet/desktop behavior; never copy their sample content as
+  data. If the screen must differ, stop and ask the owner. Do not build a screen whose design
+  still awaits the owner's approval.
 - If the project syncs designs with an external design tool, follow the workspace's
   design-sync notes for making new components sync-ready.
 - The specs for anything that renders model output or user-generated content.

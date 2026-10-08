@@ -2,6 +2,7 @@
   "schema": 1,
   "phases": {
     "analyze": "Analyze requirements and architecture using the shared harness; use for /analyze or harness analysis requests.",
+    "prototype": "Design and get approval for a clickable, responsive, mobile-first prototype of every screen in every PRD phase, after /analyze and before /todos. Use for /prototype or to change an approved design.",
     "todos": "Plan implementation-ready todos using the shared harness; use for /todos or harness task planning requests.",
     "implement": "Implement an approved todo using the shared harness; use for /implement or harness implementation requests.",
     "redteam": "Independently review an accepted scope using the shared harness; use for /redteam or harness convergence review requests.",

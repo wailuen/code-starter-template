@@ -8,6 +8,7 @@ These are the single implementations used by both runtimes.
 | Phase | Claude Code | Codex skill |
 | --- | --- | --- |
 | Analyze | `/analyze` | `$analyze` |
+| Prototype every screen, for approval | `/prototype` | `$prototype` |
 | Plan todos | `/todos` | `$todos` |
 | Implement | `/implement` | `$implement` |
 | Review | `/redteam` | `$redteam` |
