@@ -60,7 +60,7 @@ A *terminal* is a window where you type commands (on a Mac, the **Terminal** app
 - A command starts with `/` as the very first character, for example `/analyze`. Words after it are passed to the command. Type `/` on its own to see the list.
 - To stop Claude in the middle of something, press **Esc**. To finish a session, type `/exit` or close the window.
 
-> **When Claude asks for permission:** This template does not pre-approve any commands, so Claude may ask for permission often, especially at first. Most requests are normal building work — installing parts, running tests, saving your work to GitHub — so allow them. If it offers to stop asking for a kind of command, that is fine for routine ones such as `git`, `gh`, `node` or the tests. Say no and ask *Why do you need to do that?* if it wants to delete files outside your project, spend money, change your GitHub account settings or put the app live. If you cannot tell, ask *Explain that in one sentence.* Saying no stops that one step and Claude waits for you.
+> **When Claude asks for permission:** This template does not pre-approve any commands, so Claude may ask for permission often, especially at first. Most requests are normal building work — installing parts, running tests, saving your work to GitHub — so allow them. If it offers to stop asking for a kind of command, that is fine for routine ones such as `git`, `gh`, `node` or the tests. Say no and ask *Why do you need to do that?* if it wants to delete files outside your project, spend money, change your GitHub account settings or put the app live. Claude also asks you before it adds outside software the plan did not name, and before any test uses real accounts or real data. If you cannot tell, ask *Explain that in one sentence.* Saying no stops that one step and Claude waits for you.
 
 ## Words you will see
 
@@ -162,7 +162,7 @@ The prototype covers your **whole PRD — every phase** — so you see the compl
 
 *Responsive design: one design that fits every screen size. Mobile-first: the phone layout is designed first.*
 
-Before showing you, Claude checks every screen at several widths, from a small phone to a wide computer screen, in a browser it can control. It may ask to install one first (a large download). If it says the screen check is *owed*, type *Install what you need and run the screen check.* Then it tells you how to open the prototype — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?* If your computer then asks whether to allow incoming connections, allow it: that is how your phone reaches the preview.
+Before showing you, Claude checks every screen at several widths, from a small phone to a wide computer screen, in a browser it can control. It may ask to install one first (a large download). If it cannot run the check, it asks whether you want to see the screens unchecked for now. The safer answer is *Install what you need and run the screen check.* If you say yes to seeing them unchecked, the check still has to run before any building is planned. Then it tells you how to open the prototype — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?* If your computer then asks whether to allow incoming connections, allow it: that is how your phone reaches the preview.
 
 > **Good to know:** Claude may use Claude Design (on the Pro, Max, Team and Enterprise plans; on Enterprise, your admin must turn it on). If it says it cannot reach Claude Design, type `/design-login` and finish the sign-in in your browser — or simply carry on: Claude builds the same clickable pages either way, and those pages are what gets approved.
 
@@ -204,7 +204,7 @@ When you say you are happy, Claude asks you to approve, explaining what yes and 
 
 > Yes, I approve every screen for all phases.
 
-> **You decide:** Approve the prototype. Claude asks your name the first time and records it with the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and the rest later. To change an approved design later, type `/prototype` again.
+> **You decide:** Approve the prototype. Claude asks your name the first time and records it with the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and hold the rest; a held phase is not planned until you approve it. To change an approved design later, or add screens, type `/prototype` again: Claude shows you what changed and asks you to approve again — sometimes for phases you already approved, because pages they share have changed.
 
 ---
 
@@ -214,7 +214,7 @@ When you say you are happy, Claude asks you to approve, explaining what yes and 
 
 > /todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together.
 
-Claude ties each piece of work to the approved screens it builds, and checks the result against them at phone, tablet and desktop size. A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:
+Claude ties each piece of work to the approved screens it builds, and checks the result against them at phone, tablet and desktop size. If the screens for this phase are not approved yet, or have changed since you approved them, Claude stops and asks you to finish `/prototype` first. A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:
 
 - Does it cover everything you described?
 - Is anything there that you did not ask for?
@@ -248,7 +248,7 @@ First open **Docker Desktop** and wait until it says it is running (on a Mac, a 
 1. **Build** — each todo is built test-first; in standard mode an independent reviewer also checks each todo. Claude says when a todo is done and what changed. Each `/implement` builds one todo; type it again, or say *Carry on with the next todo.*
 2. **Review** — when every todo of the wave is built, Claude runs `/redteam` (or type it yourself). It reviews everything together, security included. This can take a while.
 3. **Preview** — Claude shows you what changed and how to try it, and asks if it matches what you wanted. Answer *yes*, or say what is wrong. Claude joins the work into the main version either way, and that does not put it live. Your *yes* is what lets `/deploy` put this wave live later; after a *no*, `/deploy` refuses until Claude has fixed what you said or you have agreed a change of plan.
-4. **Go live** — the first time, type `/deploy --onboard`. Claude confirms the hosting you chose in step 3, tells you what it costs, walks you through creating the hosting account and adding a payment card, and sets up an alert that reaches you if the site goes down. It may ask you to install the hosting company's tool and log in to it, the same way you logged in to GitHub, and to paste secret keys into the hosting company's website (never into the chat). You will need a card, an email or phone for alerts, and about an hour. After that, type `/deploy` to put the new version live. Only you start a deploy.
+4. **Go live** — the first time, type `/deploy --onboard`. Claude confirms the hosting you chose in step 3, tells you what it costs, walks you through creating the hosting account and adding a payment card, and sets up an alert that reaches you if the site goes down. It may ask you to install the hosting company's tool and log in to it, the same way you logged in to GitHub, and to paste secret keys into the hosting company's website (never into the chat). You will need a card, an email or phone for alerts, and about an hour. After that, type `/deploy` to put the new version live. If the deploy settings changed since you last confirmed them, Claude shows you what changed and asks before using them. Only you start a deploy.
 
 > **Good to know:** While Claude builds and reviews, browser windows may open and click by themselves. That is Claude testing the app. Leave them alone until Claude says it is done.
 
