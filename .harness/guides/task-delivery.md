@@ -147,7 +147,9 @@ standard applies. Light mode changes only this:
 - No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
   walk receipts and `## Verification`.
 - The wave gate is ONE review round that must be CLEAR and always includes a security reviewer
-  (`security`; `record-review-round.mjs` refuses a light-mode wave round without one) (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
+  (`security`; `record-review-round.mjs` refuses a light-mode wave round without one, for a
+  wave scope `wNN` and a re-scoped `wNNb`, `wNNc`, …; it reads light mode from the value cell of
+  the profile's `delivery_mode` row) (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
   receipt and no `--sweep` job in CI.
 - A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
   `/implement` say so and do not run the convergence checker.
@@ -281,17 +283,24 @@ For every branch:
 6. Standard mode: run the convergence check with `--scope` while the wave branch is checked out, before it
    merges; that exit 0 is the wave's gate. After the merge, `main` moves on (fixes, `/codify`,
    spec updates), so `--scope` is no longer the question; judge each receipt as of its own
-   commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`.
+   commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`. Those
+   also check what landed: the merge commit that brought the wave in must carry exactly the
+   reviewed commit plus bookkeeping files (review reports, round records, journal, todos), and
+   must add no code of its own — so never commit code to the wave branch after its receipt,
+   and never resolve a conflict or edit code inside the merge into `main`.
    After a pull request merges on GitHub, run `git fetch origin` and update the local `main`
    before cutting the next branch.
-7. Keep `main` out of an open wave branch where possible. If you must merge `main` in, do it
-   before the wave's first review round, because the receipt's `wave_base` is computed with
-   `git merge-base main <verdict_head>`. If a `/fix` lands on `main` after review started and
-   the wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge
-   into `main` (that would be unreviewed code): merge `main` into the wave branch, which moves
-   the reviewed head, so the wave needs new clean rounds on the new head (two in standard mode, one in light mode) from its
-   remaining budget. Tell the user the delay in plain words; if the budget cannot cover it,
-   take it to `/debug`.
+7. Keep `main` out of an open wave branch where possible. If a `/fix` lands on `main` and the
+   wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge into
+   `main` (that would be unreviewed code): merge `main` into the wave branch
+   (`git merge --no-ff main` with the wave branch checked out, so the wave stays the first
+   parent). This moves the reviewed head, so the wave needs new clean rounds on the new head
+   (two in standard mode, one in light mode) from its remaining budget. The receipt's
+   `wave_base` stays the commit the wave branch was originally cut from — the checker follows
+   the wave branch's own first-parent line back to `main`, and its `wave-base-mismatch` message
+   prints the value it expects. Never rebase the wave onto `main` instead: that rewrites a
+   shared branch and the merge-commit rule above. Tell the user the delay in plain words; if
+   the budget cannot cover it, take it to `/debug`.
 
 ## Releases
 

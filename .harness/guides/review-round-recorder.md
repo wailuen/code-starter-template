@@ -14,7 +14,15 @@ reviewers and the orchestrator who compiles the convergence receipt, per
 What it detects: a round number out of order; a partial round; a changed reviewer list without
 a decision record; a debug round reusing a spent lens; a person-only acceptor that is an
 honest mistake (an agent, model, role or placeholder name — `.harness/rules/completion-criterion.md`
-MUST-1). When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
+MUST-1); and evidence that is not a saved review report. Each reviewer's `evidence` in a NEW
+round must be a file directly under `workspaces/<project>/04-validate/` or `.harness/reviews/`,
+tracked by git (`git add` it before recording; it is committed with the round record), whose
+text names the reviewed commit — the full `head` SHA or at least its first 12 characters
+("Evidence for <lens> … must be a saved review report …", "… is not tracked by git …", "… does
+not name the reviewed commit …"). Records already committed are replayed as written. A
+light-mode wave round (scope `wNN` or a re-scoped `wNNb`, `wNNc`, …; light mode read from the
+value cell of the profile's `delivery_mode` row, or the value after `delivery_mode:`) without a
+`security` or `security-debug` lens is refused. When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
 every round record ever added in the branch's history or on the local `main` (where a merged
 record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and
@@ -38,6 +46,14 @@ What it does not detect:
   guidance unescaped, so a hostile id could forge or hide a line on a terminal. A
   committed-file control-byte check, if the project has one, does not cover runtime strings.
 - The recorder verifies the branch exists and the head is on it, not that the work is new.
+- The evidence check proves a report file exists, is in git and names the commit — not that a
+  reviewer wrote it or that the review happened. The same session writes both.
+- Nothing checks that what merges for a single-CLEAR gate (a light-mode wave, a todo branch,
+  `/fix`, planning, analysis, codify) is the reviewed head plus bookkeeping. Only a
+  standard-mode wave has that check (the convergence checker's `--todo` / `--sweep`); for the
+  others it rests on the merge procedure and review.
+- A wave scope is recognised only as `w<digits>` with an optional letter; a wave reviewed under
+  another scope name (`wave1`) escapes the light-mode security-seat check.
 - The branch check compares against `refs/heads`, not the invoking checkout's `HEAD`,
   because the CLI may legitimately run from the main checkout for a worktree branch.
 - A record named `__proto__` relies on null-prototype maps and `Object.hasOwn`; that

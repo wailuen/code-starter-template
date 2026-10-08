@@ -142,9 +142,13 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
    branch, with a new approval record. New todos keep the `wNN-MM-<slug>.md` naming with new
    item numbers (a `wNNb-` filename does not parse as an id). `acceptance-wNNb.md` lists every
    todo the wave still delivers — new ones and every already-completed todo the user keeps —
-   so none is left uncovered by a receipt. Commit `acceptance-wNNb.md` and
-   the changed todos on the wave branch itself, so the wave's receipt can see them, and in the
-   plan branch's pull request into `main`.
+   so none is left uncovered by a receipt. Commit `acceptance-wNNb.md` and the changed todos in
+   ONE place: cut `docs/wNNb-plan` from the wave branch (not from `main`), and after the user
+   approves, merge it into the wave branch (`git merge --no-ff`), not into `main`. The re-plan
+   reaches `main` with the wave. This is the one plan branch that does not merge into `main`
+   by itself: carrying the same files to `main` separately would leave a todo the wave later
+   completes in both `active/` and `completed/` after the wave merges. The acceptance list is
+   then committed before the reviewed commit, as the convergence receipt requires.
 5. A dropped todo already merged into the wave branch is either reverted on the wave branch
    (its own commit, reviewed with the wave) with its `completed/` file moved to `parked/` or
    deleted, or — if the user wants to keep the code — kept and listed in `acceptance-wNNb.md`.
