@@ -18,16 +18,17 @@ The example builds a web app with **Next.js** for the screens, **Python** for th
                      +--> repeat 6 and 7 for each wave and phase
 ```
 
-*Seven steps. The orange tags mark where you approve before Claude moves on.*
+*Seven steps from your idea to a live app.*
 
-You approve at a few fixed points: the technology and hosting choice (step 3), the prototype (step 5), each plan (step 6), and each preview and each time the app goes live (step 7). Between those points Claude works on its own and tells you what it did.
+You approve at a few fixed points: the technology and hosting choice (step 3), the prototype (step 5), each plan (step 6), and each preview and each time the app goes live (step 7). In between, Claude works on its own and reports what it did.
 
 ### What it costs and how long it takes
 
-- **Claude:** you need a paid Claude plan (Pro, Max, Team or Enterprise); the free plan does not include Claude Code. Big steps (3 and 7) use a lot of your plan's usage. If Claude says you have reached your limit, wait until it resets and type *Carry on where you stopped.*
-- **GitHub:** free.
-- **Hosting** (putting the app on the internet): usually a few dollars a month. Claude tells you the exact cost and waits for your OK before anything is bought.
-- **Time:** setting up your computer takes 30 to 60 minutes. Each step after that takes from a few minutes to a few hours.
+- **Claude:** you need a paid Claude plan (Pro, Max, Team or Enterprise); the free plan does not include Claude Code. Steps 3 and 7 use a lot. On Pro, expect to pause at the usage limit in the middle of a step, especially in standard mode; Max gives more room. Wait for the reset, then type *Carry on where you stopped.*
+- **GitHub:** free. Private projects get a monthly allowance of time for the automatic checks; if they stop running, ask *Have we used up the free check time?*
+- **Docker Desktop:** free for personal use, education and small businesses; larger companies need a paid subscription, so check Docker's terms if you use it at work.
+- **Hosting** (putting the app on the internet): often $5 to $30 a month, plus about $10 to $20 a year for your own web address. Claude gives the exact figure and a cheaper option, and waits for your OK before buying anything.
+- **Time:** setting up your computer takes 30 to 60 minutes; each later step takes minutes to hours.
 
 ---
 
@@ -35,18 +36,23 @@ You approve at a few fixed points: the technology and hosting choice (step 3), t
 
 1. Create a free account at **github.com** and sign in.
 2. Install the **Claude desktop app** from **claude.com/download** and sign in with your Claude account. (Prefer a terminal? See *Using a terminal instead* below.)
-3. In the desktop app, open the **Code** tab, choose **Local**, and pick a folder for your projects, for example *Documents/Projects*. Then type: *Help me install Git, GitHub CLI, Node.js 22 or newer, Python and Docker Desktop on this computer. Go one at a time and tell me when each one works.*
-4. Type: *Log me in to GitHub.* Claude opens a browser page where you click **Authorize**.
-5. On GitHub, open **github.com/wailuen/code-starter-template** and click **Use this template**. Give your new repository your project's name and choose **Private**, so only you (and people you invite) can see it.
-6. Back in Claude, type: *Copy my GitHub repository `<the link to your new repository>` onto this computer.* Claude tells you the folder it made.
-7. Start a **new session** in the Code tab and pick **that** folder. Always open this folder from now on.
-8. Type `/start` for a short orientation, then `/doctor` to check your computer. Before step 3, `/doctor` says some checks are *not filled in yet* — that is normal; run it again after step 3.
+3. In the desktop app, open the **Code** tab, choose **Local**, and pick a folder for your projects, for example *Documents/Projects*. Then type: *Help me install Git, GitHub CLI, Node.js 22 or newer, Python and Docker Desktop on this computer. Go one at a time and tell me when each one works.* (See *What installing looks like* below.)
+4. Type: *Log me in to GitHub, with permission to set up automatic checks.* Claude shows a short one-time code and opens a GitHub page (or gives you its address). Type the code on that page, then click **Authorize**. The permission matters: without it, GitHub refuses the automatic checks the first plan sets up.
+5. Type: *Set my name for saved work to (your name), and use my private GitHub email address.* Git stamps this name on every snapshot; the private address keeps your real email out of the project's history.
+6. On GitHub, open **github.com/wailuen/code-starter-template** and click **Use this template**. Give your new repository your project's name and choose **Private**, so only you (and people you invite) can see it.
+7. Back in Claude, type: *Copy my GitHub repository `<the link to your new repository>` onto this computer.* Claude tells you the folder it made.
+8. Start a **new session** in the Code tab and pick **that** folder. Always open this folder from now on.
+9. Type `/start` for a short orientation, then `/doctor` to check your computer. Before step 3, `/doctor` says some checks are *not filled in yet* — that is normal; run it again after step 3.
 
-> **Good to know:** `/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.
+> **What installing looks like:** Installers are not fully automatic. Some open their own window or ask for your computer's password: type the password in that window, never in the chat. On a Mac, the first use of Git may open an Apple window offering to install developer tools; click **Install** and wait, it can take a while. Docker Desktop asks you to accept its terms and may ask you to restart the computer. If Claude asks you to paste something into the **Terminal** app, it tells you exactly what to paste. If an install will not work through Claude, use the official download pages: **git-scm.com/downloads**, **cli.github.com**, **nodejs.org**, **python.org/downloads** and **docker.com/products/docker-desktop**, then tell Claude it is done.
+
+> **Good to know:** `/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor`, which checks your computer for this project, and its own `/design`, which you do not need to type at all. You never need to type a folder or file name either: Claude knows where each file belongs.
 
 ### Using a terminal instead
 
 A *terminal* is a window where you type commands (on a Mac, the **Terminal** app). Install Claude Code with the steps at **code.claude.com/docs/en/quickstart**, then type `cd` followed by your project folder, press Enter, and type `claude`. Everything else in this guide is the same.
+
+---
 
 ### Talking to Claude
 
@@ -54,9 +60,7 @@ A *terminal* is a window where you type commands (on a Mac, the **Terminal** app
 - A command starts with `/` as the very first character, for example `/analyze`. Words after it are passed to the command. Type `/` on its own to see the list.
 - To stop Claude in the middle of something, press **Esc**. To finish a session, type `/exit` or close the window.
 
-> **When Claude asks for permission:** Claude checks routine steps itself, so it does not ask often. When it does ask, most requests are normal building work — installing parts, running tests, saving and uploading your work to GitHub — so allow them. Say no and ask *Why do you need to do that?* if it wants to delete files outside your project, spend money, change your GitHub account settings, or put the app live. If you cannot tell, ask *Explain that in one sentence.* Saying no stops that one step and Claude waits for you; it may leave a task half done until you decide.
-
----
+> **When Claude asks for permission:** This template does not pre-approve any commands, so Claude may ask for permission often, especially at first. Most requests are normal building work — installing parts, running tests, saving your work to GitHub — so allow them. If it offers to stop asking for a kind of command, that is fine for routine ones such as `git`, `gh`, `node` or the tests. Say no and ask *Why do you need to do that?* if it wants to delete files outside your project, spend money, change your GitHub account settings or put the app live. If you cannot tell, ask *Explain that in one sentence.* Saying no stops that one step and Claude waits for you.
 
 ## Words you will see
 
@@ -79,8 +83,6 @@ A *terminal* is a window where you type commands (on a Mac, the **Terminal** app
 | Wave | One batch of planned work; a phase is built in one or more waves |
 | Todo | One piece of work inside a wave, with a clear list of what “done” means |
 | Deploy | Put the app on the internet for your users |
-
-> **Good to know:** You never need to type a folder or file name. Claude knows where each file belongs in this template.
 
 ---
 
@@ -160,7 +162,7 @@ The prototype covers your **whole PRD — every phase** — so you see the compl
 
 *Responsive design: one design that fits every screen size. Mobile-first: the phone layout is designed first.*
 
-Claude checks every screen in a real browser at five widths before showing you, then tells you how to open it — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?*
+Before showing you, Claude checks every screen at five widths in a browser it can control. It may ask to install one first (a large download). If it says the screen check is *owed*, type *Install what you need and run the screen check.* Then it tells you how to open the prototype — or ask *Open the prototype in my browser for me.* The start page lists every screen by phase. Each screen has a **phone · tablet · desktop** link that shows all three sizes side by side. To try it on your real phone, ask *How can I open this on my phone?* If your computer then asks whether to allow incoming connections, allow it: that is how your phone reaches the preview.
 
 > **Good to know:** Claude may use Claude Design (on the Pro, Max, Team and Enterprise plans; on Enterprise, your admin must turn it on). If it says it cannot reach Claude Design, type `/design-login` and finish the sign-in in your browser — or simply carry on: Claude builds the same clickable pages either way, and those pages are what gets approved.
 
@@ -202,7 +204,7 @@ When you say you are happy, Claude asks you to approve, explaining what yes and 
 
 > Yes, I approve every screen for all phases.
 
-> **You decide:** Approve the prototype. Claude records your name, the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and the rest later. To change an approved design later, type `/prototype` again.
+> **You decide:** Approve the prototype. Claude asks your name the first time and records it with the date and your words, and from then on plans and builds the screens to match it; anything that must differ is asked first. You can approve some phases now and the rest later. To change an approved design later, type `/prototype` again.
 
 ---
 
@@ -229,57 +231,44 @@ The first plan also asks to switch on automatic checks on GitHub — say yes. It
 
 ## Step 7 — Build, review and go live
 
-First open **Docker Desktop** and wait until it says it is running (on a Mac, a whale icon at the top of the screen). Then:
+First open **Docker Desktop** and wait until it says it is running (on a Mac, a whale icon at the top of the screen). Do this at the start of every working session: the tests need it. Then:
 
 **Type this:**
 
 > /implement Start with the first todo of the approved plan.
 
 ```
- Build -> Review -> Preview -> You say yes -> merged -> /deploy (you start it) -> live
-   ^                                                                              |
-   +--------------------------- next wave: /todos --------------------------------+
+ Build -> Review -> Preview (you try it) -> merged (not live) -> your yes + /deploy -> live
+   ^                                                                                  |
+   +----------------------------- next wave: /todos ----------------------------------+
 ```
 
 *Every wave goes round this loop. Nothing reaches your users until you type /deploy.*
 
-1. **Build** — each todo is built test-first; in standard mode an independent reviewer also checks each todo. Claude says when a todo is done and what changed. If it stops, type `/implement` to continue.
+1. **Build** — each todo is built test-first; in standard mode an independent reviewer also checks each todo. Claude says when a todo is done and what changed. Each `/implement` builds one todo; type it again, or say *Carry on with the next todo.*
 2. **Review** — when every todo of the wave is built, Claude runs `/redteam` (or type it yourself). It reviews everything together, security included. This can take a while.
-3. **Preview** — Claude shows you what changed and how to try it, and asks if it matches what you wanted. Answer *yes*, or say what is wrong; Claude fixes it first. Your yes lets Claude join the work into the main version. Nothing goes live yet.
-4. **Go live** — the first time, type `/deploy --onboard`. Claude recommends where to host the app, tells you what it costs, walks you through creating the hosting account and adding a payment card, and sets up an alert that reaches you if the site goes down. You will need a card, an email or phone for alerts, and about an hour. After that, type `/deploy` to put the new version live. Only you start a deploy.
+3. **Preview** — Claude shows you what changed and how to try it, and asks if it matches what you wanted. Answer *yes*, or say what is wrong. Claude joins the work into the main version either way, and that does not put it live. Your *yes* is what lets `/deploy` put this wave live later; after a *no*, `/deploy` refuses until Claude has fixed what you said or you have agreed a change of plan.
+4. **Go live** — the first time, type `/deploy --onboard`. Claude confirms the hosting you chose in step 3, tells you what it costs, walks you through creating the hosting account and adding a payment card, and sets up an alert that reaches you if the site goes down. It may ask you to install the hosting company's tool and log in to it, the same way you logged in to GitHub, and to paste secret keys into the hosting company's website (never into the chat). You will need a card, an email or phone for alerts, and about an hour. After that, type `/deploy` to put the new version live. Only you start a deploy.
+
+> **Good to know:** While Claude builds and reviews, browser windows may open and click by themselves. That is Claude testing the app. Leave them alone until Claude says it is done.
 
 ### Try it on your computer
 
 Before anything goes live, ask *Start the app on my computer so I can try it.* Claude gives you an address such as `http://localhost:3000` — open it in your browser. Only you can see it; it is not on the internet. When you are done, say *Stop the app.*
 
-> **Important:** Do not connect your project to a hosting website yourself, even if the site offers a *Connect GitHub* button. Let `/deploy` set it up, so unreviewed work never goes live.
+> **Important:** Do not connect your project to a hosting website on your own, even if the site offers a *Connect GitHub* button. Let `/deploy` set it up, so unreviewed work never goes live. During `/deploy --onboard`, Claude may ask you to click such a button; do it then, as Claude walks you through it step by step.
 
 When a wave is finished, type `/ws`. It tells you whether the next step is `/todos` (plan the next wave of this phase, or the next phase) or `/deploy`.
 
----
-
 ## Saving your work (commit and push)
 
-Claude commits as it works. Still, ask for it whenever you finish something or stop for the day:
+Claude commits as it works, on a side copy (a branch), and opens a pull request when the work is ready to join the main version. Still, ask for it whenever you finish something or stop for the day (if a review is running, let it finish first):
 
 **Type this:**
 
 > Commit and push my work.
 
 > **Why it matters:** **A safety net:** if something goes wrong later, Claude can bring back an earlier snapshot. **A backup:** your work is safe on GitHub even if your computer is lost. **Sharing:** anyone you invite can see the latest version of the project. Pushing does not change your live app: nothing reaches your users until you type `/deploy`.
-
-## When you are stuck
-
-| Situation | What to do |
-| --- | --- |
-| Something is broken on the live site | Type `/fix` and say what went wrong. If an earlier checked version exists, it first asks whether to undo the last update |
-| Claude shows an error you do not understand | *What does this mean for me, and what should I do?* |
-| Claude asks a question you cannot answer | *I don't know — recommend one and explain why.* |
-| You reached your usage limit | Wait for it to reset, then *Carry on where you stopped.* |
-| Where am I? What is waiting for me? | `/ws` |
-| You want to change direction | Say so in plain words; Claude explains the impact and asks before changing the plan |
-| Ending a working session | `/wrapup` (it saves notes on this computer for your next session), then *Commit and push my work* |
-| Starting a new session | Open the project folder; Claude reads where you left off. To reopen an earlier conversation, pick it from the list in the desktop app (in a terminal: `claude --continue` inside the project folder) |
 
 ## Tips for beginners
 
@@ -290,3 +279,19 @@ Claude commits as it works. Still, ask for it whenever you finish something or s
 - **Try it yourself** at every preview, on your phone as well as your computer.
 - **Keep phases small.** A small working app beats a big unfinished one.
 - **Never paste passwords or secret keys into the chat.** Claude tells you where they go safely.
+
+---
+
+## When you are stuck
+
+| Situation | What to do |
+| --- | --- |
+| Something is broken on the live site | Type `/fix` and say what went wrong. If the site is down or data is at risk, it first asks whether to undo the last update |
+| Claude shows an error you do not understand | *What does this mean for me, and what should I do?* |
+| Claude asks a question you cannot answer | *I don't know — recommend one and explain why.* |
+| You reached your usage limit | Wait for it to reset, then *Carry on where you stopped.* |
+| Where am I? What is waiting for me? | `/ws` |
+| You want to change direction | Say so in plain words; Claude explains the impact and asks before changing the plan |
+| Claude asks to change its own working rules | After each wave Claude improves its own rules from what went wrong, and some changes wait for your OK. Ask *What changes for me if I say yes?* If it only makes Claude more careful, say yes; if you are unsure, say *not now* |
+| Ending a working session | *Commit and push my work*, then `/wrapup` (it saves notes on this computer for your next session, in that order so it can also save lessons). It can take a few minutes and may open a pull request on GitHub |
+| Starting a new session | Open Docker Desktop, open the project folder, and type *Where did we leave off?* (or `/ws`). Claude waits for your first message before it reads its notes. To reopen an earlier conversation, pick it from the list in the desktop app (in a terminal: `claude --continue` inside the project folder) |
