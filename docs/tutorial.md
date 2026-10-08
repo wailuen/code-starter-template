@@ -1,238 +1,293 @@
-# Build your first app with Claude Code and code-starter-template
+# Build your first app with Claude Code
 
-A step-by-step guide for people new to "vibe coding" — building software by describing what
-you want to an AI, then reviewing and approving what it builds.
+*A step-by-step guide to code-starter-template for people new to vibe coding*
 
-You will not write code yourself. Your job is to **describe**, **review** and **approve**.
-Claude does the building, and the harness inside the template makes sure the work is planned,
-tested and reviewed before it reaches your users.
+You will not write code yourself. Your job is to **describe** what you want, **review** what Claude shows you, and **approve** it. Claude does the building, and the built-in rules in this template make sure the work is planned, tested and reviewed before it reaches your users.
 
-The example in this guide builds a web app with:
-
-- **Next.js** for the screens people see (the frontend)
-- **Python** for the logic behind the screens (the backend)
-- **Postgres** for storing data (the database), running in **Docker Desktop** on your computer
-
-This covers most kinds of application except phone apps from an app store.
-
----
+The example builds a web app with **Next.js** for the screens, **Python** for the logic behind them, and **Postgres** for storing data, running in **Docker Desktop** on your computer. That covers most applications except phone apps sold through an app store.
 
 ## The journey at a glance
 
 ```
- 1 PRD  ->  2 Phases  ->  3 Tech choices (ADR)  ->  4 Prototype  ->  5 Review & approve
-                                                                          |
-              7 Build, review, go live  <-  6 Plan the work  <------------+
-                       |
-                       +--> repeat 6 and 7 for each phase
+ 1 PRD -> 2 Phases -> 3 Tech (ADR) -> 4 Prototype -> 5 Review & approve
+                                                         |
+          7 Build, review, go live  <-  6 Plan  <---------+
+                     |
+                     +--> repeat 6 and 7 for each wave and phase
 ```
 
-You approve at four points: the **tech choices** (step 3), the **prototype** (step 5), the
-**plan** (step 6) and **going live** (step 7).
+*Seven steps. The orange tags mark where you approve before Claude moves on.*
+
+You approve at a few fixed points: the technology and hosting choice (step 3), the prototype (step 5), each plan (step 6), and each preview and each time the app goes live (step 7). Between those points Claude works on its own and tells you what it did.
+
+### What it costs and how long it takes
+
+- **Claude:** you need a paid Claude plan (Pro, Max, Team or Enterprise); the free plan does not include Claude Code. Big steps (3 and 7) use a lot of your plan's usage. If Claude says you have reached your limit, wait until it resets and type *Carry on where you stopped.*
+- **GitHub:** free.
+- **Hosting** (putting the app on the internet): usually a few dollars a month. Claude tells you the exact cost and waits for your OK before anything is bought.
+- **Time:** setting up your computer takes 30 to 60 minutes. Each step after that takes from a few minutes to a few hours.
 
 ---
 
 ## Before you start (once)
 
-1. Install **Claude Code**, **Git**, **Node.js** (version 22 or newer), **Python** and
-   **Docker Desktop**. Open Docker Desktop once so it is running.
-2. On GitHub, open https://github.com/wailuen/code-starter-template and click **Use this template**. Give your new repository
-   your project's name.
-3. Get it onto your computer. The easiest way: open Claude Code in an empty folder and type
-   *Clone my repository `<the link to your new repository>` into this folder and open it.*
-4. Open Claude Code **inside the project folder**: in a terminal, go to the folder and type
-   `claude`. (The Claude desktop app and the VS Code extension work too — just open the folder.)
-5. Type `/start` for a short orientation, then `/doctor` to check your computer has everything
-   it needs.
+1. Create a free account at **github.com** and sign in.
+2. Install the **Claude desktop app** from **claude.com/download** and sign in with your Claude account. (Prefer a terminal? See *Using a terminal instead* below.)
+3. In the desktop app, open the **Code** tab, choose **Local**, and pick a folder for your projects, for example *Documents/Projects*. Then type: *Help me install Git, GitHub CLI, Node.js 22 or newer, Python and Docker Desktop on this computer. Go one at a time and tell me when each one works.*
+4. Type: *Log me in to GitHub.* Claude opens a browser page where you click **Authorize**.
+5. On GitHub, open **github.com/wailuen/code-starter-template** and click **Use this template**. Give your new repository your project's name and choose **Private**, so only you (and people you invite) can see it.
+6. Back in Claude, type: *Copy my GitHub repository `<the link to your new repository>` onto this computer.* Claude tells you the folder it made.
+7. Start a **new session** in the Code tab and pick **that** folder. Always open this folder from now on.
+8. Type `/start` for a short orientation, then `/doctor` to check your computer. Before step 3, `/doctor` says some checks are *not filled in yet* — that is normal; run it again after step 3.
 
-**When Claude asks for permission.** Before Claude runs a command or changes a file, it may
-ask you to allow it. Read what it wants to do: if it matches what you asked for, allow it. If
-you are unsure, choose no and ask *"Why do you need to do that?"* — saying no never breaks
-anything.
+> **Good to know:** `/start` describes the work in five broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor` and `/design`, which replace Claude Code's built-in commands with the same names. You do not need to type `/design` at all; to run Claude Code's own setup check, type `/checkup`.
 
-Words you will see:
+### Using a terminal instead
+
+A *terminal* is a window where you type commands (on a Mac, the **Terminal** app). Install Claude Code with the steps at **code.claude.com/docs/en/quickstart**, then type `cd` followed by your project folder, press Enter, and type `claude`. Everything else in this guide is the same.
+
+### Talking to Claude
+
+- Type in the box at the bottom and press **Enter** to send. For a new line without sending, press **Shift+Enter**.
+- A command starts with `/` as the very first character, for example `/analyze`. Words after it are passed to the command. Type `/` on its own to see the list.
+- To stop Claude in the middle of something, press **Esc**. To finish a session, type `/exit` or close the window.
+
+> **When Claude asks for permission:** Claude checks routine steps itself, so it does not ask often. When it does ask, most requests are normal building work — installing parts, running tests, saving and uploading your work to GitHub — so allow them. Say no and ask *Why do you need to do that?* if it wants to delete files outside your project, spend money, change your GitHub account settings, or put the app live. If you cannot tell, ask *Explain that in one sentence.* Saying no stops that one step and Claude waits for you; it may leave a task half done until you decide.
+
+---
+
+## Words you will see
 
 | Word | Meaning |
 | --- | --- |
-| **PRD** | Product requirements document: what the app does, for whom, and why |
-| **ADR** | Architecture decision record: a short note of a technical choice and the reason for it |
-| **MVP** | Minimum viable product: the smallest version people can actually use |
-| **Vertical slice** | A small feature that works end to end — screen, logic and data together |
-| **Responsive design** | One layout that rearranges itself to fit a phone, tablet or computer screen |
-| **Mobile-first** | Design the phone layout first, then widen it for bigger screens |
-| **Wave** | A batch of planned work; one phase becomes one or more waves |
-| **Todo** | One piece of work inside a wave, with a clear list of what "done" means |
+| PRD | Product requirements document: what the app does, for whom, and why |
+| ADR | Architecture decision record: a short note of a technical choice and the reason for it |
+| MVP | Minimum viable product: the smallest version people can actually use |
+| Vertical slice | A small feature that works end to end: screen, logic and data together |
+| Responsive design | One layout that rearranges itself to fit a phone, tablet or computer screen |
+| Mobile-first | Design the phone layout first, then widen it for bigger screens |
+| Repository | Your project's folder on GitHub |
+| Clone / copy | Make a copy of the repository on your computer |
+| Commit | Save a snapshot of the project, with a short note of what changed |
+| Push | Copy your snapshots to GitHub |
+| Branch | A separate copy where unfinished work happens, so the main version stays safe |
+| Merge | Join reviewed work into the main version |
+| Pull request | GitHub's page for proposing a merge; Claude opens it for you |
+| Wave | One batch of planned work; a phase is built in one or more waves |
+| Todo | One piece of work inside a wave, with a clear list of what “done” means |
+| Deploy | Put the app on the internet for your users |
+
+> **Good to know:** You never need to type a folder or file name. Claude knows where each file belongs in this template.
 
 ---
 
 ## Step 1 — Write your PRD
 
-Talk the idea through with Claude until it is clear. Start with:
+Talk the idea through with Claude until it is clear. A paragraph is enough to start.
+
+**Type this:**
 
 > I would like to create a PRD for the below:
-> *(Describe your idea in your own words: who will use it, what problem it solves, the main
-> things a user should be able to do, and anything it must never do.)*
+> *(Describe your idea in your own words: who will use it, what problem it solves, the main things a user should be able to do, and anything it must never do. Example: a private site where my family can share recipes with photos and find them again easily.)*
 
-Claude will ask questions. Answer them, and ask Claude to explain anything you are unsure
-about. When the PRD reads right to you:
+Claude asks questions. Answer them, and ask Claude to explain anything you are unsure about. When the PRD reads right to you:
 
-> Save this PRD as the project brief.
+**Type this (use your own project name):**
 
-Claude knows where each file belongs, so you never need to type a folder or file name.
-
----
+> Save this PRD as the project brief for my project called *Family Recipes*.
 
 ## Step 2 — Split the PRD into phases
 
-> Structure the PRD by phase, with the MVP as Phase 0, then Phase 1, Phase 2 and so on. Each
-> phase must be a vertical slice: something a user can see and use, with the screens, backend
-> and database working together. Keep Phase 0 small. Update the project brief.
+**Type this:**
 
-**Why vertical slices?** Each phase ends with something you can click through and try, not
-just code in the background. A good Phase 0 has one to three things a user can do from
-start to finish.
+> Structure the PRD by phase, with the MVP as Phase 0, then Phase 1, Phase 2 and so on. Each phase must be a vertical slice: something a user can see and use, with the screens, backend and database working together. Keep Phase 0 small. Update the project brief.
+
+```
+              Phase 0   Phase 1   Phase 2
+ Screens        |##|      |##|      |##|
+ Logic          |##|      |##|      |##|
+ Data           |##|      |##|      |##|
+```
+
+*Each phase cuts through every layer, so every phase ends with something you can click through and try.*
+
+> **Why:** A good Phase 0 has one to three things a user can do from start to finish. For a family recipe site: family members sign in, add a recipe with a photo, and see everyone's recipes; comments, search and printing wait for Phase 1. If Phase 0 has more than three things, ask *Make Phase 0 smaller.*
 
 ---
 
 ## Step 3 — Decide the technology (ADR)
 
-`/analyze` turns your PRD into a proper plan: it researches, writes the specifications and
-records the technical decisions.
+`/analyze` turns your brief into a proper plan: it researches, writes the specifications and records the technical decisions.
 
-> /analyze Let's build the ADR. I would like this application to be based on a Next.js
-> frontend, a Python backend and Postgres as the database. Everything runs locally in
-> development, with Postgres in Docker Desktop. Use the PRD and its phases.
+**Type this:**
 
-This step takes a while: Claude researches, writes the specifications and has the plan
-checked. It will:
+> /analyze Let's build the ADR. I would like this application to be based on a Next.js frontend, a Python backend and Postgres as the database. Everything runs locally in development, with Postgres in Docker Desktop. Use the project brief and its phases.
 
-- write the decision records (the ADR)
-- fill in the project's commands (how to run tests, checks and the app) so later steps never guess
-- ask you to choose **light** or **standard** mode:
-  - **light** — a one-person prototype or hobby, no real users' data, no money involved; fewer reviews
-  - **standard** — anything real people will rely on; full reviews
+This step can take from 30 minutes to a couple of hours. Claude will:
 
-**You approve:** the technology choices and the mode.
+- research similar apps — for a private family or hobby app, add *Keep the market research short* to the prompt;
+- write the specifications and the decision records (the ADR), and fill in the project's commands so later steps never guess;
+- recommend where the app will run when it goes live, with its monthly cost;
+- ask you to choose **light** or **standard** mode. **Light:** only you will use it, nothing important is stored, no money moves — fewer reviews. **Standard:** other people will sign in with their email, or you store real personal data or money — full reviews. If unsure, choose standard.
+
+It is finished when Claude says the analysis is done and asks you to approve. Claude may upload the plan to GitHub as a *pull request* — that is normal.
+
+> **You decide:** Approve the technology, where the app will run and what it costs each month, and the mode. If you do not know, say *Recommend one, explain the trade-off in plain words, and I'll go with your recommendation.*
+
+Now run `/doctor` again: it can check Python and Docker Desktop this time.
 
 ---
 
 ## Step 4 — Design the prototype (responsive, mobile-first)
 
-> Use Claude Design to build a prototype of the whole product from the PRD and ADR, phase by
-> phase. Make it responsive and mobile-first: show every screen at phone, tablet and desktop
-> width. Ask me any questions about the design until you are clear.
+**Type this:**
 
-Claude Design is included with some Claude plans. If Claude asks you to sign in to it, type
-`/design-login` and try again. If your plan does not include it, use this instead:
+> Use Claude Design to build a prototype of Phase 0 from the PRD and ADR. Make it responsive and mobile-first: show every screen at phone, tablet and desktop width. Ask me any questions about the design until you are clear.
 
-> Build the prototype as plain web pages that I can open in my browser. Make them responsive and mobile-first, and show me how to
-> view each screen at phone, tablet and desktop width.
+```
+  Phone        Tablet            Desktop
+  [====]     [==========]     [====================]
+  [ ## ]     [ ## ][ ## ]     [  ][ ## ][ ## ][ ## ]
+  [ ## ]     [ ## ][ ## ]     [  ][ ############ ]
+  [ ## ]     [##########]     [  ][              ]
+  [btn ]
+```
+
+*Responsive design: one design that fits every screen size. Mobile-first: the phone layout is designed first.*
+
+Claude gives you a link or a file to open. Click it, or ask *Open the prototype in my browser for me.* Start with Phase 0; ask for later phases once Phase 0 looks right.
+
+Claude Design comes with the Pro, Max, Team and Enterprise plans (on Enterprise, your admin must turn it on). If Claude says it cannot reach Claude Design, type `/design-login`, finish the sign-in in your browser and try again. If it still does not work, use this instead — the result is just as good for reviewing:
+
+**Or type this:**
+
+> Build the Phase 0 prototype as plain web pages that I can open in my browser. Make them responsive and mobile-first, and show me how to see each screen at phone, tablet and desktop width.
 
 ---
 
 ## Step 5 — Review the prototype, then approve it
 
-Look at every screen as if you were the user, on your phone and on your computer. Be
-specific about what you want changed. Example prompts:
+Look at every screen as if you were the user. To see the phone layout on your computer, ask *Show me the phone view in my browser.* To try it on your real phone, ask *How can I open this on my phone?*
 
-1. > On the home screen the most important information is hard to find. Make it the first
-   > thing I see on a phone, and move the filters below it.
-2. > Sign-up asks for too much. Keep only name, email and password, and ask for the rest after
-   > the first login.
-3. > Show me every screen when there is no data yet, while it is loading, and when something
-   > goes wrong. Write the messages in plain, friendly words.
-4. > On a phone, the menu covers half the screen. Make it a simple menu button that opens a
-   > full-screen list, and keep the main buttons within thumb reach at the bottom.
-5. > Walk me through Phase 0 as a brand-new user, from opening the app to finishing the main
-   > task. Point out any step where I would get stuck or confused, then fix those steps.
+Be specific about what you want changed. Type these two for every app:
+
+**For every app:**
+
+> Show me every screen when there is no data yet, while it is loading, and when something goes wrong. Write the messages in plain, friendly words.
+
+**For every app:**
+
+> Walk me through Phase 0 as a brand-new user, from opening the app to finishing the main task. Point out any step where I would get stuck or confused, then fix those steps.
+
+These three are examples — rewrite them about your own screens:
+
+**Example:**
+
+> On the home screen the most important information is hard to find. Make it the first thing I see on a phone, and move the filters below it.
+
+**Example:**
+
+> Sign-up asks for too much. Keep only name, email and password, and ask for the rest after the first login.
+
+**Example:**
+
+> On a phone, the menu covers half the screen. Make it a simple menu button that opens a full-screen list, and keep the main buttons within thumb reach at the bottom.
 
 Repeat until you are happy. Changes are cheap now and expensive after the code is built.
 
-**Approve formally.** When the prototype is right, record your approval so the next steps
-follow exactly this design:
+### Approve formally
 
-> I approve this prototype for Phase 0 *(or: for all phases)*. Record my approval with my
-> name, today's date and these words. From now on, plan and build the screens to match this
-> approved prototype; if anything needs to differ, ask me first.
+When the prototype is right, record your approval so every later step follows exactly this design:
+
+**Type this:**
+
+> I, *(your name)*, approve this prototype for Phase 0. Save a copy of it in the project, record my approval in my own words as a decision in the project journal, and update the specifications to match it. From now on, build the screens to match it; ask me before anything differs.
+
+> **You decide:** Approve the prototype, in your own words.
 
 ---
 
 ## Step 6 — Plan the work
 
-> /todos Plan Phase 0 from the PRD phasing and the approved prototype. Each todo must
-> deliver a working vertical slice — screen, backend and database together — that matches the
-> approved screens at phone, tablet and desktop width.
+**Type this:**
 
-Claude will show you the plan and ask four questions:
+> /todos Plan Phase 0 from the PRD phasing and the approved prototype. Each feature todo must deliver a working vertical slice — screen, backend and database together — that matches the approved screens at phone, tablet and desktop width, and names the prototype screens it builds.
+
+A phase may be split into a few batches (*waves*). Claude plans one wave at a time, shows it to you, and asks four questions:
 
 - Does it cover everything you described?
 - Is anything there that you did not ask for?
 - Is anything missing that you expected?
 - Does the order make sense?
 
-**You approve:** the plan. Approving freezes that phase's scope. You can still change your
-mind later — just say so, and Claude will explain what changes and ask you to approve a new plan.
+If the plan is hard to read, ask *Explain each item as what I will be able to do when it is finished.* If you cannot judge the order, ask *Why this order?*
+
+The first plan also asks to switch on automatic checks on GitHub — say yes. It may mention locking the main version with a paid GitHub plan; you can say no and everything still works. Before a wave starts, Claude may also ask you to get a key from another service (for example a sign-in or email service); it tells you each click and where to put the key safely.
+
+> **You decide:** Approve the plan. Approving freezes this wave's work. You can still change your mind: say so, and Claude explains what changes and asks you to approve a new plan.
 
 ---
 
 ## Step 7 — Build, review and go live
 
+First open **Docker Desktop** and wait until it says it is running (on a Mac, a whale icon at the top of the screen). Then:
+
+**Type this:**
+
 > /implement Start with the first todo of the approved plan.
 
-Make sure Docker Desktop is running first. What happens next:
+```
+ Build -> Review -> Preview -> You say yes -> merged -> /deploy (you start it) -> live
+   ^                                                                              |
+   +--------------------------- next wave: /todos --------------------------------+
+```
 
-1. **Build** — each todo is built test-first; in standard mode an independent reviewer also
-   checks each todo. When one todo is done, type `/implement` again for the next.
-2. **Review the whole phase** — when every todo of the phase is built, Claude runs `/redteam`
-   (or type `/redteam` yourself). It reviews everything together, security included, then
-   merges it.
-3. **Preview** — Claude shows you what changed and asks if it may go live. Try it yourself first.
-4. **Go live** — the first time, type `/deploy --onboard`: Claude recommends where to host the
-   app, tells you what it costs, and sets up alerts that tell you if the site goes down. After
-   that, typing `/deploy` puts the new version live. **Only you** start a deploy.
+*Every wave goes round this loop. Nothing reaches your users until you type /deploy.*
 
-Then go back to step 6 for Phase 1, and repeat for each phase.
+1. **Build** — each todo is built test-first; in standard mode an independent reviewer also checks each todo. Claude says when a todo is done and what changed. If it stops, type `/implement` to continue.
+2. **Review** — when every todo of the wave is built, Claude runs `/redteam` (or type it yourself). It reviews everything together, security included. This can take a while.
+3. **Preview** — Claude shows you what changed and how to try it, and asks if it matches what you wanted. Answer *yes*, or say what is wrong; Claude fixes it first. Your yes lets Claude join the work into the main version. Nothing goes live yet.
+4. **Go live** — the first time, type `/deploy --onboard`. Claude recommends where to host the app, tells you what it costs, walks you through creating the hosting account and adding a payment card, and sets up an alert that reaches you if the site goes down. You will need a card, an email or phone for alerts, and about an hour. After that, type `/deploy` to put the new version live. Only you start a deploy.
+
+### Try it on your computer
+
+Before anything goes live, ask *Start the app on my computer so I can try it.* Claude gives you an address such as `http://localhost:3000` — open it in your browser. Only you can see it; it is not on the internet. When you are done, say *Stop the app.*
+
+> **Important:** Do not connect your project to a hosting website yourself, even if the site offers a *Connect GitHub* button. Let `/deploy` set it up, so unreviewed work never goes live.
+
+When a wave is finished, type `/ws`. It tells you whether the next step is `/todos` (plan the next wave of this phase, or the next phase) or `/deploy`.
 
 ---
 
 ## Saving your work (commit and push)
 
-Two words you will hear a lot:
-
-- **Commit** — save a snapshot of the project on your computer, with a short note of what changed.
-- **Push** — copy those snapshots to GitHub.
-
 Claude commits as it works. Still, ask for it whenever you finish something or stop for the day:
+
+**Type this:**
 
 > Commit and push my work.
 
-**Why it matters:**
+> **Why it matters:** **A safety net:** if something goes wrong later, Claude can bring back an earlier snapshot. **A backup:** your work is safe on GitHub even if your computer is lost. **Sharing:** anyone you invite can see the latest version of the project. Pushing does not change your live app: nothing reaches your users until you type `/deploy`.
 
-- **A safety net.** If something goes wrong later, Claude can bring back any earlier snapshot.
-- **A backup.** Your work is safe on GitHub even if your computer is lost or broken.
-- **Sharing.** Anyone you invite can see and try the latest version.
+## When you are stuck
 
-Claude keeps unfinished work on a separate copy (a *branch*) and only merges it into the main
-version once it has been reviewed, so pushing never puts unreviewed work live.
-
-## Along the way
-
-| Situation | What to type |
+| Situation | What to do |
 | --- | --- |
-| Something is broken | `/fix` — if the live site is down, it first asks whether to undo the last update |
+| Something is broken on the live site | Type `/fix` and say what went wrong. If an earlier checked version exists, it first asks whether to undo the last update |
+| Claude shows an error you do not understand | *What does this mean for me, and what should I do?* |
+| Claude asks a question you cannot answer | *I don't know — recommend one and explain why.* |
+| You reached your usage limit | Wait for it to reset, then *Carry on where you stopped.* |
 | Where am I? What is waiting for me? | `/ws` |
-| Ending a working session | `/wrapup`, then *Commit and push my work* — the next session picks up from the notes |
 | You want to change direction | Say so in plain words; Claude explains the impact and asks before changing the plan |
-| Starting a new session | Open Claude Code in the project folder; Claude reads where you left off. To reopen your last conversation, type `claude --continue` |
+| Ending a working session | `/wrapup` (it saves notes on this computer for your next session), then *Commit and push my work* |
+| Starting a new session | Open the project folder; Claude reads where you left off. To reopen an earlier conversation, pick it from the list in the desktop app (in a terminal: `claude --continue` inside the project folder) |
 
 ## Tips for beginners
 
-- **Just tell Claude what you want, in your own words.** You do not need technical terms; Claude
-  asks when something is unclear.
-- **Do not be afraid to make mistakes.** Every step is saved and reviewed, so a wrong turn can
-  always be undone. Say *"That's not what I meant — undo it"* and try again.
-- **Be specific.** "Make the button bigger and green, at the bottom of the screen" beats "make it nicer".
-- **Ask "why?"** Claude must explain its choices in plain words. If you do not understand, say so.
+- **Just tell Claude what you want, in your own words.** You do not need technical terms; Claude asks when something is unclear.
+- **Do not be afraid to make mistakes.** Code changes can be undone — say *That's not what I meant, undo it* and try again. Claude asks you first before anything that cannot be undone, such as deleting data, spending money or putting the app live.
+- **Be specific.** “Make the button bigger and green, at the bottom of the screen” beats “make it nicer”.
+- **Ask “why?”** Claude must explain its choices in plain words. If you do not understand, say so.
 - **Try it yourself** at every preview, on your phone as well as your computer.
 - **Keep phases small.** A small working app beats a big unfinished one.
-- **Never paste passwords or secret keys into the chat.** Claude will tell you where they go safely.
+- **Never paste passwords or secret keys into the chat.** Claude tells you where they go safely.
