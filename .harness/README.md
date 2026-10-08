@@ -44,7 +44,7 @@ in `guides/task-delivery.md`.
 ## Starting a new project
 
 1. Copy `.claude/`, `.harness/` and the `.gitignore` entries into the new repository (and
-   `AGENTS.md`, `.agents/` and `.codex/` if you use Codex). Keep `.claude/` even with Codex
+   `AGENTS.md` if you use Codex — then generate the Codex files with step 5). Keep `.claude/` even with Codex
    only: the tools in `bin/` and `lib/` load `.claude/hooks/lib/`.
 2. Fill in `guides/project-profile.md` — language, source/test roots, and the commands for
    lint, type check, the three test tiers, local CI parity and build. `/analyze` proposes

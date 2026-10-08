@@ -4,6 +4,10 @@
 
 This repository uses a shared delivery harness that Claude Code and Codex both follow.
 
+First time in this repository with Codex: if `.agents/skills/` or `.codex/agents/` is missing,
+run `node .harness/bin/check-adapters.mjs --write --codex` (Node.js 22+) and start a new Codex
+session; it generates the `$analyze` … `$learn` skills and the `harness-*` agents.
+
 1. Read `.harness/adapters/codex.md` first: how harness skills, subagents and Claude-only
    commands map to Codex, and its § Known limitations (a Codex client without native custom
    agents cannot pass `/redteam`'s security-reviewer gate; run that review from Claude Code).

@@ -102,8 +102,10 @@ layout, the shared rules and what the harness deliberately does not include.
 
 - `.claude/` — Claude Code entry point (`CLAUDE.md`), rules, agents, skills and commands.
 - `.harness/` — shared phases, roles, guides, rules and tools used by both Claude Code and Codex.
-- `AGENTS.md`, `.agents/`, `.codex/` — Codex entry point, phase skills and agent settings,
-  generated from `.harness/manifest.json`. Delete them if you only use Claude Code. Keep
+- `AGENTS.md` — Codex entry point. Codex users run
+  `node .harness/bin/check-adapters.mjs --write --codex` once; it generates the Codex skill and
+  agent files (`.agents/`, `.codex/`) from `.harness/manifest.json`. Claude-only users can delete
+  `AGENTS.md`. Keep
   `.claude/` even with Codex only: the harness tools load code from it. A Codex client without
   native custom agents cannot pass `/redteam`'s security review gate; see
   `.harness/adapters/codex.md` § Known limitations.
