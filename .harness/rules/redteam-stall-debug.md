@@ -122,7 +122,7 @@ without recording it:
 
 - **(a) Same-head confirmation** of an immediately preceding first clean round — the
   closing half of a standard-mode wave's convergence, admitted once (a light-mode wave, a
-  todo checkpoint, a fix and planning, analysis or codify reviews are done after one CLEAR
+  todo checkpoint, a fix, a deploy onboarding and planning, analysis or codify reviews are done after one CLEAR
   round). `head` is the commit the reviewers checked
   out, not the branch tip: committing the round's own record, reports and ledger rows on top
   does not move it, but any change to the reviewed code is a new cycle. Once the pair has closed, another round with the same

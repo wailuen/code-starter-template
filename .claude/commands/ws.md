@@ -54,7 +54,8 @@ waiting for you." Check each of these:
   `awaiting user` (classify exactly as `.harness/phases/learn.md` step 1), with the
   `docs/codify-<slug>-ask` pull request or branch holding the change; say in one line what it
   would change for the user. Lessons "in progress" in an open codify pull request are listed
-  under § 2, not here.
+  under § 2, not here. Lessons `learn.md` classifies as "stalled" (their codify branch is no
+  longer live) are listed here as one question: resume that change, or drop it?
 - **Open product questions** — journal `GAP` entries without the `harness` tag and with no
   later entry that resolves them.
 - **Open pull requests into `main`** — any not merged after its gate passed (for example

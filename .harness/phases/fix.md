@@ -184,6 +184,10 @@ keeps them in a private place and the committed file carries only its reference 
 
 `node .harness/bin/record-review-round.mjs workspaces/<project>/04-validate/round-f007-1.json`
 
+Before running it, each reviewer's report must sit in `workspaces/<project>/04-validate/`, name the full
+commit SHA it reviewed (or its first 12 characters) and be added to git before the recorder
+runs; otherwise the recorder refuses the round (`.harness/guides/review-round-recorder.md`).
+
 One complete CLEAR round is the bar for a fix. After it the recorder's `NEXT:` line still
 says `dispatch round N+1 … cleanRounds 1/2`; do not dispatch that round for a fix — a second
 same-head clean round is required only for wave convergence (`/redteam`). On NOT_CLEAR, fix

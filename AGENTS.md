@@ -24,7 +24,7 @@ worktree runs this once.
    `.harness/guides/task-delivery.md` for workspace paths, branches and review rounds.
 
 Phase skills, in order: `$analyze` → `$prototype` → `$todos` → `$implement` → `$redteam` → `$codify`, with
-`$prototype` skipped for a product with no screens, `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
+`$prototype` only recording `prototype/00-no-screens.md` for a product with no screens, `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
 `$codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs).
 Helpers are plain instruction files: to deploy, follow `.claude/commands/deploy.md`; to end a
 session, follow `.claude/commands/wrapup.md`; for a new user, `.claude/commands/start.md`.

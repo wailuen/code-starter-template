@@ -21,7 +21,7 @@ The AI handles all the technical work — writing code, testing, security checks
 | Step | Command | What Happens | Your Role |
 |------|---------|-------------|-----------|
 | 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Pick between the options it recommends (how to build it, where it runs and what that costs) |
-| 2. Design | `/prototype` | Draw every screen of every phase as clickable pages that fit phone, tablet and computer (skipped when there are no screens) | Answer design questions, ask for changes, then approve the screens |
+| 2. Design | `/prototype` | Draw every screen of every phase as clickable pages that fit phone, tablet and computer (for a product with no screens, it just notes that) | Answer design questions, ask for changes, then approve the screens |
 | 3. Planning | `/todos` | Create a complete project roadmap from the approved screens | Approve the plan before building starts |
 | 4. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
 | 5. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |

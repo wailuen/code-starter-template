@@ -131,14 +131,26 @@ function deniedWord(t) {
   const folded = leet(t);
   return DENY_WORDS.has(folded) || DENY_WORDS.has(folded.replace(TRAILING_VERSION_RE, ""));
 }
-// One word made only of denied words run together ("claudecode"); each piece at least 2 letters.
+// Pronouns, filler and short placeholders. Glued together they spell ordinary names ("to"+"by" is
+// "Toby", "an"+"na" is "Anna"), so a run-together word made only of these is not refused.
+const WEAK_WORDS = new Set([
+  "na", "tbd", "tba", "tbc", "me", "you", "i", "we", "us", "it", "my", "our", "your", "who",
+  "the", "a", "an", "s", "via", "by", "from", "in", "on", "at", "of", "and", "or", "with", "as", "per", "for", "to",
+  "yes", "this", "said", "says",
+]);
+// One word made only of denied words run together ("claudecode"); each piece at least 2 letters,
+// and at least one piece an agent, model, tool, role or lens word rather than filler.
 function runTogether(word) {
-  const ok = new Array(word.length + 1).fill(false);
-  ok[0] = true;
+  // reach[i]: 0 = position i not reachable; 1 = reachable through filler only; 2 = through a real denied word.
+  const reach = new Array(word.length + 1).fill(0);
+  reach[0] = 1;
   for (let end = 2; end <= word.length; end++)
-    for (let start = 0; start <= end - 2 && !ok[end]; start++)
-      if (ok[start] && DENY_WORDS.has(word.slice(start, end))) ok[end] = true;
-  return ok[word.length];
+    for (let start = 0; start <= end - 2 && reach[end] < 2; start++) {
+      const piece = word.slice(start, end);
+      if (reach[start] && DENY_WORDS.has(piece))
+        reach[end] = Math.max(reach[end], WEAK_WORDS.has(piece) ? reach[start] : 2);
+    }
+  return reach[word.length] === 2;
 }
 
 /** True when `value` is empty, or (as a whole) names an agent, model, tool, role, lens or placeholder rather than a person. */

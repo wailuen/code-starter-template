@@ -29,3 +29,8 @@ test("real names, including ones that share a word with a placeholder, still pas
     assert.equal(isAgentIdentity(v), false, v);
   }
 });
+
+test("names that happen to split into filler words are people, not run-together agent labels", () => {
+  for (const name of ["Toby", "Anna", "Tobias", "Theo"]) assert.equal(isAgentIdentity(name), false, name);
+  for (const label of ["ClaudeCode", "codexagent", "userowner", "theagent", "aibot"]) assert.equal(isAgentIdentity(label), true, label);
+});

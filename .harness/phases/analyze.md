@@ -152,7 +152,8 @@ design-system planning, and AI interaction patterns.
 
 There is no dedicated agent in this harness for buyer value-proposition critique —
 have the analyst cover that lens directly, or write a `value-auditor` agent (same shape as the
-others in `.claude/agents/`) once the product's target buyer is defined.
+others in `.claude/agents/`; for Codex also add it to `.harness/manifest.json`, per
+`.harness/adapters/codex.md` § Project additions) once the product's target buyer is defined.
 
 Review against explicit acceptance, with task-delivery's complete-round recorder and reassessment limits. Commit analysis on a `docs/<slug>` branch, never `main`, and record its review rounds there (scope `analysis-<slug>`, so a later analysis does not overwrite this one's round and report files), so they don't spend another branch's round budget (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). Repeated gaps trigger a design decision; an absence-of-findings search over unlimited scope is not a completion criterion. In light mode there is no analysis review round (task-delivery § Light mode).
 

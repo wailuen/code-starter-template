@@ -60,7 +60,8 @@ in `guides/task-delivery.md`.
    first. If the project already has its own root `CLAUDE.md` or `AGENTS.md`, merge the two
    instead of keeping both.
 5. Optional — Codex: `node .harness/bin/check-adapters.mjs --write --codex` generates
-   `.agents/skills/` and `.codex/agents/`; from then on the checker verifies them too. Read
+   `.agents/skills/` and `.codex/agents/`. They are git-ignored, so run it once in every copy of
+   the project (each clone or worktree); the checker then verifies them in that copy. Read
    `adapters/codex.md` § Known limitations before relying on Codex for `/redteam`.
 6. Optional — a project adopting the harness mid-life can set `grandfather_pin` in
    `manifest.json` to main's tip at adoption, so already-completed todos are not re-audited by
@@ -92,7 +93,8 @@ to CommonJS so a project-level `"type": "module"` cannot change how Node loads t
 | `bin/check-task-contract.mjs` | Validates a todo's `## Delivery contract` block before implementation, including that `approved_by` names a person. Exit 0 ready; 1 not ready, unreadable or usage. |
 | `bin/record-review-round.mjs` + `lib/redteam-stall.cjs` | Records each complete review round of any scope (todo, wave, fix, plan, analysis, codify) and enforces the round budget / reassessment rules. |
 | `bin/check-redteam-convergence-receipt.mjs` | Decides whether a scope converged (`--workspace workspaces/<project> --scope <scope>`), whether a todo is closed (`--workspace workspaces/<project> --todo <id>`), sweeps every completed todo (`--sweep workspaces`), and prints a receipt skeleton (`--template <scope>`). |
-| `bin/check-codify-allowlist.mjs` | `<base-ref> <head-ref>`: exit 0 only if an automatic `/codify` change stays inside the allowlist (`phases/codify.md` § Automatic runs); 1 findings, 2 usage or git error. |
+| `bin/check-codify-allowlist.mjs` | `<base-ref> <head-ref>`, where the base is `origin/main` (or `main` when the repository has no remote): exit 0 only if an automatic `/codify` change stays inside the allowlist (`phases/codify.md` § Automatic runs); 1 findings, 2 usage or git error. |
+| `lib/agent-identity.cjs` | The one check, shared by the checkers above, that a field meant to name a person (`approved_by`, `accepted_by`, an approval record's name) does not hold an agent, model, role, bot or "not approved yet" placeholder. It catches honest mistakes; it cannot prove a person approved. |
 | `bin/check-browser-walk-receipts.mjs` | Checks a todo declares its browser walk (or why it does not apply). |
 | `bin/check-prototype.mjs` | `[--require-approval] workspaces/<project>`: checks the clickable prototype's structure (every screen listed, linked and present; nothing loaded from the internet) and prints each PRD phase's content hash and approval status. With `--require-approval`, exit 0 only when every phase is approved for its current pages or held by the user, and the screen check passed or the user accepted it as owed. Exit 0 ok, 1 findings, 2 usage or no prototype folder. |
 

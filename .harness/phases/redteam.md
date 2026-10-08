@@ -182,6 +182,8 @@ After the receipt check exits 0, in this order:
    (`.claude/commands/deploy.md` Step 1.3). Record the answer by replacing the last line with
    their words and the date: on the wave branch if they answer before the merge, otherwise on a
    record-only `docs/<scope>-preview` branch cut from `main` after the merge (light mode too).
+   This is the only place the preview and the answer are recorded, in both delivery modes;
+   task-delivery § Light mode points here.
 3. Merge the wave branch into `main` by pull request: read CI on the pinned head SHA, then
    merge in a separate command with a merge commit (task-delivery § Branches, pull requests
    and merging). Merging deploys nothing and needs no confirmation, except while the project

@@ -78,7 +78,8 @@ their users and a way to try it themselves (a local address, a preview deploy, o
 run), and asks whether it matches what they wanted — before the merge when they are present,
 otherwise as the first open question, and always before the wave is deployed. A "no" is a
 defect for `/fix` or a scope decision (`.harness/phases/todos.md` § Changing or cancelling
-approved scope), never something to deploy over.
+approved scope), never something to deploy over (except the user-confirmed override in
+`.claude/commands/deploy.md` Step 1.3).
 
 ## Before a wave starts: ask for the real external setup its end-to-end signoff will need
 
@@ -235,9 +236,10 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
-| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round (light mode: after the user approved the stack and mode) |
+| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round and the user's stack, hosting and mode approval (light mode: the approval only) |
 | Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates; a brief or spec requirement change goes through `/analyze` on its own `docs/<slug>` branch) | `main`, after the user approved and `check-prototype.mjs --require-approval` exits 0 |
 | Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
+| Re-plan of an approved wave (`/todos` § Changing or cancelling approved scope) | `docs/wNNb-plan` (then `wNNc`, …) | the wave branch | planning review (`wNNb-plan`; none in light mode) | the wave branch, after plan approval |
 | Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |
 | Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
@@ -574,8 +576,8 @@ It is a retry-control instrument; the convergence-receipt checker still decides 
 Its last lines start with `NEXT:` and list the branch's known root causes and budget — read them.
 How many clean rounds a scope needs: one complete CLEAR round for a todo checkpoint (scope
 `wNN-MM`), a `/fix` branch (`<fix-id>`), a planning review (`wNN-plan`), an analysis review
-(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`) and a light-mode
-wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
+(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`), a deploy onboarding
+(`deploy-onboard-<n>`) and a light-mode wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
 wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
 prints `dispatch round N+1`; at a one-round checkpoint do not dispatch it.
 

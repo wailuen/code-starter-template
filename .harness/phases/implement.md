@@ -66,7 +66,10 @@ correctness review is required; security/trust-bearing work also gets independen
 security review. Reviewers inspect pinned separate checkouts. Mutation probes use their
 own disposable checkouts and infrastructure; nobody mutates the implementer's tree.
 Record the checkpoint review with `node .harness/bin/record-review-round.mjs` on the todo
-branch, scope `wNN-MM` (task-delivery § Review protocol and circuit breaker). One complete
+branch, scope `wNN-MM` (task-delivery § Review protocol and circuit breaker). Before recording,
+each reviewer's report must sit in `workspaces/<project>/04-validate/`, name the full
+commit SHA it reviewed (or its first 12 characters) and be added to git before the recorder
+runs; otherwise the recorder refuses the round (`.harness/guides/review-round-recorder.md`). One complete
 CLEAR round is enough for the todo; the wave's own gate comes later (two clean rounds in standard
 mode, one in light mode). After
 that round the recorder's `NEXT:` line still says `dispatch round N+1 … cleanRounds 1/2`; do

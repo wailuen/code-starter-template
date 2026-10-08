@@ -46,7 +46,7 @@ You approve at a few fixed points: the technology and hosting choice (step 3), t
 
 > **What installing looks like:** Installers are not fully automatic. Some open their own window or ask for your computer's password: type the password in that window, never in the chat. On a Mac, the first use of Git may open an Apple window offering to install developer tools; click **Install** and wait, it can take a while. Docker Desktop asks you to accept its terms and may ask you to restart the computer. If Claude asks you to paste something into the **Terminal** app, it tells you exactly what to paste. If an install will not work through Claude, use the official download pages: **git-scm.com/downloads**, **cli.github.com**, **nodejs.org**, **python.org/downloads** and **docker.com/products/docker-desktop**, then tell Claude it is done.
 
-> **Good to know:** `/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor`, which checks your computer for this project, and its own `/design`, which you do not need to type at all. You never need to type a folder or file name either: Claude knows where each file belongs.
+> **Good to know:** `/start` describes the work in six broad stages; this guide's seven steps fit inside them. Follow this guide. This project has its own `/doctor`, which checks your computer for this project, and its own `/design`, which you do not need to type at all; both replace Claude Code's built-in commands with the same names. To run Claude Code's own setup check instead, type `/checkup`. You never need to type a folder or file name either: Claude knows where each file belongs.
 
 ### Using a terminal instead
 

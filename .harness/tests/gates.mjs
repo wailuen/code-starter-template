@@ -641,7 +641,7 @@ test("after one CLEAR round the recorder says only a standard-mode wave needs a 
   const first = record(1, "CLEAR");
   assert.equal(first.status, 0, first.stderr);
   assert.match(first.stdout, /Only a standard-mode wave convergence \(\/redteam, scope wNN\) needs this second clean round/);
-  assert.match(first.stdout, /a light-mode wave, a todo checkpoint, a \/fix branch, a planning review, an analysis review or a codify review is done after one complete CLEAR round/);
+  assert.match(first.stdout, /a light-mode wave, a todo checkpoint, a \/fix branch, a planning review, an analysis review, a codify review or a deploy onboarding is done after one complete CLEAR round/);
 });
 
 test("the rebuilt count follows the scope or the branch: a todo branch cut from a wave branch starts at round 1", (t) => {
@@ -834,10 +834,13 @@ function codifyRepo(t) {
   return { dir, log, branch, stageBlob };
 }
 
-test("codify allowlist: allowlisted guide, backlog, appended log rows and evidence may merge without the user", (t) => {
+test("codify allowlist: backlog, appended log rows and evidence may merge without the user; a guide edit may not", (t) => {
   const { dir, log, branch } = codifyRepo(t);
-  const ok = branch("docs/codify-ok", () => {
+  const guide = branch("docs/codify-guide", () => {
     put(dir, ".harness/guides/other.md", "guide, clearer\n");
+  });
+  assert.equal(guide.status, 1, "guides are instruction files, so a guide edit is ask-first");
+  const ok = branch("docs/codify-ok", () => {
     put(dir, ".harness/backlog/harness-02-b.md", "item\n");
     put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-ok | .harness/backlog/harness-02-b.md | awaiting user | PR #7 |\n");
     put(dir, ".harness/reviews/codify-ok-correctness-r1.md", "Verdict: CLEAR\n");

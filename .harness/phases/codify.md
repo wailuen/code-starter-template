@@ -85,7 +85,8 @@ over the workflow where they differ.
   `no remote: judging against local main`. Any other base — an older commit, another branch, a
   local `main` that differs from origin's — exits 2, so no base can narrow what it sees.
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
-  `round-codify-<slug>-<n>.json`; only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
+  `round-codify-<slug>-<n>.json` (each report names the full SHA of the commit it reviewed, or its
+  first 12 characters, and is added to git before the recorder runs); only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
   existing file); and write each log row as its fields — a `YYYY-MM-DD` date, a run cell holding
   only branch names and pull requests (`docs/codify-x / PR #7`), the lesson's path alone, the
   outcome, and a detail. The lesson's file name is never read for words, but the detail is:
