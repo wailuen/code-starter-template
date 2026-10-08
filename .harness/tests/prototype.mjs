@@ -78,6 +78,7 @@ test("a complete prototype passes, before and after approval", (t) => {
   assert.equal(before.screens, 2);
   assert.equal(before.phases["0"].status, "awaiting approval");
   assert.match(before.phases["0"].hash, /^[0-9a-f]{16}$/);
+  stampScreenCheck(ws);
   approve(ws, 1, { phases: ["0", "1"] });
   markScreens(ws, { 0: "approved", 1: "approved" });
   const after = checkPrototype(ws, { requireApproval: true });
@@ -101,7 +102,7 @@ test("an approval taken before a page changed does not approve the changed page 
   assert.match(errorsOf(ws), /"Sign in" says "approved" but phase 0 is awaiting approval/);
 });
 
-test("a shared style change re-opens every phase; a new phase needs its own approval (H1)", (t) => {
+test("a shared style or start-page change re-opens every phase; a new phase needs its own approval (H1)", (t) => {
   const ws = fixture(t);
   approve(ws, 1, { phases: ["0", "1"] });
   markScreens(ws, { 0: "approved", 1: "approved" });
@@ -119,6 +120,18 @@ test("a shared style change re-opens every phase; a new phase needs its own appr
   put(ws2, "prototype/index.html", readFileSync(join(ws2, "prototype/index.html"), "utf8")
     + `<a href="screens/p2-share.html">Share</a><a href="views.html?screen=screens/p2-share.html">sizes</a>`);
   r = checkPrototype(ws2, { requireApproval: true });
+  // index.html changed to link the new screen, so the approved phases need approving again too.
+  assert.match(r.errors.join("\n"), /phase 0: changed since approval 1/);
+  assert.match(r.errors.join("\n"), /phase 2: no approval record names it/);
+  // A phase added without touching a shared file leaves the approved phases approved.
+  const ws3 = fixture(t);
+  put(ws3, "prototype/index.html", readFileSync(join(ws3, "prototype/index.html"), "utf8")
+    + `<a href="screens/p2-share.html">Share</a><a href="views.html?screen=screens/p2-share.html">sizes</a>`);
+  put(ws3, "prototype/screens/p2-share.html", "<p>share</p>");
+  approve(ws3, 1, { phases: ["0", "1"] });
+  put(ws3, "prototype/SCREENS.md", readFileSync(join(ws3, "prototype/SCREENS.md"), "utf8").replace("\nScreen check",
+    "| Share | 2 | `screens/p2-share.html` | specs/share.md | default | awaiting approval |\n\nScreen check"));
+  r = checkPrototype(ws3, { requireApproval: true });
   assert.equal(r.phases["0"].status, "approved");
   assert.match(r.errors.join("\n"), /phase 2: no approval record names it/);
 });
@@ -128,8 +141,9 @@ test("a held phase stays awaiting approval; the newest record naming a phase dec
   approve(ws, 1, { phases: ["0", "1"] });
   put(ws, "prototype/screens/p0-sign-in--error.html", `<a href="p0-sign-in.html">v2</a>`);
   put(ws, "prototype/screens/p1-recipes.html", `<p>v2 recipes</p>`);
-  approve(ws, 2, { phases: ["0"], held: "1" });
+  approve(ws, 2, { phases: ["0"], held: "1", on: "2026-10-09" });
   markScreens(ws, { 0: "approved", 1: "awaiting approval" });
+  stampScreenCheck(ws);
   const r = checkPrototype(ws, { requireApproval: true });
   assert.deepEqual(r.errors, []);
   assert.deepEqual([r.phases["0"].status, r.phases["0"].approval], ["approved", 2]);
@@ -371,4 +385,118 @@ test("the CLI still runs when started through a symlink with --preserve-symlinks
   const r = spawnSync(process.execPath, ["--preserve-symlinks-main", link, ws], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(JSON.parse(r.stdout).ok, true);
+});
+
+// Write the passed screen-check line the way prototype.md step 5 does: with the checker's pages hash.
+function stampScreenCheck(ws) {
+  const path = join(ws, "prototype/SCREENS.md");
+  writeFileSync(path, readFileSync(path, "utf8").replace(/Screen check: .*/,
+    `Screen check: passed 2026-10-08 at abc1234; pages ${checkPrototype(ws).pages_hash}`));
+}
+
+test("line-ending conversion (CRLF) keeps every approval and the passed screen check (RR-1)", (t) => {
+  const ws = fixture(t);
+  stampScreenCheck(ws);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  assert.deepEqual(checkPrototype(ws, { requireApproval: true }).errors, []);
+  for (const f of ["index.html", "views.html", "styles.css", "img/logo.svg", "SCREENS.md", "DESIGN.md", "APPROVAL.md",
+    "screens/p0-sign-in.html", "screens/p0-sign-in--error.html", "screens/p1-recipes.html"]) {
+    const p = join(ws, "prototype", f);
+    writeFileSync(p, readFileSync(p, "utf8").replace(/\r?\n/g, "\r\n"));
+  }
+  const r = checkPrototype(ws, { requireApproval: true });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.phases["0"].status, "approved");
+  assert.equal(r.screen_check, "passed");
+});
+
+test("an owed screen check needs a real person and a date: 'nobody yet' is refused (RR-2)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  const screens = readFileSync(join(ws, "prototype/SCREENS.md"), "utf8");
+  for (const by of ["nobody yet", "nobody", "no one 2026-10-08", "Nobody 2026-10-08", "TBD 2026-10-08", "Mei Tan", "Claude 2026-10-08"]) {
+    put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*/, `Screen check: owed — no browser (accepted by ${by})`));
+    assert.match(errorsOf(ws, { requireApproval: true }), /screen check is owed and no person accepted/, by);
+  }
+  put(ws, "prototype/SCREENS.md", screens.replace(/Screen check: .*/, "Screen check: owed — no browser; accepted by Mei Tan 2026-10-08"));
+  assert.equal(errorsOf(ws, { requireApproval: true }), "");
+});
+
+test("a passed screen check counts only for the pages it checked (RR-3)", (t) => {
+  const ws = fixture(t);
+  stampScreenCheck(ws);
+  approve(ws, 1, { phases: ["0", "1"] });
+  markScreens(ws, { 0: "approved", 1: "approved" });
+  assert.equal(errorsOf(ws, { requireApproval: true }), "");
+  // A revision changes a page and is approved again, but the old passed line stays.
+  put(ws, "prototype/screens/p1-recipes.html", `<p>recipes, redesigned</p>`);
+  approve(ws, 2, { phases: ["1"], on: "2026-10-09" });
+  let r = checkPrototype(ws, { requireApproval: true });
+  assert.equal(r.screen_check, "stale");
+  assert.match(r.errors.join("\n"), /screen check passed for other pages/);
+  // A passed line with no pages hash is not tied to any pages, so it is owed too.
+  put(ws, "prototype/SCREENS.md", readFileSync(join(ws, "prototype/SCREENS.md"), "utf8")
+    .replace(/Screen check: .*/, "Screen check: passed 2026-10-08 at abc1234"));
+  r = checkPrototype(ws, { requireApproval: true });
+  assert.equal(r.screen_check, "stale");
+  stampScreenCheck(ws);
+  assert.equal(errorsOf(ws, { requireApproval: true }), "");
+});
+
+test("views.html and index.html are inside every phase's fingerprint (RR-4)", (t) => {
+  for (const file of ["views.html", "index.html"]) {
+    const ws = fixture(t);
+    approve(ws, 1, { phases: ["0", "1"] });
+    markScreens(ws, { 0: "approved", 1: "approved" });
+    put(ws, `prototype/${file}`, readFileSync(join(ws, `prototype/${file}`), "utf8") + "<p>new text</p>");
+    const e = errorsOf(ws, { requireApproval: true });
+    assert.match(e, /phase 0: changed since approval 1/, file);
+    assert.match(e, /phase 1: changed since approval 1/, file);
+  }
+  // Text in SCREENS.md outside the screens table is not part of the fingerprint (documented).
+  const ws = fixture(t);
+  const before = checkPrototype(ws).phases;
+  put(ws, "prototype/SCREENS.md", readFileSync(join(ws, "prototype/SCREENS.md"), "utf8") + "\nNotes: a later idea.\n");
+  assert.deepEqual(checkPrototype(ws).phases, before);
+});
+
+test("a record that repeats an earlier record's quoted words and date is refused (RR-4)", (t) => {
+  const ws = fixture(t);
+  approve(ws, 1, { phases: ["0", "1"] });
+  approve(ws, 2, { phases: ["0"] });
+  assert.match(errorsOf(ws), /approval 2: repeats the quoted words and date of approval 1/);
+  approve(ws, 3, { phases: ["0"], on: "2026-10-09" });
+  assert.doesNotMatch(errorsOf(ws), /approval 3: repeats/);
+});
+
+test("--base: APPROVAL.md must start with the base branch's text unchanged (RR-4)", (t) => {
+  const ws = fixture(t);
+  const git = (...a) => spawnSync("git", ["-C", ws, ...a], { encoding: "utf8" });
+  const commit = (m) => git("-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-qm", m);
+  git("init", "-q", "-b", "main");
+  approve(ws, 1, { phases: ["0", "1"] });
+  git("add", "-A");
+  commit("base");
+  // Appending is fine.
+  put(ws, "prototype/screens/p1-recipes.html", `<p>v2</p>`);
+  approve(ws, 2, { phases: ["1"], on: "2026-10-09" });
+  assert.doesNotMatch(errorsOf(ws, { base: "main" }), /APPROVAL\.md/);
+  // Editing an earlier record's hash in place is refused.
+  const path = join(ws, "prototype/APPROVAL.md");
+  const text = readFileSync(path, "utf8");
+  writeFileSync(path, text.replace(/hashes: 0=[0-9a-f]+/, "hashes: 0=0000000000000000"));
+  assert.match(errorsOf(ws, { base: "main" }), /APPROVAL\.md changes or drops an earlier record/);
+  // CRLF on one side only is not a change.
+  writeFileSync(path, text.replace(/\n/g, "\r\n"));
+  assert.doesNotMatch(errorsOf(ws, { base: "main" }), /APPROVAL\.md/);
+  // A base with no APPROVAL.md (the first prototype) accepts any records.
+  git("rm", "-q", "--cached", "prototype/APPROVAL.md");
+  commit("no approvals");
+  assert.doesNotMatch(errorsOf(ws, { base: "main" }), /APPROVAL\.md/);
+  // An unknown base is a usage error, not a pass.
+  assert.match(checkPrototype(ws, { base: "no-such-ref" }).usage ?? "", /not a commit/);
+  const cli = spawnSync(process.execPath, [join(root, ".harness/bin/check-prototype.mjs"), "--base", "no-such-ref", ws], { encoding: "utf8" });
+  assert.equal(cli.status, 2);
 });

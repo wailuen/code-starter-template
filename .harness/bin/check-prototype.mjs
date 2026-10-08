@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Structure and approval check for a workspace's clickable prototype (`.harness/phases/prototype.md`).
 //   node .harness/bin/check-prototype.mjs workspaces/<project>                      # while designing
-//   node .harness/bin/check-prototype.mjs --require-approval workspaces/<project>   # before merging
-// Prints {"ok", "screens", "approvals", "phases": {<phase>: {status, hash, ...}}, "screen_check", "errors"}.
+//   node .harness/bin/check-prototype.mjs --require-approval --base origin/main workspaces/<project>   # before merging
+// Prints {"ok", "screens", "approvals", "phases": {<phase>: {status, hash, ...}}, "pages_hash",
+// "screen_check", "errors"}.
 // Exit: 0 ok · 1 findings · 2 usage error or no prototype folder.
 //
 // Structure: the required files exist; the first table under `## Screens` in SCREENS.md lists every
@@ -13,21 +14,34 @@
 // only a link, so it is allowed).
 //
 // Approval: each PRD phase has a content hash over its SCREENS.md rows, its pages and the shared
-// files (styles, images, scripts, DESIGN.md). A phase is "approved" only when the newest
+// files (styles, images, scripts, DESIGN.md, index.html, views.html). Text files are hashed with
+// CRLF line endings read as LF, so a checkout that converts line endings keeps every approval.
+// SCREENS.md text outside the screens table (the screen-check line, notes) is not hashed: the
+// user approves the pages and the rows, and that text records the checks made on them.
+// "pages_hash" combines every phase's hash; a passed screen check names it, so a later page change
+// makes the check owed again. A phase is "approved" only when the newest
 // APPROVAL.md record naming it approved it with the hash it has now; a page or style change, or a
 // record that holds the phase, makes it "awaiting approval". The SCREENS.md Approval column must
-// agree. --require-approval also needs: every phase approved or held by the user, at least one
-// approved phase, and a screen check that passed (or that the user accepted as owed).
+// agree. A record may not repeat an earlier record's quoted words and date. --require-approval
+// also needs: every phase approved or held by the user, at least one approved phase, and a screen
+// check that passed for the current pages (or that a named person accepted as owed, with a date).
+// --base <ref>: APPROVAL.md must start with that commit's APPROVAL.md unchanged (append-only).
 // It checks structure only; the screen check and the design critique judge the design itself.
 import { readFileSync, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { resolve, join, dirname, relative, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { isAgentIdentity } from "../lib/agent-identity.cjs";
 
 const REQUIRED = ["index.html", "views.html", "styles.css", "SCREENS.md", "DESIGN.md"];
-// Files outside every phase's hash: navigation, records and the no-screens note.
-const UNHASHED = new Set(["index.html", "views.html", "SCREENS.md", "APPROVAL.md", "00-no-screens.md"]);
+// Files outside every phase's hash: the records (SCREENS.md rows are hashed per phase) and the
+// no-screens note. index.html and views.html are what the user opens, so they are hashed.
+const UNHASHED = new Set(["SCREENS.md", "APPROVAL.md", "00-no-screens.md"]);
+// Text files are hashed with CRLF read as LF; anything else is hashed byte for byte.
+const TEXT = /\.(html?|svg|css|m?js|json|md|txt|csv)$/i;
+// Placeholders that are not a person accepting an owed screen check.
+const NOBODY = /^(nobody|no[ -]?one|none|n\/?a|tbd|tba|pending|unknown|later|yet|someone|anyone)\b/i;
 const IGNORED = new Set([".screenshots", ".DS_Store"]); // local-only, never committed
 const PHASE = /^[0-9A-Za-z][0-9A-Za-z.]*$/; // 0, 1, 1a, MVP, 2.1
 const STATUSES = ["approved", "awaiting approval"];
@@ -147,8 +161,20 @@ function localTarget(value, baseDir) {
 }
 
 const sha = (data) => createHash("sha256").update(data).digest("hex");
+const lf = (text) => text.replace(/\r\n/g, "\n");
+const readText = (path) => lf(readFileSync(path, "utf8"));
+const fileHash = (path) => sha(TEXT.test(path) ? readText(path) : readFileSync(path));
 
-export function checkPrototype(workspace, { requireApproval = false } = {}) {
+// The APPROVAL.md text at a base commit: { text } ("" when the base has none) or { usage }.
+function baseApprovals(dir, ref) {
+  const git = (...a) => spawnSync("git", ["-C", dir, ...a], { encoding: "utf8" });
+  if (git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`).status !== 0) return { usage: `--base ${ref} is not a commit here` };
+  if (git("cat-file", "-e", `${ref}:./APPROVAL.md`).status !== 0) return { text: "" };
+  const shown = git("show", `${ref}:./APPROVAL.md`);
+  return shown.status === 0 ? { text: lf(shown.stdout) } : { usage: `cannot read APPROVAL.md at ${ref}: ${shown.stderr.trim()}` };
+}
+
+export function checkPrototype(workspace, { requireApproval = false, base = null } = {}) {
   const dir = resolve(workspace, "prototype");
   const errors = [];
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return { usage: `No prototype folder at ${dir}` };
@@ -165,7 +191,7 @@ export function checkPrototype(workspace, { requireApproval = false } = {}) {
   let rows = [];
   let screensText = "";
   if (existsSync(join(dir, "SCREENS.md"))) {
-    screensText = readFileSync(join(dir, "SCREENS.md"), "utf8");
+    screensText = readText(join(dir, "SCREENS.md"));
     const parsed = parseScreens(screensText);
     rows = parsed.rows;
     if (parsed.problem) errors.push(parsed.problem);
@@ -193,7 +219,7 @@ export function checkPrototype(workspace, { requireApproval = false } = {}) {
   if (existsSync(join(dir, "index.html"))) {
     const linked = new Set();
     const viewed = new Set();
-    for (const r of references(readFileSync(join(dir, "index.html"), "utf8"), "markup").filter((x) => x.kind === "link")) {
+    for (const r of references(readText(join(dir, "index.html")), "markup").filter((x) => x.kind === "link")) {
       const t = localTarget(r.value, dir);
       if (!t.path) continue;
       linked.add(t.path);
@@ -233,13 +259,21 @@ export function checkPrototype(workspace, { requireApproval = false } = {}) {
   for (const phase of [...new Set(rows.filter((r) => r.file).map((r) => r.phase))]) {
     const parts = rows.filter((r) => r.phase === phase).map((r) => `row\0${r.content}`);
     for (const f of [...shared, ...[...pagePhase].filter(([, p]) => p === phase).map(([f]) => f)])
-      parts.push(`file\0${relative(dir, f).split(sep).join("/")}\0${sha(readFileSync(f))}`);
+      parts.push(`file\0${relative(dir, f).split(sep).join("/")}\0${fileHash(f)}`);
     phases[phase] = { status: "awaiting approval", hash: sha(parts.sort().join("\n")).slice(0, 16), reason: "no approval record names it" };
   }
+  const pages_hash = sha(Object.entries(phases).map(([p, s]) => `${p}=${s.hash}`).sort().join("\n")).slice(0, 16);
 
   let approvals = [];
-  if (existsSync(join(dir, "APPROVAL.md"))) {
-    approvals = parseApprovals(readFileSync(join(dir, "APPROVAL.md"), "utf8"));
+  const approvalText = existsSync(join(dir, "APPROVAL.md")) ? readText(join(dir, "APPROVAL.md")) : null;
+  if (base !== null) {
+    const b = baseApprovals(dir, base);
+    if (b.usage) return { usage: b.usage };
+    if (!(approvalText ?? "").startsWith(b.text))
+      errors.push(`APPROVAL.md changes or drops an earlier record from ${base}: records are append-only; restore them and add a new '## Approval <n>' record`);
+  }
+  if (approvalText !== null) {
+    approvals = parseApprovals(approvalText);
     if (approvals.length === 0) errors.push("APPROVAL.md has no '## Approval <n>' record");
     approvals.forEach((a, i) => {
       const n = i + 1;
@@ -247,6 +281,8 @@ export function checkPrototype(workspace, { requireApproval = false } = {}) {
       else if (isAgentIdentity(a.approved_by)) errors.push(`approval ${n}: approved_by must name the person who approved, not an agent or placeholder: ${JSON.stringify(a.approved_by)}`);
       if (!realDate(a.approved_on)) errors.push(`approval ${n}: approved_on must be a real date, YYYY-MM-DD`);
       if (!/^".+"$/.test(a.approval)) errors.push(`approval ${n}: approval must quote the user's words`);
+      const twin = approvals.findIndex((b, j) => j < i && b.approval === a.approval && b.approved_on === a.approved_on);
+      if (twin !== -1) errors.push(`approval ${n}: repeats the quoted words and date of approval ${twin + 1}; a new approval quotes what the user said this time`);
       const approved = list(a.phases);
       const held = list(a.held).filter((p) => p.toLowerCase() !== "none");
       if (approved.length + held.length === 0 || ![...approved, ...held].every((p) => PHASE.test(p)))
@@ -273,30 +309,39 @@ export function checkPrototype(workspace, { requireApproval = false } = {}) {
   }
 
   const checkLine = [...screensText.matchAll(/^Screen check:[ \t]*(.*)$/gm)].pop()?.[1] ?? null;
-  const screen_check = checkLine === null ? "missing" : /^passed\b/i.test(checkLine) ? "passed" : /^owed\b/i.test(checkLine) ? "owed" : "unknown";
+  const checkedPages = checkLine?.match(/;\s*pages\s+([0-9a-f]{16})\s*$/)?.[1] ?? null;
+  const screen_check = checkLine === null ? "missing"
+    : /^passed\b/i.test(checkLine) ? (checkedPages === pages_hash ? "passed" : "stale")
+    : /^owed\b/i.test(checkLine) ? "owed" : "unknown";
   if (requireApproval) {
     for (const [p, s] of Object.entries(phases))
       if (s.status !== "approved" && !s.held) errors.push(`phase ${p}: ${s.reason}; show the user and take a new approval (or record the phase as held)`);
     if (approvals.length && !Object.values(phases).some((s) => s.status === "approved")) errors.push("no PRD phase is approved");
     if (screen_check === "missing") errors.push("SCREENS.md has no 'Screen check:' line");
+    else if (screen_check === "stale") errors.push(`screen check passed for other pages (${checkedPages ? `pages ${checkedPages}` : "no pages hash"}; now pages ${pages_hash}): run it again on these pages and end the line with '; pages ${pages_hash}'`);
     else if (screen_check === "owed") {
-      const by = checkLine.match(/accepted by\s+(.+?)(?:\s+\d{4}-\d{2}-\d{2})?\s*$/i)?.[1] ?? "";
-      if (!by || isAgentIdentity(by)) errors.push("screen check is owed and no person accepted that: run it, or add '; accepted by <name> <date>' after the user agrees");
+      const m = checkLine.match(/accepted by\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*$/i);
+      const by = m?.[1].trim() ?? "";
+      if (!by || !realDate(m[2]) || NOBODY.test(by) || isAgentIdentity(by))
+        errors.push("screen check is owed and no person accepted that: run it, or add '; accepted by <name> <YYYY-MM-DD>' after the user agrees");
     } else if (screen_check !== "passed") errors.push(`Screen check line must start with "passed" or "owed": ${checkLine}`);
   }
 
-  return { ok: errors.length === 0, screens: listed.size, approvals: approvals.length, phases, screen_check, errors };
+  return { ok: errors.length === 0, screens: listed.size, approvals: approvals.length, phases, pages_hash, screen_check, errors };
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const args = process.argv.slice(2);
   const requireApproval = args.includes("--require-approval");
+  let base = null;
+  const at = args.indexOf("--base");
+  if (at !== -1) [, base = ""] = args.splice(at, 2);
   const rest = args.filter((a) => a !== "--require-approval");
-  if (rest.length !== 1 || rest[0].startsWith("-")) {
-    console.error("Usage: check-prototype.mjs [--require-approval] workspaces/<project>");
+  if (rest.length !== 1 || rest[0].startsWith("-") || (at !== -1 && (!base || base.startsWith("-")))) {
+    console.error("Usage: check-prototype.mjs [--require-approval] [--base <ref>] workspaces/<project>");
     process.exit(2);
   }
-  const result = checkPrototype(rest[0], { requireApproval });
+  const result = checkPrototype(rest[0], { requireApproval, base });
   if (result.usage) { console.error(result.usage); process.exit(2); }
   console.log(JSON.stringify(result, null, 2));
   process.exit(result.ok ? 0 : 1);
