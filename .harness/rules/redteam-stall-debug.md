@@ -78,8 +78,10 @@ state for the branch (the gitignored state file was deleted, or the repository w
 fresh), the recorder rebuilds the count from the round records committed in the branch's
 history or on the local `main` (where a merged record-only branch leaves them), each read as it was first committed, counting a record when its file name
 carries the scope being recorded (`round-<scope>-<n>.json`) or its `branch` is this branch.
-So a renamed or re-cut branch for the same scope keeps its count, and a todo branch cut from
-a wave branch starts at round 1. What the recorder detects: a record that does not parse, a
+So a branch renamed with its history keeps its count, and a todo branch cut from
+a wave branch starts at round 1. Only records in the same folder as the round count (two projects
+in one repository keep separate counts), and a new branch cut from `main` sees only rounds already
+merged there — rounds recorded on an unmerged branch are not visible to it. What the recorder detects: a record that does not parse, a
 round number that does not follow the counted ones, and a record later edited or deleted
 (the first-committed content is what counts); it then refuses and names the problem. It
 does not try to detect every local git manipulation: rewriting local history (a reset, or a

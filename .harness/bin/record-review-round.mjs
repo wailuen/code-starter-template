@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { dirname, join, resolve, basename } from "node:path";
+import { readFileSync, readdirSync, lstatSync, realpathSync } from "node:fs";
+import { dirname, join, resolve, basename, relative, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 import { normalizeRound, recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
@@ -44,7 +44,13 @@ function legacySeedFrom(file, round, cwd) {
 // (redteam-stall.cjs rebuildFromHistory). Paths are read with core.quotePath off, so a
 // non-ASCII workspace name is matched as written.
 const ROUND_RECORD_RE = /(?:^|\/)(?:04-validate|\.harness\/reviews)\/round-[^/]+\.json$/;
-function committedRoundRecords(cwd) {
+function committedRoundRecords(cwd, roundFile) {
+  // Only records in the same folder as the round being recorded count: two projects in one
+  // repository (workspaces/alpha, workspaces/beta) may use the same scope names.
+  // realpathSync.native returns the on-disk spelling, so a path typed with other capitals on a
+  // case-insensitive disk still names the same folder.
+  const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
+  const sameDir = relative(realpathSync.native(top), realpathSync.native(dirname(roundFile))).split(sep).join("/");
   return (branch) => {
     const git = (args) => execFileSync("git", ["-c", "core.quotePath=false", ...args],
       { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
@@ -62,7 +68,7 @@ function committedRoundRecords(cwd) {
     for (const chunk of log.split("\0").filter(Boolean)) {
       const [commit, ...paths] = chunk.split("\n").filter((l) => l.length);
       for (const path of paths) {
-        if (ROUND_RECORD_RE.test(path)) records.push({ path, commit, text: git(["show", `${commit}:${path}`]) });
+        if (ROUND_RECORD_RE.test(path) && path.slice(0, path.lastIndexOf("/")) === sameDir) records.push({ path, commit, text: git(["show", `${commit}:${path}`]) });
       }
     }
     return records;
@@ -76,8 +82,22 @@ try {
   const target = requireMainCheckout(process.cwd());
   if (!target.ok) throw new Error(`Cannot resolve shared review state: ${target.reason}`);
   const cwd = process.cwd();
+  // Light mode drops the convergence receipt, which is where the security seat was enforced, so
+  // the recorder enforces it here: a light-mode wave round (scope wNN) always includes a security
+  // lens (`security` or `security-debug`).
+  const scope = scopeOfRecordPath(basename(file));
+  if (scope && /^w\d+$/i.test(scope)) {
+    let profile = "";
+    try { profile = readFileSync(join(target.repoDir, ".harness/guides/project-profile.md"), "utf8"); } catch { /* no profile: standard */ }
+    // Light unless the profile clearly says standard: any delivery_mode line that mentions
+    // "light" (table row, `delivery_mode: light`, any spelling) counts.
+    const modeLines = profile.split("\n").filter((l) => /delivery[_ -]?mode/i.test(l));
+    const light = modeLines.some((l) => /\blight\b/i.test(l.replace(/`?standard`?\s+or\s+`?light`?/ig, "")));
+    if (light && !round.expected_reviewers.some((id) => /^security(?:-debug)?$/.test(id)))
+      throw new Error(`round ${round.round} of light-mode wave ${scope} refused: a light-mode wave round always includes a security reviewer (expected_reviewers needs "security", or "security-debug" in a debug round)`);
+  }
   const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd),
-    history: committedRoundRecords(cwd), scope: scopeOfRecordPath(basename(file)) });
+    history: committedRoundRecords(cwd, file), scope: scopeOfRecordPath(basename(file)) });
   console.log(JSON.stringify({ branch: round.branch, round: round.round, ...outcome }));
   if (outcome.next) console.log(outcome.next);
   process.exitCode = EXIT_CODES[outcome.action] ?? 0;

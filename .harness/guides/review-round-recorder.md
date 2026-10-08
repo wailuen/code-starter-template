@@ -20,8 +20,10 @@ record-only branch, such as a codify `-ask` review's, leaves them) whose file na
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and
 refuses an unreadable, duplicate or gapped history ("Cannot rebuild the review count for <b>
 from its committed round records: <why>…") or a round number that skips ahead ("round N
-refused: … so the next round is K+1"). A renamed or re-cut branch for the same scope keeps its
-count; a todo branch cut from a wave branch starts at round 1.
+refused: … so the next round is K+1"). Only records in the same folder as the round count. A
+branch renamed with its history keeps its count; a todo branch cut from a wave branch starts at
+round 1; a new branch cut from `main` sees only rounds already merged there (not detected: an
+unmerged branch's rounds).
 
 What it does not detect:
 

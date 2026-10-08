@@ -146,8 +146,8 @@ standard applies. Light mode changes only this:
   the acceptance list still carries their approval record.
 - No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
   walk receipts and `## Verification`.
-- The wave gate is ONE review round that must be CLEAR, with a security reviewer when any
-  security surface changed (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
+- The wave gate is ONE review round that must be CLEAR and always includes a security reviewer
+  (`security`; `record-review-round.mjs` refuses a light-mode wave round without one) (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
   receipt and no `--sweep` job in CI.
 - A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
   `/implement` say so and do not run the convergence checker.
@@ -533,8 +533,9 @@ state; when that state is missing (a fresh clone, another machine) it rebuilds t
 every round record ever added in the branch's history or on the local `main` (where a merged
 record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed (an
-unreadable, duplicate or gapped history makes it refuse). So a renamed or re-cut branch for the
-same scope keeps its count, and a todo branch cut from a wave branch starts at round 1. An
+unreadable, duplicate or gapped history makes it refuse). Only records in the same folder as
+the round count. A branch renamed with its history keeps its count; a todo branch cut from a wave
+branch starts at round 1; a new branch cut from `main` sees only rounds already merged there. An
 uncommitted round record is a lost round. The budget is an anti-loop aid, not a security
 control: rewriting local history (a reset, or a new scope on a new branch) can restart the
 count, and rewriting history already needs the user

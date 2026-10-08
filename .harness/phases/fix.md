@@ -13,6 +13,12 @@ Rule 4: fix the root cause, never work around it.
 
 ## 1. Intake
 
+**Security bugs — ask before anything is public.** If the bug could expose data or let
+someone do what they should not, ask the user before writing anything to `main` or any public
+place (`.harness/rules/autonomous-execution.md` § What needs the user): until the fix is
+deployed, the fix record on `main` carries only a neutral title and severity, and the details,
+reproduction and failing test stay on the unpublished fix branch or a private advisory.
+
 **S1 — stop the bleeding first.** Before anything else, when users are down or data is being
 lost or exposed: check whether `/deploy --rollback` has a verified earlier revision to return
 to (`.claude/commands/deploy.md` § Rollback Mode). If it does, ask the user at once, in the

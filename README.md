@@ -68,8 +68,9 @@ pick it up.
 5. **Ship.** Run `/deploy`. The first time, it recommends where to host the product and what
    that costs, walks you through anything only you can do (an account, billing, a domain),
    and sets up health checks and alerts that reach you. Production runs a separate
-   `production` branch, so merging work into `main` never changes what users see; only
-   `/deploy` does. If users are hurt, `/fix` asks first
+   `production` branch, so once `/deploy` setup has checked your host, merging work into `main`
+   never changes what users see; only `/deploy` does. Until then, don't connect a hosting
+   service yourself — if one is already connected, say so, and every merge asks you first. If users are hurt, `/fix` asks first
    whether to undo the last update (`/deploy --rollback`), then fixes the cause.
 6. **Repeat** steps 2–5 wave by wave.
 
