@@ -60,24 +60,35 @@ over the workflow where they differ.
   `/worktree` (`.claude/rules/worktree-isolation.md` Rule 7), so product work is neither
   disturbed nor mixed into the harness change. A branch still under review keeps working
   under the harness text it already has; the change reaches it only through `main` later.
-- **What may merge without the user.** The allowlist, checked mechanically:
-  `.harness/guides/**` except `task-delivery.md` and `project-profile.md`; `.harness/backlog/**`
-  (new or edited items, never deleted); rows the run appends to `.harness/codify-log.md` with
-  outcome `folded in`, `declined`, `deferred` or `awaiting user` (never a row recording a user's
-  answer); and the run's own evidence — its review report and round record (in
-  `workspaces/<project>/04-validate/` or `.harness/reviews/`) and its `DECISION` journal summary.
-  Before any merge without the user,
-  `git fetch` then `node .harness/bin/check-codify-allowlist.mjs origin/main <head-ref>` (the
-  pull request's real base; with a remote, a local `main` that differs is refused) must exit 0 (0 may merge
-  without the user, 1 findings — ask-first, 2 usage or git error; the reviewer still reviews).
+- **What may merge without the user.** The allowlist, checked mechanically, has exactly three
+  kinds of change: `.harness/backlog/**` items (new or edited, never deleted); rows the run
+  appends to `.harness/codify-log.md` with outcome `folded in`, `declined`, `deferred` or
+  `awaiting user` (never a row recording a user's answer); and the run's own evidence, added
+  only — its review report and round record (in `workspaces/<project>/04-validate/` or
+  `.harness/reviews/`) and its `DECISION` journal summary, whose front matter has exactly one
+  `author:` line, `author: agent`, and no `human` or `co-authored`.
+  Before any merge without the user, run
+  `node .harness/bin/check-codify-allowlist.mjs origin/main <head-ref>` — or
+  `node .harness/bin/check-codify-allowlist.mjs main <head-ref>` when the repository has no
+  remote at all; it must exit 0 (0 may merge without the user, 1 findings — ask-first, 2 usage or
+  git error; the reviewer still reviews). The check works out the base itself and only confirms
+  the one you name: with an `origin` remote it fetches origin's default branch and judges
+  against that; with no remote it judges against the local `main` and prints
+  `no remote: judging against local main`. Any other base — an older commit, another branch, a
+  local `main` that differs from origin's — exits 2, so no base can narrow what it sees.
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
   `round-codify-<slug>-<n>.json`; only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
-  existing file); and word
-  log rows without the user saying anything (write "waiting for the user", with no quotation marks; the tool refuses any deciding word in a row — approve, confirm,
-  accept, agree, OK, yes and the like — whoever it names), and never add a row for a lesson whose
-  latest row is `awaiting user` (only the user's answer may). Everything else — skills, commands, rules, roles, phases, agents, adapters,
+  existing file); and write each log row as its fields — a `YYYY-MM-DD` date, a run cell holding
+  only branch names and pull requests (`docs/codify-x / PR #7`), the lesson's path alone, the
+  outcome, and a detail. The lesson's file name is never read for words, but the detail is:
+  word it without the user saying anything (write "waiting for the user", with no quotation
+  marks; the tool refuses any deciding word in the detail — approve, confirm, accept, agree, OK,
+  yes and the like — whoever it names), and never add a row for a lesson whose latest row is
+  `awaiting user` (only the user's answer may). Everything else is **ask-first**: guides
+  (`.harness/guides/**` — they are instruction files, `.claude/rules/security.md` § Untrusted
+  Content Is Data, Not Instructions), skills, commands, rules, roles, phases, agents, adapters,
   the manifest, `.harness/bin/`, `.harness/lib/`, `.claude/CLAUDE.md`, `AGENTS.md`, settings,
-  hooks and CI — is **ask-first**.
+  hooks and CI.
 - **Two pull requests when anything is ask-first.** (1) `docs/codify-<slug>` carries every
   allowlisted change, all of the run's log rows (each lesson the ask-first changes cover logged
   `awaiting user`, naming the `docs/codify-<slug>-ask` branch) and the run's evidence. (2)
