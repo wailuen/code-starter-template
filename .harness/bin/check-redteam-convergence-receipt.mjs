@@ -38,8 +38,11 @@
  * integration branch (or into HEAD — a pull request's CI merge commit — when not merged yet) must
  * merge in a commit that differs from `verdict_head` only in bookkeeping paths, must itself add
  * no code beyond git's automatic merge of its parents, and must BE a merge commit (a
- * fast-forwarded or rebased wave is refused). Round records of the receipt's scope or branch
- * added after the receipt are refused in both modes.
+ * fast-forwarded or rebased wave is refused). Any LATER merge of the wave's line (commits that
+ * descend from `verdict_head` but are neither ancestors nor descendants of that first merge, and
+ * whatever they merged in) must bring in bookkeeping only (checkLaterMerges). Round records of
+ * the receipt's scope or branch added after the receipt are refused in both modes. Every path
+ * comparison runs with rename detection off, so a rename counts both its old and its new path.
  *
  * THE WAVE WINDOW is recorded ONCE, in the receipt, as `wave_base` — the integration-branch
  * commit the wave started from — and never recomputed from a moving reference afterwards:
@@ -79,7 +82,10 @@
  *       → `.harness/rules/agent-delegation.md` § Quality gates; `.harness/rules/completion-criterion.md` MUST-3
  *   - each counted reviewer's `evidence` is the repository-root-relative path of the saved report
  *     (`workspaces/<p>/04-validate/<scope>-<lens>-r<n>.md`), a NON-EMPTY file tracked AT THE
- *     RECEIPT'S PIN — never free text
+ *     RECEIPT'S PIN — never free text, never a `round-*.json` record, never one file for two
+ *     lenses of a round; already present in the commit that first added the round's record
+ *     (`reviewer-evidence-not-with-record`); and its `Verdict:` line(s) state the verdict
+ *     recorded for that lens (`reviewer-evidence-verdict-mismatch`)
  *   - every round the receipt lists has its recorder input `04-validate/round-<scope>-<n>.json`
  *     committed at the receipt's commit, with the same `round`, `head`, reviewer lenses
  *     (`expected_reviewers` = the receipt's `lens` values), the same `evidence` per lens, and a
@@ -146,15 +152,19 @@
  *     and code that rode a wave's merge in after its receipt, at PR time; nothing here can force
  *     the party it constrains to invoke it mid-session.
  *   - HONOUR-BASED, not checked here: what OTHER branches bring into the integration branch.
- *     The landing check covers only the merge that brought each receipt's `verdict_head` in. A
- *     record-only or docs branch (`docs/deploy-*`, `docs/<scope>-preview`, `release/v*`) that
+ *     The landing check covers the merge that brought each receipt's `verdict_head` in and later
+ *     merges of the wave's own line; anything that descends from that first merge is treated as
+ *     later work, judged by its own review. A record-only or docs branch (`docs/deploy-*`, `docs/<scope>-preview`, `release/v*`) that
  *     also edits code, and any commit pushed straight to the integration branch, pass this check
  *     — they are caught only by review and by branch protection. A PR-time job that classifies
  *     each pull request by its head branch and refuses paths outside that branch kind's
  *     allowlist would close it; it is not built.
  *   - `--sweep` does not look inside `workspaces/instructions/` or underscore-prefixed folders
- *     (`_archive`, `_template` — the phases' own workspace rule); it prints each one with the
- *     number of completed todo files inside. A symlinked workspace, symlinked `todos/` or
+ *     (`_archive`, `_template` — the phases' own workspace rule). Such a folder that holds
+ *     completed todo files FAILS (`excluded-folder-holds-todos`) unless its exact name is in
+ *     SWEEP_EXCLUDED_ALLOWLIST below (shipped: `_template` only — example todos, never real
+ *     work); a project that keeps finished work in `_archive` adds that name there in a reviewed
+ *     commit. A symlinked workspace, symlinked `todos/` or
  *     `todos/completed/`, and any Markdown-looking file there that is not exactly
  *     `todos/completed/<name>.md` (other letter case, `.markdown`, a subfolder, a symlink) FAIL
  *     instead of being skipped.
@@ -200,9 +210,11 @@ import { fileURLToPath } from "node:url";
 import { assessTodoText } from "./check-browser-walk-receipts.mjs";
 import { requireMainCheckout } from "../../.claude/hooks/lib/state-resolver.js";
 import { isAgentIdentity as namesAnAgent } from "../lib/agent-identity.cjs";
-import { advanceRound, scopeOfRecordPath } from "../lib/redteam-stall.cjs";
+import { advanceRound, scopeOfRecordPath, reportVerdictProblem } from "../lib/redteam-stall.cjs";
 
 export const SCHEMA = "redteam-convergence-receipt/1";
+/** Excluded workspace folders (`_*`, `instructions`) allowed to hold completed todo files (header § RESIDUALS, `--sweep`). */
+export const SWEEP_EXCLUDED_ALLOWLIST = Object.freeze(["_template"]);
 export const GATING_HALF = "BUG+INVEST-NOW";
 /**
  * Todos in the TREE at this commit (same content) pre-date the gate. Configured per project as
@@ -341,11 +353,19 @@ function forkPoint(repoRoot, integSha, tip) {
   if (line.length === 0) return tip;
   return git(["rev-parse", "--verify", "--quiet", `${line[line.length - 1]}^1`], repoRoot);
 }
+/**
+ * Changed paths between two commits or trees, with rename detection OFF: a rename is listed as
+ * its deleted old path AND its added new path, so moving a file into a bookkeeping folder still
+ * counts the path it left. null when git could not diff. Every path classification uses this.
+ */
+function changedPaths(repoRoot, a, b) {
+  const out = git(["diff", "--no-renames", "--name-only", a, b], repoRoot);
+  return out === null ? null : out.split("\n").filter(Boolean);
+}
 /** Non-bookkeeping paths that differ between two commits (null when git could not diff). */
 function surfaceMoved(repoRoot, a, b) {
-  const out = git(["diff", "--name-only", a, b], repoRoot);
-  if (out === null) return null;
-  return out.split("\n").filter((p) => p && !BOOKKEEPING_RE.test(p));
+  const out = changedPaths(repoRoot, a, b);
+  return out === null ? null : out.filter((p) => !BOOKKEEPING_RE.test(p));
 }
 
 /** A receipt-supplied relative path CONTAINED under `<workspaceDir>/<subdir>/` (both sides resolved). */
@@ -403,7 +423,8 @@ function porcelainPaths(repoRoot) {
     .split("\n")
     .filter((l) => l.length > 3)
     .map((l) => l.slice(3).trim())
-    .map((p) => (p.includes(" -> ") ? p.split(" -> ").pop() : p))
+    // A staged rename or copy ("R  old -> new") counts BOTH paths: the one it left matters too.
+    .flatMap((p) => (p.includes(" -> ") ? p.split(" -> ") : [p]))
     .map((p) => p.replace(/^"(.*)"$/, "$1"));
 }
 
@@ -686,7 +707,7 @@ function checkWindow(c) {
     if (computed && computed !== wb)
       return add(
         "wave-base-mismatch",
-        `wave_base ${wb.slice(0, 12)} is not the commit of ${integ.ref} the wave branch was cut from (= ${computed.slice(0, 12)}; git merge-base ${integ.name} ${vh.slice(0, 12)} when ${integ.name} was never merged into the wave) — the window is recorded once, as the real fork point`,
+        `wave_base ${wb.slice(0, 12)} is not the commit of ${integ.ref} the wave branch was cut from (= ${computed}; git merge-base ${integ.name} ${vh.slice(0, 12)} when ${integ.name} was never merged into the wave) — the window is recorded once, as the real fork point`,
       );
   }
   if (receiptPin) {
@@ -808,6 +829,7 @@ function checkLanding(c) {
       "landed-content-not-reviewed",
       `the merge ${landing.slice(0, 12)} into ${where} brought in ${tip.slice(0, 12)}, which differs from verdict_head ${vh.slice(0, 12)} in ${moved.length} non-bookkeeping path(s): ${moved.slice(0, 3).join(", ")} — code committed after the receipt was never reviewed`,
     );
+  checkLaterMerges(c, { anchor, landing, where });
   const auto = autoMergeTree(repoRoot, parents[0], tip);
   if (!auto)
     return add(
@@ -823,13 +845,66 @@ function checkLanding(c) {
     );
 }
 
+/**
+ * The first landing is not the only way the wave's line reaches `anchor`: the same wave branch
+ * (or anything merged into it) can be merged again later. Every commit that descends from
+ * `verdict_head` but is neither an ancestor of the landing merge nor a descendant of it came in
+ * that way, together with whatever such commits merged in from elsewhere (the commits reachable
+ * from them that are neither ancestors nor descendants of the landing). Each of those must change
+ * only bookkeeping paths; a merge among them must add nothing beyond git's automatic merge of its
+ * parents. Later work cut from the integration branch after the landing descends from the
+ * landing, so it is not part of this set.
+ */
+function checkLaterMerges(c, { anchor, landing, where }) {
+  const { add, repoRoot, vh } = c;
+  const list = (args) => {
+    const out = git(["rev-list", ...args], repoRoot);
+    return out === null ? null : out.split("\n").filter(Boolean);
+  };
+  const fromVerdict = list(["--ancestry-path", `${vh}..${anchor}`]);
+  const beforeLanding = list([`${vh}..${landing}`]);
+  const afterLanding = list(["--ancestry-path", `${landing}..${anchor}`]);
+  if (!fromVerdict || !beforeLanding || !afterLanding)
+    return add("wave-merge-unverified", `could not read the history between ${vh.slice(0, 12)} and ${where}`);
+  const settled = new Set([...beforeLanding, ...afterLanding]);
+  const seeds = fromVerdict.filter((x) => !settled.has(x));
+  if (!seeds.length) return;
+  const reached = list([...seeds, `^${landing}`]);
+  if (!reached)
+    return add("wave-merge-unverified", `could not read what later merges of ${vh.slice(0, 12)} brought into ${where}`);
+  const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+  const bad = [];
+  for (const x of reached) {
+    if (settled.has(x)) continue;
+    const ps = (git(["rev-list", "--parents", "-n", "1", x], repoRoot) || "").split(" ").slice(1);
+    let from = null;
+    if (ps.length <= 1) from = ps[0] || EMPTY_TREE;
+    else if (ps.length === 2) from = autoMergeTree(repoRoot, ps[0], ps[1]);
+    const moved = from ? surfaceMoved(repoRoot, from, x) : null;
+    if (moved === null) {
+      add(
+        "wave-merge-unverified",
+        `could not tell what ${x.slice(0, 12)} changed; it reached ${where} after ${landing.slice(0, 12)} first merged verdict_head ${vh.slice(0, 12)}`,
+      );
+      continue;
+    }
+    if (moved.length) bad.push(`${x.slice(0, 12)} (${moved.slice(0, 3).join(", ")})`);
+  }
+  if (bad.length)
+    add(
+      "landed-content-not-reviewed",
+      `${bad.length} commit(s) reached ${where} through a later merge of the wave's line after ${landing.slice(0, 12)} first merged verdict_head ${vh.slice(0, 12)}, and changed non-bookkeeping paths: ${bad.slice(0, 3).join("; ")} — code committed after the receipt was never reviewed`,
+    );
+}
+
 function deriveSecurity(c) {
   const { r, add, repoRoot, vh, base } = c;
   c.securityCritical = r.security_critical === true;
   if (!vh || !base) return;
-  const hits = (git(["diff", "--name-only", base, vh], repoRoot) || "")
-    .split("\n")
-    .filter((p) => p && isSecuritySurface(p));
+  const changed = changedPaths(repoRoot, base, vh);
+  if (changed === null)
+    return add("security-unverified", `could not diff ${base.slice(0, 12)}..${vh.slice(0, 12)} to derive the security surface`);
+  const hits = changed.filter((p) => isSecuritySurface(p));
   if (hits.length) {
     c.securityCritical = true;
     if (r.security_critical !== true)
@@ -1214,30 +1289,64 @@ function checkRoundRecords(c) {
     const norm = ev.trim().split("\\").join("/");
     if (isAbsolute(norm) || norm.split("/").some((seg) => seg === ".." || seg === "." || seg === ""))
       return null;
-    return norm.startsWith(validateRel) ? norm : null;
+    // A round record is never a review report.
+    return norm.startsWith(validateRel) && !/^round-.*\.json$/i.test(basename(norm)) ? norm : null;
   };
   const revsOf = (x) =>
     Array.isArray(x.reviewers) ? x.reviewers.filter((v) => v && typeof v === "object") : [];
+  const isReport = (sha, p) =>
+    git(["cat-file", "-t", `${sha}:${p}`], repoRoot) === "blob" &&
+    Number(git(["cat-file", "-s", `${sha}:${p}`], repoRoot)) > 0;
   for (const round of r.rounds) {
+    const recordRel = `${validateRel}round-${scope}-${round.n}.json`;
+    const text = showAt(repoRoot, receiptPin, recordRel);
+    // The commit that first added the round record: each cited report must already be in it.
+    const recordAdded = text === null ? null : firstAddCommit(repoRoot, recordRel, receiptPin);
+    let recorded = [];
+    try {
+      const parsed = JSON.parse(text ?? "null");
+      if (parsed && Array.isArray(parsed.reviewers)) recorded = parsed.reviewers.filter((x) => x && typeof x === "object");
+    } catch {
+      /* judged below as round-record-mismatch */
+    }
+    const seen = new Map();
     for (const v of revsOf(round)) {
       const who = `round ${round.n}: ${v.agent || "?"}/${v.lens || "?"}`;
       const report = reportPath(v.evidence);
-      if (!report)
+      if (!report) {
         add(
           "reviewer-evidence-not-a-report",
-          `${who} evidence must be the repository-root-relative path of the saved report under ${validateRel} (e.g. ${validateRel}${scope}-${v.lens || "<lens>"}-r${round.n}.md), got ${JSON.stringify(v.evidence ?? null)}`,
+          `${who} evidence must be the repository-root-relative path of the saved report under ${validateRel} (e.g. ${validateRel}${scope}-${v.lens || "<lens>"}-r${round.n}.md), not a round record, got ${JSON.stringify(v.evidence ?? null)}`,
         );
-      else if (
-        git(["cat-file", "-t", `${receiptPin}:${report}`], repoRoot) !== "blob" ||
-        !(Number(git(["cat-file", "-s", `${receiptPin}:${report}`], repoRoot)) > 0)
-      )
+        continue;
+      }
+      if (seen.has(report.toLowerCase()))
+        add(
+          "reviewer-evidence-shared",
+          `${who} cites ${report}, the same report as ${seen.get(report.toLowerCase())} — each lens saves its own report`,
+        );
+      seen.set(report.toLowerCase(), v.lens || "?");
+      if (!isReport(receiptPin, report)) {
         add(
           "reviewer-evidence-missing",
           `${who} evidence ${report} is not a committed, non-empty file at the receipt's commit ${receiptPin.slice(0, 12)}`,
         );
+        continue;
+      }
+      if (recordAdded && !isReport(recordAdded, report))
+        add(
+          "reviewer-evidence-not-with-record",
+          `${who} evidence ${report} was not committed by the commit that added ${recordRel} (${recordAdded.slice(0, 12)}) — a report is committed with, or before, its round record`,
+        );
+      const rv = recorded.find((x) => x.id === v.lens);
+      const verdict = rv && typeof rv.verdict === "string" ? rv.verdict : round.clean === true ? "CLEAR" : null;
+      const problem = verdict ? reportVerdictProblem(showAt(repoRoot, receiptPin, report) ?? "", verdict) : null;
+      if (problem)
+        add(
+          "reviewer-evidence-verdict-mismatch",
+          `${who} evidence ${report} ${problem}`,
+        );
     }
-    const recordRel = `${validateRel}round-${scope}-${round.n}.json`;
-    const text = showAt(repoRoot, receiptPin, recordRel);
     if (text === null) {
       add(
         "round-record-missing",
@@ -1930,13 +2039,26 @@ function runSweep(root, pin) {
     if (!w.isDirectory()) continue;
     if (w.name.startsWith("_") || w.name === "instructions") {
       // Documented exclusions (the phases' own workspace rule: `instructions/` and
-      // underscore-prefixed meta folders such as `_archive`, `_template`). Said out loud, with
-      // how many completed todo files they hold, so a project hidden there is visible.
+      // underscore-prefixed meta folders such as `_archive`, `_template`). Not swept — but one
+      // that holds completed todo files FAILS unless it is in SWEEP_EXCLUDED_ALLOWLIST, so a
+      // project's finished work cannot sit unchecked under an excluded name.
       skippedDirs++;
       const inside = mdFilesUnder(join(root, w.name, "todos", "completed")).length;
-      process.stdout.write(
-        `skip ${w.name}/: not swept (${w.name.startsWith("_") ? "underscore-prefixed" : "instructions"}); ${inside} completed todo file(s) inside are not checked\n`,
-      );
+      if (SWEEP_EXCLUDED_ALLOWLIST.includes(w.name)) {
+        process.stdout.write(
+          `skip ${w.name}/: not swept (allowlisted); ${inside} completed todo file(s) inside are not checked\n`,
+        );
+      } else if (inside > 0) {
+        todos += inside;
+        failing += inside;
+        process.stdout.write(
+          `FAIL ${w.name}/: excluded-folder-holds-todos — ${inside} completed todo file(s) in a folder the sweep does not check (${w.name.startsWith("_") ? "underscore-prefixed" : "instructions"}); move the project to its own workspace folder, or add the folder name to SWEEP_EXCLUDED_ALLOWLIST in a reviewed commit\n`,
+        );
+      } else {
+        process.stdout.write(
+          `skip ${w.name}/: not swept (${w.name.startsWith("_") ? "underscore-prefixed" : "instructions"}); no completed todo files inside\n`,
+        );
+      }
       continue;
     }
     const workspaceDir = canon(join(root, w.name));

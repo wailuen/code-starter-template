@@ -375,24 +375,49 @@ function assertBranchAndHead(round, cwd) {
 // gates (a light-mode wave, a todo checkpoint, /fix, planning, analysis, codify) have no
 // convergence receipt behind them, so this is where a report that never existed is caught.
 // Records already committed are replayed as written (rebuildFromHistory), never re-judged.
+// Each lens cites its OWN report (two lenses never share one file), a round record
+// (`round-*.json`) is never a report, and the report states its verdict on a `Verdict:` line
+// that agrees with the verdict recorded for that lens.
 const REPORT_PATH_RE = /^(?:workspaces\/[^/]+\/04-validate|\.harness\/reviews)\/[^/]+$/;
+const ROUND_RECORD_NAME_RE = /^round-.*\.json$/i;
+// A `Verdict:` line, plain or decorated (`**Verdict:** CLEAR`, `- Verdict: NOT_CLEAR`). Every such
+// line is read; the report's verdict is the set of values they state.
+const VERDICT_LINE_RE = /^[\s>*_#-]*verdict[\s*_]*:[\s*_`]*(not[_ -]clear|clear|error)\b/gim;
+/** null when `text` states exactly `verdict`; otherwise a short reason. */
+function reportVerdictProblem(text, verdict) {
+  const stated = [...String(text).matchAll(VERDICT_LINE_RE)].map((m) => m[1].toUpperCase().replace(/[ -]/, "_"));
+  if (!stated.length) return "does not state its verdict (a line `Verdict: CLEAR` or `Verdict: NOT_CLEAR`)";
+  const other = stated.find((v) => v !== verdict);
+  return other ? `says ${other}, but the round records ${verdict}` : null;
+}
 function assertReviewReports(round, checkoutRoot) {
   const short = round.head.slice(0, 12).toLowerCase();
+  const citedBy = new Map();
   for (const r of round.reviewers) {
     const cited = r.evidence;
     if (!REPORT_PATH_RE.test(cited)) {
       throw new Error(`Evidence for ${r.id} must be a saved review report directly under workspaces/<project>/04-validate/ or .harness/reviews/, not ${cited}`);
     }
+    if (ROUND_RECORD_NAME_RE.test(path.posix.basename(cited))) {
+      throw new Error(`Evidence for ${r.id} (${cited}): a round record is not a review report; cite the reviewer's own saved report`);
+    }
+    const key = cited.toLowerCase();
+    if (citedBy.has(key)) {
+      throw new Error(`Evidence for ${r.id} and ${citedBy.get(key)} cite the same report (${cited}); each lens saves its own report`);
+    }
+    citedBy.set(key, r.id);
     try {
       execFileSync("git", ["-c", "core.quotePath=false", "ls-files", "--error-unmatch", "--", cited],
         { cwd: checkoutRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     } catch {
       throw new Error(`Evidence for ${r.id} (${cited}) is not tracked by git; git add the saved report, then record the round`);
     }
-    const text = fs.readFileSync(path.join(checkoutRoot, cited), "utf8").toLowerCase();
-    if (!text.includes(short)) {
+    const raw = fs.readFileSync(path.join(checkoutRoot, cited), "utf8");
+    if (!raw.toLowerCase().includes(short)) {
       throw new Error(`Evidence for ${r.id} (${cited}) does not name the reviewed commit ${round.head.slice(0, 12)}; a report states the commit it reviewed (its full SHA or at least the first 12 characters)`);
     }
+    const problem = reportVerdictProblem(raw, r.verdict);
+    if (problem) throw new Error(`Evidence for ${r.id} (${cited}) ${problem}; the report and the round record must agree`);
   }
 }
 
@@ -569,4 +594,4 @@ function recordRound(repoDir, input, options = {}) {
 }
 
 module.exports = { FIRING_THRESHOLD, TOTAL_ROUND_CAP, ERROR_RERUN_LIMIT, normalizeRound, advanceRound, readState, writeState,
-  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath };
+  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath, reportVerdictProblem };
