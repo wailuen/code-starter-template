@@ -28,6 +28,7 @@ the always-required tools below.
 | git identity  | `git config user.name && git config user.email` | Set, so commits carry real authorship |
 | line endings  | `git config core.autocrlf`                  | Not `true` on a repo that expects LF — fighting normalization causes noisy diffs |
 | GitHub CLI    | `gh --version && gh auth status`            | Present and authenticated — needed for `/deploy`, `/sweep`, PR workflow |
+| GitHub `workflow` permission | `gh auth status` — read the `Token scopes:` line of the active account | Lists `workflow`. Without it GitHub refuses any push that adds or changes a file under `.github/workflows/`, so the first wave's automatic checks (CI) cannot be uploaded. A login that shows no scopes line (for example a token supplied through an environment variable) reports "could not check" rather than pass or fail |
 | GitHub remote | `git remote get-url origin && gh repo view --json nameWithOwner` | The project has a GitHub repository to push to and open pull requests against |
 | Project runtime(s) | the version command for each language/runtime in the profile's § Identity (e.g. `python3 --version`, `go version`, `node --version`) | Present, at the version the project expects |
 | Project toolchain | the first word of each filled-in profile § Commands row (package manager, test runner, migration tool) — `command -v <tool>` | Installed and on the PATH |
@@ -39,19 +40,34 @@ in yet" (or "N/A — not scaffolded yet") rather than a failure while the releva
 
 ## Remediation phrasing
 
-State each fix as an action the user can take, not a diagnostic term:
+State each fix as an action the user can take, not a diagnostic term. Offer to do it for the
+user first ("I can do this for you — say yes"), and give the official download page as the
+fallback. Never ask a non-technical user to type a command themselves; if a step needs a
+window only they can use (an installer, a password prompt, a browser sign-in), say so plainly
+and tell them their password goes into that window, never into the chat. The checks stay
+read-only: a fix runs only after the report, once the user has said yes to it.
 
 - **Node missing/too old** → "Install Node.js 22 or newer (the JavaScript runtime the
   workflow's helper tools need) — get the current LTS version from nodejs.org."
 - **A project runtime or tool missing** → name the tool, say in one line what it is for, and
   give the official install page — e.g. "Install Python 3.12 (the language this project is
   written in) from python.org."
-- **git identity unset** → "Git doesn't know who you are yet. Run `git config user.name
-  \"Your Name\"` and `git config user.email \"you@example.com\"`."
+- **git identity unset** → "Git doesn't yet know the name to put on your saved work. Tell me
+  the name to use, and I'll set it with your GitHub private email address (it keeps your real
+  email out of the project's history)." The agent then runs `git config user.name` and
+  `git config user.email` with those values; the private address is
+  `<id>+<login>@users.noreply.github.com`, with `id` and `login` from `gh api user`.
 - **core.autocrlf=true on Windows** → "Windows' automatic line-ending conversion is on; it
-  fights this repo's line-ending convention. Turn it off with `git config core.autocrlf false`."
-- **gh not authenticated** → "You're not logged in to GitHub from the command line. Run `gh
-  auth login` and follow the prompts."
+  fights this repo's line-ending convention. Say yes and I'll turn it off for this project."
+  The agent runs `git config core.autocrlf false`.
+- **gh not authenticated** → "You're not logged in to GitHub yet. Say yes and I'll start the
+  login: I show you a short one-time code and open a GitHub page; type the code there, then
+  click Authorize." The agent runs `gh auth login --hostname github.com --git-protocol https
+  --web --scopes workflow`, so the login includes the `workflow` permission from the start.
+- **`workflow` permission missing** → "Your GitHub login can't upload the automatic checks
+  (CI) yet. Say yes and I'll add that permission: I show you a one-time code and open a GitHub
+  page; type the code there and click Authorize." The agent runs
+  `gh auth refresh --hostname github.com --scopes workflow`.
 
 ## Notes
 
