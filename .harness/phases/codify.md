@@ -25,15 +25,23 @@ it; `/wrapup` lists the pending lessons under Outstanding work so the next sessi
    and `.session-notes` (no uncommitted product work).
 2. No review round is in progress in that checkout: every review report in
    `workspaces/<project>/04-validate/` or `.harness/reviews/`
-   (`<scope>-<lens>-r<n>.md`) has its `round-<scope>-<n>.json` record beside it.
+   (`<scope>-<lens>-r<n>.md`) has its `round-<scope>-<n>.json` record beside it. A refused
+   round leaves no record, so its reports must not be left there: when the recorder refuses a
+   round, delete that round's uncommitted reports together with its round file (nothing cites a
+   refused round; the re-run writes fresh reports). If reports without a record are already
+   there and no reviewer you dispatched is running, the run does not delete them itself — it
+   does not start, and `/wrapup` lists each such file under Outstanding work as "report of a
+   refused or unfinished round: delete it, or record its round", so one answer unblocks the
+   next run.
 3. No reviewer you dispatched in this session is still running.
 
 **What counts.** A run looks only at lessons visible on `main` that are **open** as
 `.harness/phases/learn.md` step 1 defines them: `harness`-tagged journal entries and
 `.harness/backlog/` items, never ordinary product journal entries. Waiting lessons (latest log
-row `awaiting user`) and lessons already covered by an open codify pull request (shown "in
-progress" by `/learn`) never start a run; `/ws` shows them until the user answers or the pull
-request merges. Lessons
+row `awaiting user`), lessons already covered by an open codify pull request (shown "in
+progress" by `/learn`) and lessons held by an abandoned codify branch (shown "stalled") never
+start a run; `/ws` shows them until the user answers, the pull request merges, or the user
+says whether to resume or drop the stalled branch. Lessons
 recorded only on an unmerged todo or wave branch are picked up by the wave-merge trigger, not
 before. When nothing counts, an automatic run stops after one line ("No lessons to codify")
 with no branch and no commit.
