@@ -48,12 +48,16 @@ Everything lives in `workspaces/<project>/prototype/`
 | `DESIGN.md` | The design language: the user's answers to the design questions, colours, type, spacing, tone of the words |
 | `APPROVAL.md` | The user's approval records, append-only (format in step 8) |
 
-`check-prototype.mjs` reads the first table under the `## Screens` heading of `SCREENS.md`;
-the rest of the file is ignored. Every screen is one row. The file is a page under `screens/`,
+`check-prototype.mjs` reads the first table under the `## Screens` heading of `SCREENS.md`
+and the `Screen check:` line; the rest of the file is notes, outside every approval
+fingerprint (the user approves the pages and the table rows, not the notes). Every screen is
+one row. The file is a page under `screens/`,
 written as a path relative to `prototype/`, in backticks. The phase is the PRD's phase name
 (`0`, `1`, `1a`, `MVP`: letters, digits and dots). Approval reads `awaiting approval` until the
 user approves that phase (step 8). It goes back to `awaiting approval` when the phase's pages or
-the shared styles change. The checker fails while this column and the approval records
+rows change, or any shared file changes: the styles, images, scripts, `DESIGN.md`, `index.html`
+or `views.html` (so adding a screen to `index.html` re-opens every phase). Line endings do not
+count: a checkout that turns LF into CRLF keeps every approval. The checker fails while this column and the approval records
 disagree, so anyone reading the list — `/ws`, `/todos`, the builder — sees which screens may be
 built.
 
@@ -109,11 +113,16 @@ Rules for the pages:
    360 pixels (a small phone), then a design critique. Use the project profile's E2E runner
    when it is set; before that, a headed browser the runtime can drive. Fix and re-run until it
    passes. Keep the screenshots in `prototype/.screenshots/` (not committed) and write the
-   one-line result at the end of `SCREENS.md`: `Screen check: passed <YYYY-MM-DD> at <commit>`.
+   one-line result at the end of `SCREENS.md`:
+   `Screen check: passed <YYYY-MM-DD> at <commit>; pages <pages_hash>`, copying `pages_hash`
+   from the step-4 checker output for the pages you checked. The pass counts only for those
+   pages: once a page, row or shared file changes, `--require-approval` reports the check as
+   owed until it runs again and the line names the new `pages_hash`.
    If no browser can run, the prototype does not go to the user yet. Tell them plainly what is
    unchecked (contrast, text that overflows, the phone layout) and ask, in the five-part format,
    whether to show it unchecked. Only if they say yes, write
-   `Screen check: owed — <reason>; accepted by <their name> <YYYY-MM-DD>` and quote their words in
+   `Screen check: owed — <reason>; accepted by <their name> <YYYY-MM-DD>` (the checker refuses an
+   agent, a placeholder such as "nobody yet", or a missing date) and quote their words in
    the approval's journal entry. An owed check stays owed until it runs: `/ws` lists it, and
    `/todos` runs it before planning from these screens and shows the user anything it changed.
 6. **Show the user.** Say in plain words what is there (how many screens, in which phases) and
@@ -137,8 +146,10 @@ Rules for the pages:
    and only then:
    - run `node .harness/bin/check-prototype.mjs workspaces/<project>` on the exact pages the user
      saw. Its `phases` output gives each phase a `hash`: a fingerprint of that phase's rows, its
-     pages, and the shared styles, images and `DESIGN.md`. Append to `APPROVAL.md` (never edit
-     an earlier record), copying the hash of every approved phase:
+     pages, and the shared files (styles, images, scripts, `DESIGN.md`, `index.html`,
+     `views.html`). Append to `APPROVAL.md` (never edit or remove an earlier record), copying the
+     hash of every approved phase. Each record quotes what the user said this time: the checker
+     refuses a record whose quoted words and date both repeat an earlier record's.
 
      ```markdown
      ## Approval <n>
@@ -159,9 +170,11 @@ Rules for the pages:
      the words it shows (`.claude/rules/spec-accuracy.md` § Exceptions item 4). A spec already
      reconciled to built code is not edited here: a design change to a built screen goes in the
      todo that rebuilds it, and the spec changes when that wave's reconciliation runs;
-   - run `node .harness/bin/check-prototype.mjs --require-approval workspaces/<project>`. It
-     exits 0 only when every phase is approved for the pages it has now, or held by the user,
-     and the screen check passed (or the user accepted it as owed). Commit, open the pull
+   - run `node .harness/bin/check-prototype.mjs --require-approval --base origin/main workspaces/<project>`
+     (`--base main` when the repository has no remote). It exits 0 only when every phase is
+     approved for the pages it has now, or held by the user; the screen check passed for these
+     pages (or a named person accepted it as owed); and `APPROVAL.md` starts with the base
+     branch's `APPROVAL.md` unchanged, so earlier records were only appended to. Commit, open the pull
      request into `main`, and merge it under `.harness/guides/task-delivery.md` § Branches,
      pull requests and merging. While the project profile's Local CI parity row reads
      `n/a — no code yet`, say "no code yet" in the commit body, as `/analyze` does. Once code
@@ -172,8 +185,9 @@ Rules for the pages:
 
 ## Changing an approved prototype
 
-Run `/prototype` again on the next `docs/prototype-<n>` branch. Changing a phase's pages, or the
-shared styles, turns the affected phases back to `awaiting approval`: the earlier approval no
+Run `/prototype` again on the next `docs/prototype-<n>` branch. Changing a phase's pages, or a
+shared file (styles, `DESIGN.md`, `index.html`, `views.html`), turns the affected phases back to
+`awaiting approval` and makes the screen check owed again: the earlier approval no
 longer counts for them. Show the user only what changes, and take a new approval (a new
 `## Approval <n>` section; earlier ones stay, and the newest record naming a phase decides it).
 Then route the work the change affects:
@@ -206,7 +220,9 @@ unclear. These are product entries: do not tag them `harness`.
 
 ## Completion gate
 
-`/prototype` is complete only when `check-prototype.mjs --require-approval workspaces/<project>`
-exits 0 (every phase approved for its current pages or held by the user; a passed screen check,
-or an owed one the user accepted by name), and the branch has merged into `main`. `/todos`
+`/prototype` is complete only when
+`check-prototype.mjs --require-approval --base origin/main workspaces/<project>` (`--base main`
+with no remote) exits 0 (every phase approved for its current pages or held by the user; a
+screen check passed for these pages, or an owed one the user accepted by name and date; earlier
+approval records unchanged), and the branch has merged into `main`. `/todos`
 reads each phase's approval from `main`.
