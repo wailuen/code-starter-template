@@ -67,9 +67,10 @@ then one debug round, then a human (`.harness/rules/redteam-stall-debug.md`). At
 or DEBUG_ROUND, reassess
 architecture, scope, or the verification environment before repairing further; at
 ESCALATE_TO_HUMAN, stop — only a named human's acceptance admits another round. Never
-defer a necessary design decision until a stalled loop happens to converge. The final
-convergence-receipt checker still owns closure — neither an agent's confidence nor a
-retry counter can certify it.
+defer a necessary design decision until a stalled loop happens to converge. The wave's
+final gate still owns closure — the convergence-receipt checker in standard mode, the CLEAR
+wave round in light mode (`.harness/guides/task-delivery.md` § Light mode) — and neither an
+agent's confidence nor a retry counter can certify it.
 
 ## Cross-wave closure
 
