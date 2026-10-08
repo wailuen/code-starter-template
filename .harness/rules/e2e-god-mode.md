@@ -19,7 +19,11 @@ These rules govern browser-driven end-to-end (E2E) and redteam browser runs.
 
 When a record the test needs is missing (404, 403, empty response), create it through the
 API or the database as test setup, then continue. Do not skip the step, call it a "gap",
-or report it as "expected behavior".
+or report it as "expected behavior". Create it only in a non-production test environment — a
+local or throwaway instance (`.harness/guides/project-profile.md` § Test infrastructure). A
+run pointed at production or a shared database creates nothing there: writing to production
+or shared data needs the user (`.harness/rules/autonomous-execution.md` § What needs the
+user), so stop and ask.
 
 **Why:** Skipping missing records produces hollow runs that never exercise the
 application's real create/read/update/delete paths, hiding integration bugs until

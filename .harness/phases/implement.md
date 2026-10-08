@@ -66,7 +66,12 @@ correctness review is required; security/trust-bearing work also gets independen
 security review. Reviewers inspect pinned separate checkouts. Mutation probes use their
 own disposable checkouts and infrastructure; nobody mutates the implementer's tree.
 Record the checkpoint review with `node .harness/bin/record-review-round.mjs` on the todo
-branch, scope `wNN-MM` (task-delivery § Review protocol and circuit breaker). One complete
+branch, scope `wNN-MM` (task-delivery § Review protocol and circuit breaker). Before recording,
+each reviewer's report must sit in `workspaces/<project>/04-validate/` (one report per lens),
+name the full commit SHA it reviewed (or its first 12 characters), state its verdict on a
+`Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR` for a failed dispatch) that matches the round file, and be added to git
+before the recorder runs; otherwise the recorder refuses the round
+(`.harness/guides/review-round-recorder.md`). Commit the reports with the round file. One complete
 CLEAR round is enough for the todo; the wave's own gate comes later (two clean rounds in standard
 mode, one in light mode). After
 that round the recorder's `NEXT:` line still says `dispatch round N+1 … cleanRounds 1/2`; do
@@ -81,6 +86,10 @@ authority changes outside approval require a decision before closure.
 
 Before closing any browser-visible task, walk the changed flow in a headed browser
 as a real user, including write→reload→read-back. Follow `.harness/rules/e2e-god-mode.md`.
+For a todo with a `Prototype screens:` line, put each built screen beside the approved
+prototype page it names, at 400, 800 and 1280 pixels wide, and record in `Observed:` every
+difference in layout, words or states; an unapproved difference keeps the todo active until
+the owner accepts it or it is fixed.
 Record it as a `### Browser walk receipt` subsection inside the todo's `## Verification`
 section — exactly that heading, once; a second `## Verification` makes the todo contradictory —
 with non-empty `Steps:`, `Observed:` and

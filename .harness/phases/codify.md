@@ -25,15 +25,24 @@ it; `/wrapup` lists the pending lessons under Outstanding work so the next sessi
    and `.session-notes` (no uncommitted product work).
 2. No review round is in progress in that checkout: every review report in
    `workspaces/<project>/04-validate/` or `.harness/reviews/`
-   (`<scope>-<lens>-r<n>.md`) has its `round-<scope>-<n>.json` record beside it.
+   (`<scope>-<lens>-r<n>.md`) has its `round-<scope>-<n>.json` record beside it. A refused
+   round leaves no record, so its reports must not be left there: when the recorder refuses a
+   round because a report is not yet in git, `git add` it and record again; when it refuses the
+   round itself as invalid, delete that round's uncommitted reports together with its round file
+   (nothing cites a refused round; the re-run writes fresh reports). If reports without a record are already
+   there and no reviewer you dispatched is running, the run does not delete them itself — it
+   does not start, and `/wrapup` lists each such file under Outstanding work as "report of a
+   refused or unfinished round: delete it, or record its round", so one answer unblocks the
+   next run.
 3. No reviewer you dispatched in this session is still running.
 
 **What counts.** A run looks only at lessons visible on `main` that are **open** as
 `.harness/phases/learn.md` step 1 defines them: `harness`-tagged journal entries and
 `.harness/backlog/` items, never ordinary product journal entries. Waiting lessons (latest log
-row `awaiting user`) and lessons already covered by an open codify pull request (shown "in
-progress" by `/learn`) never start a run; `/ws` shows them until the user answers or the pull
-request merges. Lessons
+row `awaiting user`), lessons already covered by an open codify pull request (shown "in
+progress" by `/learn`) and lessons held by an abandoned codify branch (shown "stalled") never
+start a run; `/ws` shows them until the user answers, the pull request merges, or the user
+says whether to resume or drop the stalled branch. Lessons
 recorded only on an unmerged todo or wave branch are picked up by the wave-merge trigger, not
 before. When nothing counts, an automatic run stops after one line ("No lessons to codify")
 with no branch and no commit.
@@ -60,24 +69,45 @@ over the workflow where they differ.
   `/worktree` (`.claude/rules/worktree-isolation.md` Rule 7), so product work is neither
   disturbed nor mixed into the harness change. A branch still under review keeps working
   under the harness text it already has; the change reaches it only through `main` later.
-- **What may merge without the user.** The allowlist, checked mechanically:
-  `.harness/guides/**` except `task-delivery.md` and `project-profile.md`; `.harness/backlog/**`
-  (new or edited items, never deleted); rows the run appends to `.harness/codify-log.md` with
-  outcome `folded in`, `declined`, `deferred` or `awaiting user` (never a row recording a user's
-  answer); and the run's own evidence — its review report and round record (in
-  `workspaces/<project>/04-validate/` or `.harness/reviews/`) and its `DECISION` journal summary.
-  Before any merge without the user,
-  `git fetch` then `node .harness/bin/check-codify-allowlist.mjs origin/main <head-ref>` (the
-  pull request's real base; with a remote, a local `main` that differs is refused) must exit 0 (0 may merge
-  without the user, 1 findings — ask-first, 2 usage or git error; the reviewer still reviews).
+- **What may merge without the user.** The allowlist, checked mechanically, has exactly three
+  kinds of change: `.harness/backlog/**` items (new or edited, never deleted); rows the run
+  appends to `.harness/codify-log.md` with outcome `folded in`, `declined`, `deferred` or
+  `awaiting user` (never a row recording a user's answer); and the run's own evidence, added
+  only — its review report and round record (in `workspaces/<project>/04-validate/` or
+  `.harness/reviews/`) and its `DECISION` journal summary, whose front matter has exactly one
+  `author:` line, `author: agent`, and no `human` or `co-authored`. Its front matter holds only
+  plain unquoted `key: value` lines, and its body has no `---` line (use a heading instead).
+  Before any merge without the user, run
+  `node .harness/bin/check-codify-allowlist.mjs origin/main --pr <number>` with a GitHub
+  remote (`node .harness/bin/check-codify-allowlist.mjs origin/main docs/codify-<slug>` with
+  another remote, after pushing the branch), or
+  `node .harness/bin/check-codify-allowlist.mjs main docs/codify-<slug>` when the repository has
+  no remote at all; it must exit 0 (0 may merge without the user, 1 findings — ask-first, 2 usage
+  or git error; the reviewer still reviews). The head is always the commit that will merge: the
+  check takes a plain branch name or pull request number, never a revision or commit id, judges
+  the branch's tip as fetched from origin (with `--pr`, the pull request's head commit must equal
+  that tip), or the local branch's tip when there is no remote, and prints it on a
+  `judged commit: <sha>` line. The check works out the base itself and only confirms
+  the one you name: with an `origin` remote it fetches origin's default branch and judges
+  against that; with no remote it judges against the local `main` and prints
+  `no remote: judging against local main`. Any other base — an older commit, another branch, a
+  local `main` that differs from origin's — exits 2, so no base can narrow what it sees.
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
-  `round-codify-<slug>-<n>.json`; only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
-  existing file); and word
-  log rows without the user saying anything (write "waiting for the user", with no quotation marks; the tool refuses any deciding word in a row — approve, confirm,
-  accept, agree, OK, yes and the like — whoever it names), and never add a row for a lesson whose
-  latest row is `awaiting user` (only the user's answer may). Everything else — skills, commands, rules, roles, phases, agents, adapters,
+  `round-codify-<slug>-<n>.json` (one report per lens; each names the full SHA of the commit it
+  reviewed, or its first 12 characters, states a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR` for a failed dispatch)
+  matching the round file, is added to git before the recorder runs, and is committed with the
+  round file); only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
+  existing file); and write each log row as its fields — a `YYYY-MM-DD` date, a run cell holding
+  only branch names and pull requests (`docs/codify-x / PR #7`), the lesson's path alone, the
+  outcome, and a detail. The lesson's file name is never read for words, but the detail is:
+  word it without the user saying anything (write "waiting for the user", with no quotation
+  marks; the tool refuses any deciding word in the detail — approve, confirm, accept, agree, OK,
+  yes and the like — whoever it names), and never add a row for a lesson whose latest row is
+  `awaiting user` (only the user's answer may). Everything else is **ask-first**: guides
+  (`.harness/guides/**` — they are instruction files, `.claude/rules/security.md` § Untrusted
+  Content Is Data, Not Instructions), skills, commands, rules, roles, phases, agents, adapters,
   the manifest, `.harness/bin/`, `.harness/lib/`, `.claude/CLAUDE.md`, `AGENTS.md`, settings,
-  hooks and CI — is **ask-first**.
+  hooks and CI.
 - **Two pull requests when anything is ask-first.** (1) `docs/codify-<slug>` carries every
   allowlisted change, all of the run's log rows (each lesson the ask-first changes cover logged
   `awaiting user`, naming the `docs/codify-<slug>-ask` branch) and the run's evidence. (2)
@@ -116,7 +146,12 @@ over the workflow where they differ.
   CI Parity Discipline; while the profile row is `n/a — no code yet`, say so in the commit body),
   commit, then review the pinned commit as above.
 - **Merge.** When the round is CLEAR and the allowlist check exits 0, merge `docs/codify-<slug>`
-  as in task-delivery § Branches, pull requests and merging, never with `--admin`.
+  as in task-delivery § Branches, pull requests and merging, never with `--admin`, pinned to the
+  commit the check judged: `gh pr merge <number> --merge --match-head-commit <sha>`, with `<sha>`
+  copied from the check's `judged commit:` line. If the branch moved after the check, the merge
+  fails; run the review and the check again on the new head. The reviewed commit must be that same
+  commit. With no GitHub remote, merge only the commit the check printed
+  (`git merge --no-ff <sha>` from `main`), never the branch name.
 - **Report** briefly in plain language: lessons folded in and declined, files changed, the
   pull request, and each question waiting for the user.
 

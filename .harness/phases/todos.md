@@ -9,10 +9,18 @@ Read relevant analysis decisions and any existing active/completed todos.
 
 For a product with screens, read the approved prototype on `main`
 (`workspaces/<project>/prototype/`, `.harness/phases/prototype.md`): `SCREENS.md`, `DESIGN.md`
-and `APPROVAL.md`. Plan screen work only for PRD phases an approval record names. If no
-approval covers the phase being planned, stop and recommend `/prototype`; plan without it only
-when the user says so, recorded as a journal `DECISION` entry with `author: human`. A product
-with no screens has `prototype/00-no-screens.md` instead.
+and `APPROVAL.md`. Run `node .harness/bin/check-prototype.mjs workspaces/<project>` on `main`
+and plan screen work only for phases whose `status` it reports as `approved` (the Approval cell
+in `SCREENS.md` says the same); a held or changed phase reads `awaiting approval` and is not
+planned. If `SCREENS.md` ends with `Screen check: owed`, stop and run `/prototype` first: it runs the
+owed check on a new `docs/prototype-<n>` branch and, if any page changed, takes a new approval
+for that phase before the branch merges. If no approval covers the phase being
+planned, stop and recommend `/prototype`; plan without it only when the user says so, recorded
+as a journal `DECISION` entry with `author: human` — the same record covers a product whose
+built screens stand in for the prototype (`.harness/phases/prototype.md` § When to run). A
+product with no screens has only `prototype/00-no-screens.md` instead. Proposals in
+`todos/parked/` marked `design change` come from a revised prototype and are ranked with the
+rest.
 
 Plan on a `docs/wNN-plan` branch cut from `main` (`.harness/guides/task-delivery.md`
 § Branches, pull requests and merging). It merges into `main` after plan approval, before
@@ -64,8 +72,11 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    scenario per todo. Split build and wire only with the independently testable interface
    and integration owner required by task-delivery; never mark an unwired user outcome done.
    A todo that builds or changes a screen has a `Prototype screens:` line naming the
-   `SCREENS.md` files it builds, and an acceptance criterion that the built screens match
-   them — layout, words and states — at phone, tablet and desktop widths. Every approved screen
+   `SCREENS.md` files it builds (for a built screen the prototype does not list, under the
+   journal decision in `.harness/phases/prototype.md` § When to run: `Prototype screens: built —
+   <that journal entry's path>`), and an acceptance criterion that the built screens match
+   them — layout, words and states — at 400, 800 and 1280 pixels wide (the phone, tablet and
+   desktop widths of the prototype's `views.html`). Every approved screen
    has an owner in `WAVE-SEQUENCE.md`: a current-wave todo, or a later wave.
 4. Resolve every current-wave task's dependency signatures, input/output/error shapes,
    authorization source, transaction/lock owner, concurrency behavior, and test environment.
@@ -115,15 +126,16 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 11. After the user approves, write the wave's acceptance list to
     `workspaces/<project>/04-validate/acceptance-wNN.md`: the approval record (`approved_by`
     with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
-    § Workspace file layout — naming anything else they approved with it, such as the delivery
-    mode they chose or the CI workflow push), the scope name `wNN`, every current-wave todo id and each todo's
+    § Workspace file layout — naming anything else they approved with it, such as the CI workflow
+    push; the delivery mode was approved in `/analyze` § 5, so cite that journal entry instead), the scope name `wNN`, every current-wave todo id and each todo's
     acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
     contract, then run `node .harness/bin/check-task-contract.mjs <todo.md>` (the full check)
     on each. Never fill either before the user has approved, and never with an agent's name.
     Commit it with the todos; never edit it afterwards — the convergence receipt
     requires it byte-identical at the verdict commit, so changed acceptance means a new scope.
     Only now — after the user approved — merge the plan branch into `main` (task-delivery
-    § Branches, pull requests and merging).
+    § Branches, pull requests and merging); a re-plan merges into the wave branch instead
+    (§ Changing or cancelling approved scope step 4).
 
 ## Changing or cancelling approved scope
 
@@ -142,9 +154,13 @@ When the user changes direction mid-wave ("drop that feature", "stop, we're doin
    branch, with a new approval record. New todos keep the `wNN-MM-<slug>.md` naming with new
    item numbers (a `wNNb-` filename does not parse as an id). `acceptance-wNNb.md` lists every
    todo the wave still delivers — new ones and every already-completed todo the user keeps —
-   so none is left uncovered by a receipt. Commit `acceptance-wNNb.md` and
-   the changed todos on the wave branch itself, so the wave's receipt can see them, and in the
-   plan branch's pull request into `main`.
+   so none is left uncovered by a receipt. Commit `acceptance-wNNb.md` and the changed todos in
+   ONE place: cut `docs/wNNb-plan` from the wave branch (not from `main`), and after the user
+   approves, merge it into the wave branch (`git merge --no-ff`), not into `main`. The re-plan
+   reaches `main` with the wave. This is the one plan branch that does not merge into `main`
+   by itself: carrying the same files to `main` separately would leave a todo the wave later
+   completes in both `active/` and `completed/` after the wave merges. The acceptance list is
+   then committed before the reviewed commit, as the convergence receipt requires.
 5. A dropped todo already merged into the wave branch is either reverted on the wave branch
    (its own commit, reviewed with the wave) with its `completed/` file moved to `parked/` or
    deleted, or — if the user wants to keep the code — kept and listed in `acceptance-wNNb.md`.

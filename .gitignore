@@ -40,6 +40,11 @@ workspaces/*/prototype/.screenshots/
 # Harness runtime state (review-round state, launch ledger) — created on first use
 .claude/learning/
 
+# Generated Codex adapters — each checkout generates its own with
+# `node .harness/bin/check-adapters.mjs --write --codex` (see .harness/adapters/codex.md)
+.agents/*
+.codex/*
+
 # Per-user Claude Code files
 .claude/settings.local.json
 .claude/scheduled_tasks.lock

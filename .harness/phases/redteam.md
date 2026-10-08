@@ -76,7 +76,11 @@ not supply clean evidence. A resumed original dispatch is not a new review round
   `.harness/rules/e2e-god-mode.md` — headed, real-user navigation only (click links/
   buttons/forms; no direct navigation such as `page.goto()` mid-flow, no direct API calls
   to skip a step). API
-  calls and suite counts do not replace the walk.
+  calls and suite counts do not replace the walk. Where the wave built screens from the
+  approved prototype, the walk also puts each built screen beside the prototype page named on
+  its todo's `Prototype screens:` line, at 400, 800 and 1280 pixels wide, and records each
+  difference in layout, words or states; a screen todo with no `Prototype screens:` line (or a `built — <journal entry>` line whose
+  entry does not exist), or a difference the owner has not accepted, is a finding.
 - Use the applicable persistent semantic eval corpus for LLM/intent properties per
   `.claude/skills/12-testing-strategies/probe-driven-verification.md`. Accrete actual defects as regressions; classify
   incremental probes consistently. Do not introduce LLM evaluation for a deterministic
@@ -93,11 +97,19 @@ Save each report verbatim, with secret values redacted (task-delivery § Review 
 circuit breaker), at `workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` and
 write `workspaces/<project>/04-validate/round-<scope>-<n>.json` in the format in
 task-delivery § Review protocol and circuit breaker, with one verdict and a
-repository-root-relative evidence path per expected reviewer. Run:
+repository-root-relative evidence path per expected reviewer. Each lens has its own report;
+each report states the commit it reviewed (the full head SHA, or at least its first 12
+characters) and its verdict on a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR`
+for an errored dispatch) that matches the round file. `git add` the reports, then run:
 
 `node .harness/bin/record-review-round.mjs <round.json>`
 
-then commit the round file and its reports; the receipt is checked against them.
+then commit the round file and its reports in the same commit; the receipt is checked against
+them, and the convergence checker refuses a report that was not already in the commit that
+added its round file. The recorder refuses evidence that is not a git-tracked report directly
+under `04-validate/` (or `.harness/reviews/` for codify) naming the reviewed commit, a report
+whose `Verdict:` line disagrees with the round file, one report cited by two lenses, and a
+round file cited as a report (`.harness/guides/review-round-recorder.md`).
 
 Only complete rounds count. One lens's CLEAR cannot clear another lens's failure.
 Duplicate delivery cannot add a round. ERROR is never clean. The branch gets three rounds,
@@ -124,7 +136,10 @@ circuit breaker or reassessment is not convergence and never authorizes shipping
 
 Write the final receipt using
 `node .harness/bin/check-redteam-convergence-receipt.mjs --template <scope>`.
-Preserve its wave-base, ratified-acceptance, per-round launch identity, evidence,
+Its `wave_base` is the `main` commit the wave branch was cut from: `git merge-base main
+<verdict_head>`, unless `main` was merged into the wave (task-delivery § Branches, pull
+requests and merging step 7) — then the original fork point, which the checker's
+`wave-base-mismatch` message prints. Preserve its wave-base, ratified-acceptance, per-round launch identity, evidence,
 covered-todo, current-commit and named residual-acceptor requirements. Each reviewer's
 `evidence` is the repository-root path of its committed report; each round the receipt lists
 has its committed `round-<scope>-<n>.json` with the same head, lenses, evidence and verdicts;
@@ -148,6 +163,16 @@ Never copy round records. Only when the acceptance list itself changed does the 
 new scope name (`.harness/phases/todos.md` § Changing or cancelling approved scope). After the
 merge into `main`, a receipt is immutable (`receipt-rewritten`).
 
+After the receipt, only bookkeeping goes on the wave branch (the preview, the user's answer,
+journal entries). Code committed after the receipt, a later review round of this branch under
+any file name, a conflict resolved or code edited inside the merge into `main`, or a
+fast-forward merge makes `--todo` and `--sweep` refuse the wave on `main` and at pull-request
+time (`landed-content-not-reviewed`, `round-record-after-receipt`, `merge-commit-changed-code`,
+`wave-merge-not-a-merge-commit`). New code means new review rounds and a corrected receipt
+before the merge. Delete the wave branch once it has merged: work added to a reused wave branch
+after it has taken in `main` again looks to the checker like new work cut from `main`, so it is
+judged only by that new work's own review, not by this receipt.
+
 After the receipt check exits 0, in this order:
 
 1. Write the wave preview (task-delivery § Wave boundary) at `04-validate/<scope>-preview.md`:
@@ -162,6 +187,8 @@ After the receipt check exits 0, in this order:
    (`.claude/commands/deploy.md` Step 1.3). Record the answer by replacing the last line with
    their words and the date: on the wave branch if they answer before the merge, otherwise on a
    record-only `docs/<scope>-preview` branch cut from `main` after the merge (light mode too).
+   This is the only place the preview and the answer are recorded, in both delivery modes;
+   task-delivery § Light mode points here.
 3. Merge the wave branch into `main` by pull request: read CI on the pinned head SHA, then
    merge in a separate command with a merge commit (task-delivery § Branches, pull requests
    and merging). Merging deploys nothing and needs no confirmation, except while the project

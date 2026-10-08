@@ -21,11 +21,11 @@ The AI handles all the technical work — writing code, testing, security checks
 | Step | Command | What Happens | Your Role |
 |------|---------|-------------|-----------|
 | 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Pick between the options it recommends (how to build it, where it runs and what that costs) |
-| 2. Design | `/prototype` | Draw every screen of every phase as clickable pages that fit phone, tablet and computer (skipped when there are no screens) | Answer design questions, ask for changes, then approve the screens |
+| 2. Design | `/prototype` | Draw every screen of every phase as clickable pages that fit phone, tablet and computer (for a product with no screens, it just notes that) | Answer design questions, ask for changes, then approve the screens |
 | 3. Planning | `/todos` | Create a complete project roadmap from the approved screens | Approve the plan before building starts |
 | 4. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
 | 5. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
-| 6. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules, skills, commands or what it may do without you; `/ws` shows those |
+| 6. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's instructions (its rules, phases, roles, guides, skills, commands) or what it may do without you; `/ws` shows those |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.
@@ -54,8 +54,8 @@ Walk the user through these steps:
    Node.js 22 or newer for the workflow's own checks, a GitHub login, and anything the project
    itself needs, such as Docker for tests) and says how to fix anything missing. The project
    also needs a GitHub repository to hold its work.
-1. **Create a workspace**: Tell the AI the project's name and what you want (e.g., "start a project called my-project: …"). `/analyze` creates `workspaces/my-project/briefs/` and saves your description as the first brief. You can also create that folder yourself.
-2. **Write a brief**: Create a file in the briefs folder describing what you want to build — in your own words, as detailed as you like. Include who it's for, what problem it solves, and what success looks like. You can also just tell the AI what you want and ask it to write the brief for you.
+1. **Name the project**: tell the AI the project's name (e.g. "start a project called Family Recipes"). The AI creates every folder and file itself; the user never types a folder or file name.
+2. **Describe what you want**: in your own words, as detailed as you like — who it's for, what problem it solves, and what success looks like. The AI writes it up as the project brief and saves it for you; ask to see it any time.
 3. **Run `/analyze`**: This kicks off the research phase
 4. **Run `/prototype`** (if the product has screens): see and approve every screen before anything is built
 
@@ -97,4 +97,4 @@ Present these naturally, not as a lecture:
 - **Your knowledge is the most valuable input.** You know your users, your market, and your vision better than any AI.
 - **"I don't understand" is always valid.** The AI will rephrase — no judgment.
 - **Approval gates protect you.** Never approve something you don't fully understand. Ask questions first.
-- **The AI remembers across sessions.** Run `/wrapup` before leaving, and your next session starts right where you left off. Those notes stay on this computer; decisions are also saved in the project's journal, which travels with the project.
+- **The AI remembers across sessions.** Before leaving, ask the AI to commit and push your work, then run `/wrapup`. In your next session, type a first message such as "Where did we leave off?" (or `/ws`) and the AI picks up from the notes; it does not start talking on its own. Those notes stay on this computer; decisions are also saved in the project's journal, which travels with the project.

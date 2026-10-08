@@ -38,7 +38,7 @@ pick it up.
 | Setup | `/start`, `/doctor` | Orientation; check git, GitHub login and the runtimes the project needs | — |
 | Requirements and discovery | `/analyze` | Research the problem, users and constraints; challenge assumptions; red-team the analysis | `briefs/`, `01-analysis/`, `02-plans/`, `03-user-flows/` |
 | Architecture and design | `/analyze`, `/design` | Choose the stack and where it will run (with monthly cost), record decisions, write the specs; UI/UX standards for screens | `docs/adr/`, `specs/`, the project profile filled in |
-| Screen design | `/prototype` | Every screen of every PRD phase as clickable pages that fit phone, tablet and desktop; design questions, your change requests, then **your approval**; skipped for a product with no screens | `prototype/` with the screen list, design language and your approval |
+| Screen design | `/prototype` | Every screen of every PRD phase as clickable pages that fit phone, tablet and desktop; design questions, your change requests, then **your approval**; for a product with no screens it only records that | `prototype/` with the screen list, design language and your approval |
 | Planning | `/todos` | Break the work into waves of todos, each with an acceptance contract and the approved screens it builds; **stops for your approval**; the first wave also sets up CI | `todos/WAVE-SEQUENCE.md`, `todos/active/wNN-MM-<slug>.md`, a frozen acceptance list with your approval |
 | Changing your mind | `/todos` | Drop, park or re-plan approved work; the change is recorded with your words | A journal decision, a new acceptance list |
 | Implementation | `/implement` | Build one todo test-first on its own branch, with backend, frontend and test specialists | Code, tests, the todo moved to `todos/completed/` |
@@ -78,7 +78,7 @@ pick it up.
    and sets up health checks and alerts that reach you. Production runs a separate
    `production` branch, so once `/deploy` setup has checked your host, merging work into `main`
    never changes what users see; only `/deploy` does. Until then, don't connect a hosting
-   service yourself — if one is already connected, say so, and every merge asks you first. If users are hurt, `/fix` asks first
+   service yourself, except for the steps `/deploy --onboard` walks you through — if one is already connected, say so, and every merge asks you first. If users are hurt, `/fix` asks first
    whether to undo the last update (`/deploy --rollback`), then fixes the cause.
 7. **Repeat** steps 3–6 wave by wave.
 
@@ -89,14 +89,20 @@ Along the way:
 - **You notice something outside the current task** → it is fixed now only if small and
   related; otherwise it is recorded as a follow-up (a parked todo proposal, a `/fix` record,
   or a harness backlog item) — never dropped.
-- **Ending a session** → `/wrapup`. **Starting one** → the next session reads the notes
-  automatically; `/ws` shows where everything stands.
+- **Ending a session** → ask the AI to commit and push your work, then run `/wrapup` (it
+  folds in lessons only when no product work is left unsaved). **Starting one** → your first
+  message (or `/ws`) makes the AI read the notes and show where everything stands; it does not
+  start on its own.
+- **Parallel or unattended work** → `/worktree` sets up a separate copy of the project for
+  work that runs side by side; `/autonomize` lets the AI carry on without asking at each step,
+  within what you have already approved.
 - **The harness learns as it goes.** Lessons are written to the journal as they happen, and
   `/codify` folds them into the harness's own rules and guides automatically — after each
   wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug
   fix that taught something. Each update is independently reviewed by pull request. Only
-  updates to reference guides and harness notes merge on their own; anything that changes the
-  AI's rules, roles, skills, commands or what it may do without you waits for your OK. `/ws` shows what is waiting.
+  backlog notes and the change log merge on their own; anything that changes the AI's
+  instructions — its rules, phases, roles, guides, skills, commands or what it may do without
+  you — waits for your OK. `/ws` shows what is waiting.
 
 You decide at a few fixed points — plan approval, trying the result, deploying or undoing a
 deploy, spending money, anything destructive or public, and questions only you can answer (the
@@ -112,9 +118,10 @@ layout, the shared rules and what the harness deliberately does not include.
 - `.claude/` — Claude Code entry point (`CLAUDE.md`), rules, agents, skills and commands.
 - `.harness/` — shared phases, roles, guides, rules and tools used by both Claude Code and Codex.
 - `AGENTS.md` — Codex entry point. Codex users run
-  `node .harness/bin/check-adapters.mjs --write --codex` once; it generates the Codex skill and
-  agent files (`.agents/`, `.codex/`) from `.harness/manifest.json`. Claude-only users can delete
-  `AGENTS.md`. Keep
-  `.claude/` even with Codex only: the harness tools load code from it. A Codex client without
-  native custom agents cannot pass `/redteam`'s security review gate; see
-  `.harness/adapters/codex.md` § Known limitations.
+  `node .harness/bin/check-adapters.mjs --write --codex` once per checkout (each fresh clone
+  and each new worktree); it generates the Codex skill and agent files (`.agents/`, `.codex/`)
+  from `.harness/manifest.json`. Those two directories are git-ignored and never committed.
+  Claude-only users can delete `AGENTS.md`. Keep `.claude/` even with Codex only: the harness
+  tools load code from it. A Codex client without native custom agents cannot pass standard
+  mode's `/redteam` security review gate, and Codex does not enforce the reviewers' read-only
+  limits; see `.harness/adapters/codex.md` § Known limitations.

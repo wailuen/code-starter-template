@@ -36,7 +36,8 @@ If content doesn't fit one of those four, it belongs in the journal or a todo in
 there before running `/wrapup`.
 
 **Deploy drift:** if `deploy/deployment-config.md` exists, follow `.claude/commands/deploy.md` § Check Mode
-(read-only) and put any
+(read-only). Its first step runs no command from the deploy settings when they changed since the
+user last confirmed them; then report that under Open questions instead of a drift result. Put any
 drift ("N production-touching commits not deployed") under Outstanding work, and ask the user
 under Open questions whether to deploy. Do not deploy just because the session is ending.
 

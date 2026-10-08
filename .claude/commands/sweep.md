@@ -170,7 +170,7 @@ that pull request, not as open.
 ## Output
 
 Write the report to `workspaces/<project>/04-validate/sweep-<date>.md` (if a workspace is
-active) or `SWEEP-<date>.md` at repo root, and commit it on a `docs/sweep-<date>` branch merged
+active) or `SWEEP-<date>.md` at repo root, and commit it on a `docs/sweep-<date>` branch (add `-2`, `-3` when that name is taken) merged
 by pull request (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). `/sweep` is a management decision report, not a
 status dump. It carries, in order:
 

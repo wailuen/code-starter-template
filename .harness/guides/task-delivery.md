@@ -78,7 +78,8 @@ their users and a way to try it themselves (a local address, a preview deploy, o
 run), and asks whether it matches what they wanted — before the merge when they are present,
 otherwise as the first open question, and always before the wave is deployed. A "no" is a
 defect for `/fix` or a scope decision (`.harness/phases/todos.md` § Changing or cancelling
-approved scope), never something to deploy over.
+approved scope), never something to deploy over (except the user-confirmed override in
+`.claude/commands/deploy.md` Step 1.3).
 
 ## Before a wave starts: ask for the real external setup its end-to-end signoff will need
 
@@ -97,7 +98,10 @@ credential isn't available yet, never silently.
 Write each request so a non-technical user can complete it alone: the site to open, each
 click, which value to copy, and where to put it safely (the git-ignored `.env`, or the
 deployed environment's secret store from `.harness/guides/project-profile.md` § Configuration
-— never in chat, a commit or an issue), plus any cost or free-tier limit.
+— never in chat, a commit or an issue), plus any cost or free-tier limit. Ask for the
+provider's test or sandbox key where one exists. A live key that can send real messages,
+charge money or write real records is used in tests only after the user's yes, given knowing
+what it can do (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ## Harness backlog — `todos/` holds product scope only
 
@@ -138,32 +142,40 @@ retry limit changes the approach; it never makes broken code done.
 For a small project — one person, a prototype or hobby, no real users' data and no money
 moving — the project profile can say `delivery_mode: light`. `/analyze` recommends the mode in
 plain words when it proposes the stack, and the user picks it there, before `/todos` plans the
-first wave; the first plan's approval record quotes that choice. Until the user has chosen,
+first wave; the journal `DECISION` entry from `/analyze` § 5 records that choice, and the first
+plan's approval record cites it. Until the user has chosen,
 standard applies. Light mode changes only this:
 
 - No analysis or planning review rounds. The analysis pull request merges into `main` once the
-  user has approved the stack and mode, the plan pull request once they have approved the plan;
+  user has approved the stack, hosting and mode (the same approval standard mode needs,
+  `.harness/phases/analyze.md` § 5), the plan pull request once they have approved the plan;
   the acceptance list still carries their approval record.
 - No per-todo checkpoint review rounds. Each todo still has its delivery contract, tests,
   walk receipts and `## Verification`.
 - The wave gate is ONE review round that must be CLEAR and always includes a security reviewer
-  (`security`; `record-review-round.mjs` refuses a light-mode wave round without one) (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
+  (`security`; `record-review-round.mjs` refuses a light-mode wave round without one, for a
+  wave scope `wNN` and a re-scoped `wNNb`, `wNNc`, …; it reads light mode from the value cell of
+  the profile's `delivery_mode` row) (`.harness/phases/redteam.md` § 1). No launch ledger, no convergence
   receipt and no `--sweep` job in CI.
 - A todo is closed when its wave branch has merged into `main`; `/ws`, the todo manager and
   `/implement` say so and do not run the convergence checker.
 - `/codify`'s wave trigger fires when the wave branch merges.
-- Review reports, round records and journal entries ride on the wave or fix branch. Records that
-  gate a deploy — the wave preview and the user's answer, deployment records, the deploy hold
-  and fix records — still go to `main` at once on their own record-only branch, exactly as in
-  standard mode, because `/deploy` reads them on `main`.
+- Review reports, round records and journal entries ride on the wave or fix branch. Deployment
+  records, the deploy hold and fix records still go to `main` at once on their own record-only
+  branch, exactly as in standard mode, because `/deploy` reads them on `main`. The wave preview
+  and the user's answer follow `.harness/phases/redteam.md` § 4, the same in both modes.
 
 Everything else is unchanged: tests, `.harness/rules/autonomous-execution.md` § What needs the
 user, the security rules, `/fix` and `/deploy`. The phases say "in light mode, see
 task-delivery § Light mode" where they differ.
 
-Switching from light to standard is a plan change the user approves. At the switch, set
+Switching from light to standard is a plan change the user approves. Make it on the next
+wave's plan branch (`docs/wNN-plan`): set the profile's `delivery_mode` to `standard`, set
 `grandfather_pin` in `.harness/manifest.json` to `main`'s tip (so light-mode todos are not
-re-audited), then add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2).
+re-audited), and add the `--sweep` CI job (`.harness/phases/todos.md` § Workflow step 2). That
+plan is the first standard-mode plan, so it gets its planning review round (`wNN-plan`), and
+its approval record names all three changes and quotes the user's yes to the switch and to
+pushing the CI job (`.harness/rules/autonomous-execution.md` § What needs the user).
 
 ## Workspace file layout
 
@@ -173,7 +185,7 @@ The tools read these exact paths; other names are not found.
 | --- | --- | --- |
 | Spec index and domain specs | `specs/_index.md`, `specs/<domain>.md` | `/analyze`; reconciled with built behavior after each wave merges (`/redteam` § 4) |
 | Architecture decision record | `docs/adr/NNNN-<slug>.md` | `/analyze` (analyst) |
-| Clickable prototype, screen list, design language, approval records | `prototype/` (`index.html`, `screens/`, `SCREENS.md`, `DESIGN.md`, `APPROVAL.md`); `prototype/00-no-screens.md` for a product without screens | `/prototype`; `APPROVAL.md` is append-only |
+| Clickable prototype, screen list with each screen's approval status, design language, approval records | `prototype/` (`index.html`, `views.html`, `screens/`, `SCREENS.md`, `DESIGN.md`, `APPROVAL.md`); `prototype/00-no-screens.md`, alone in the folder, for a product without screens | `/prototype`; `APPROVAL.md` is append-only, each record carrying the approved phases' content hashes |
 | Wave plan | `todos/WAVE-SEQUENCE.md` | `/todos` |
 | Todo (being worked) | `todos/active/wNN-MM-<slug>.md` | `/todos` |
 | Todo (implemented) | `todos/completed/wNN-MM-<slug>.md` | `/implement` (moved, same name) |
@@ -225,17 +237,20 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
-| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round (light mode: after the user approved the stack and mode) |
-| Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates) | `main`, after the user approved |
+| Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round and the user's stack, hosting and mode approval (light mode: the approval only) |
+| Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates; a brief or spec requirement change goes through `/analyze` on its own `docs/<slug>` branch) | `main`, after the user approved and `check-prototype.mjs --require-approval --base origin/main` (`--base main` with no remote) exits 0 |
 | Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
+| Re-plan of an approved wave (`/todos` § Changing or cancelling approved scope) | `docs/wNNb-plan` (then `wNNc`, …) | the wave branch | planning review (`wNNb-plan`; none in light mode) | the wave branch, after plan approval |
 | Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |
 | One todo (`/implement`) | `feat/wNN-MM-<slug>`, or `fix/wNN-MM-<slug>` for a defect todo | the wave branch | todo checkpoint review (`wNN-MM`; none in light mode) | the wave branch, after its CLEAR round (light mode: after its verification) and its receipts |
 | Bug fix (`/fix`) | `fix/<fix-id>-<slug>` | `main`; for an S1 after a rollback, the commit production was rolled back from | fix review (`<fix-id>`) | `main` |
 | Production | `production` | moved only by `/deploy`, to a commit already on `main` (rolled back by `/deploy --rollback`) | none | never merged; the host deploys it |
-| Fix record — opened, updated, closed (`/fix`, `/deploy --rollback`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
-| Deploy onboarding (`/deploy --onboard`) | `docs/deploy-onboard` | `main` | one CLEAR review (`deploy-onboard`) | `main` |
-| Deployment record (`/deploy`) | `docs/deploy-<date>` | `main` | none (record only) | `main` |
-| Sweep report (`/sweep`) | `docs/sweep-<date>` | `main` | none (record only) | `main` |
+| Fix record — opened, updated (including its `Fix commit:` line when the fix merges), closed (`/fix`) | `docs/<fix-id>-record-<n>` | `main` | none (record only) | `main`, at once |
+| Deploy onboarding (`/deploy --onboard`), `<n>` counting each onboarding run | `docs/deploy-onboard-<n>` | `main` | one CLEAR review (`deploy-onboard-<n>`) | `main` |
+| Deployment record (`/deploy`) | `docs/deploy-<YYYY-MM-DD-HHMMSS>`, the record's time stamp | `main` | none (record only) | `main`, at once |
+| Rollback or decommission record, with any fix record the rollback opened or put on hold (`/deploy --rollback`, `--decommission`) | `docs/deploy-<YYYY-MM-DD-HHMMSS>-rollback` or `-decommission` | `main` | none (record only) | `main`, at once |
+| Sweep report (`/sweep`) | `docs/sweep-<date>`, with `-2`, `-3`, … added when that name is taken | `main` | none (record only) | `main` |
+| Light → standard switch (§ Light mode) | the next wave's `docs/wNN-plan` | `main` | planning review (`wNN-plan`) | `main`, after plan approval |
 | Wave preview answer (`/redteam` § 4) | `docs/<scope>-preview` | `main` | none (record only) | `main` |
 | Spec reconciliation after a wave (`/redteam` § 4) | `docs/wNN-spec-reconcile` | `main` | none (spec text; the next wave's review reads it) | `main` |
 | Harness change (`/codify`), allowlisted part | `docs/codify-<slug>` | `main` | codify review (`codify-<slug>`) | `main`, without the user only when `check-codify-allowlist.mjs` exits 0 (`.harness/phases/codify.md` § Automatic runs) |
@@ -275,23 +290,35 @@ For every branch:
    profile's `main_deploys_live` is still `unknown` and the product may already be live (as
 `.harness/rules/autonomous-execution.md` § What needs the user defines it);
    `--admin` always does, and never in an automatic run.
+
+   A repository with no remote has no pull requests: after the same gate (Local CI parity on
+   a checkout of the pinned head, plus the branch's own review or approval), merge locally with
+   `git checkout main && git merge --no-ff <branch>`, and name the gate and the reviewed head in
+   the merge commit's message. Add a remote before the first deploy.
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
    `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
    allow merge commits before the first wave (a repository-settings change, so ask the user).
 6. Standard mode: run the convergence check with `--scope` while the wave branch is checked out, before it
    merges; that exit 0 is the wave's gate. After the merge, `main` moves on (fixes, `/codify`,
    spec updates), so `--scope` is no longer the question; judge each receipt as of its own
-   commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`.
+   commits with `--workspace workspaces/<project> --todo <id>` or `--sweep workspaces`. Those
+   also check what landed: the merge commit that brought the wave in must carry exactly the
+   reviewed commit plus bookkeeping files (review reports, round records, journal, todos), and
+   must add no code of its own — so never commit code to the wave branch after its receipt,
+   and never resolve a conflict or edit code inside the merge into `main`.
    After a pull request merges on GitHub, run `git fetch origin` and update the local `main`
    before cutting the next branch.
-7. Keep `main` out of an open wave branch where possible. If you must merge `main` in, do it
-   before the wave's first review round, because the receipt's `wave_base` is computed with
-   `git merge-base main <verdict_head>`. If a `/fix` lands on `main` after review started and
-   the wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge
-   into `main` (that would be unreviewed code): merge `main` into the wave branch, which moves
-   the reviewed head, so the wave needs new clean rounds on the new head (two in standard mode, one in light mode) from its
-   remaining budget. Tell the user the delay in plain words; if the budget cannot cover it,
-   take it to `/debug`.
+7. Keep `main` out of an open wave branch where possible. If a `/fix` lands on `main` and the
+   wave needs it or conflicts with it, do not resolve the conflict inside the wave's merge into
+   `main` (that would be unreviewed code): merge `main` into the wave branch
+   (`git merge --no-ff main` with the wave branch checked out, so the wave stays the first
+   parent). This moves the reviewed head, so the wave needs new clean rounds on the new head
+   (two in standard mode, one in light mode) from its remaining budget. The receipt's
+   `wave_base` stays the commit the wave branch was originally cut from — the checker follows
+   the wave branch's own first-parent line back to `main`, and its `wave-base-mismatch` message
+   prints the value it expects. Never rebase the wave onto `main` instead: that rewrites a
+   shared branch and the merge-commit rule above. Tell the user the delay in plain words; if
+   the budget cannot cover it, take it to `/debug`.
 
 ## Releases
 
@@ -419,7 +446,9 @@ commit. Security work still requires independent correctness and security review
 ## Screen red-team before the owner sees it
 
 Applies to projects with a visual interface. No proposed screen — a design drawing or a
-built screen — goes to the product owner for review until it has passed:
+built screen — goes to the product owner for review until it has passed (the one exception: a
+prototype whose check cannot run yet, shown only after the user says yes to seeing it
+unchecked — `.harness/phases/prototype.md` step 5):
 
 1. **A headed browser pass** (the project profile's E2E runner, e.g. Playwright) at widths
    1440, 1280, 1024, 800 and 400 over every drawn state:
@@ -555,8 +584,8 @@ It is a retry-control instrument; the convergence-receipt checker still decides 
 Its last lines start with `NEXT:` and list the branch's known root causes and budget — read them.
 How many clean rounds a scope needs: one complete CLEAR round for a todo checkpoint (scope
 `wNN-MM`), a `/fix` branch (`<fix-id>`), a planning review (`wNN-plan`), an analysis review
-(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`) and a light-mode
-wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
+(`analysis-<slug>`), a codify review (`codify-<slug>`, `codify-<slug>-ask`), a deploy onboarding
+(`deploy-onboard-<n>`) and a light-mode wave (§ Light mode); two consecutive clean rounds on one unchanged commit only for standard-mode
 wave convergence (`/redteam`, scope `wNN`). After a single CLEAR round the recorder always
 prints `dispatch round N+1`; at a one-round checkpoint do not dispatch it.
 

@@ -17,10 +17,14 @@ Rule 4: fix the root cause, never work around it.
 someone do what they should not, ask the user before writing anything to `main` or any public
 place (`.harness/rules/autonomous-execution.md` § What needs the user): until the fix is
 deployed, the fix record on `main` carries only a neutral title and severity, and the details,
-reproduction and failing test stay on the unpublished fix branch or a private advisory.
+reproduction and failing test stay on the unpublished fix branch or a private advisory. In a
+public repository (`gh repo view --json visibility -q .visibility` prints `PUBLIC`), follow the
+order in § 7 so the fix can ship before anything that explains the attack is public.
 
 **S1 — stop the bleeding first.** Before anything else, when users are down or data is being
-lost or exposed: check whether `/deploy --rollback` has a verified earlier revision to return
+lost or exposed: write the fix record file (id, neutral title, severity and intake only — a
+minute's work; the shape is below) so the rollback has a record to set its hold on, and do not
+wait for it to merge. Then check whether `/deploy --rollback` has a verified earlier revision to return
 to (`.claude/commands/deploy.md` § Rollback Mode). If it does, ask the user at once, in the
 format in `.claude/rules/communication.md` § Asking the user to decide — for example: "Users
 can't sign in. Should I undo the last update now? If yes: sign-in works again in about N
@@ -31,9 +35,11 @@ rolling back would not help (the defect is older than the last deploy, or a migr
 undone), say so and continue below at once. If the product is not deployed at all, an S1 is
 simply first in line.
 
-One bug has one fix record. A rollback started here continues this record (fill in
-`Deploy hold`); a rollback started from `/deploy --rollback` opened a record already, so
-continue that one instead of creating a new id.
+One bug has one fix record. A rollback started here sets `Deploy hold` on the record just
+written, and commits it with the rollback records on the rollback's record-only branch
+(`.claude/commands/deploy.md` § Rollback Mode step 4); with no rollback, it merges on
+`docs/<fix-id>-record-1` as below. A rollback started from `/deploy --rollback` opened a record
+already, so continue that one instead of creating a new id.
 
 Resolve the workspace as `/implement` does; if none exists, create `workspaces/<project>/`.
 Give the bug the next fix id in that workspace — `f001`, `f002`, … (check the highest existing
@@ -56,10 +62,11 @@ own failing test and its own `## Closure`; the round's scope is the first fix id
 record names it.
 
 The fix record lives on `main`, and the fix branch never adds or edits it, so the two never
-conflict. Open it (at intake, or `/deploy --rollback` opens it) and update it (status changes,
-the closure) only on a short record-only branch cut from `main` — `docs/<fix-id>-record-<n>` —
+conflict. Open it at intake and update it (status changes, the `Fix commit:` line, the
+closure) only on a short record-only branch cut from `main` — `docs/<fix-id>-record-<n>` —
 merged at once (`.harness/guides/task-delivery.md` § Branches, pull requests and merging); this
-holds in light mode too. Use this shape for the record; fill in `## Reproduction`, `## Root
+holds in light mode too. A record a rollback opens or puts on hold is committed with the
+rollback records instead (`.claude/commands/deploy.md` § Rollback Mode step 4). Use this shape for the record; fill in `## Reproduction`, `## Root
 cause`, `## Fix` and `## Review` with the closure, from the merged fix branch:
 
 ```markdown
@@ -92,6 +99,7 @@ Status: open | in progress | converted to todo | closed
 - Round record: workspaces/<project>/04-validate/round-f007-<n>.json — <verdicts>
 
 ## Closure
+- Fix commit: <full SHA of the reviewed fix head that merged into `main`> — filled as soon as the fix merges, before `/deploy` is asked for (§ 7)
 - Pull request / merge commit: <#N / SHA>
 - Deployed: <deployment record path in deploy/deployments/, or "not deployed — reason">
 - Verified live: <check and result, or n/a>
@@ -104,7 +112,12 @@ Status: open | in progress | converted to todo | closed
 
 Cut `fix/<id>-<slug>` from `main`. For an S1 after a rollback, cut it from the bad commit —
 the one production was rolled back FROM, named in the rollback record — so the failing test can
-fail; it then merges into `main` like any fix.
+fail; it then merges into `main` like any fix. For a live bug while `main` carries work that
+cannot ship yet (a wave preview still `pending` or answered "no", `.claude/commands/deploy.md`
+Step 1.3), cut it from the commit production runs (`deploy_check_command`), so its reviewed head
+contains the fix and nothing else new; after it merges, that head is on `main` and can be
+deployed on its own. Resolve any conflict with `main` on the fix branch only if the resolution
+brings no held work into it; otherwise tell the user and use `/deploy`'s Step 1.3 question.
 
 ## 3. Reproduce first
 
@@ -148,7 +161,9 @@ that list; when in doubt, add it. Reviewers report in the format in their role b
 never edit the fix branch.
 
 Save each report at `workspaces/<project>/04-validate/<id>-<lens>-r<n>.md` and record the round
-on the fix branch with scope `<id>`:
+on the fix branch with scope `<id>`. In a public repository a security report with findings
+keeps them in a private place and the committed file carries only its reference and verdict
+(`.claude/rules/security.md` § Public Repositories — Security Findings Stay Private):
 
 ```json
 {
@@ -169,6 +184,12 @@ on the fix branch with scope `<id>`:
 
 `node .harness/bin/record-review-round.mjs workspaces/<project>/04-validate/round-f007-1.json`
 
+Before running it, each reviewer's report must sit in `workspaces/<project>/04-validate/` (one
+report per lens), name the full commit SHA it reviewed (or its first 12 characters), state its
+verdict on a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR` for a failed dispatch) that matches the round file, and be
+added to git before the recorder runs; otherwise the recorder refuses the round
+(`.harness/guides/review-round-recorder.md`). Commit the reports with the round file.
+
 One complete CLEAR round is the bar for a fix. After it the recorder's `NEXT:` line still
 says `dispatch round N+1 … cleanRounds 1/2`; do not dispatch that round for a fix — a second
 same-head clean round is required only for wave convergence (`/redteam`). On NOT_CLEAR, fix
@@ -181,14 +202,30 @@ receipt is needed.
 
 For a security defect of any severity in a public repository, ask the user before the first
 push: keep the details out of public pull requests, issues and commit text until the fix is
-deployed — work in a private fork or security advisory, or use a minimal neutral description
-(`.harness/rules/autonomous-execution.md` § What needs the user).
+deployed (`.harness/rules/autonomous-execution.md` § What needs the user). `/deploy` ships only
+commits on `main`, so the order is:
+
+1. Build and review the fix as usual on a branch that is never pushed to the public
+   repository (local only, or a private fork such as a GitHub private security advisory's
+   temporary fork). Commit the code change first, with a neutral message, and the
+   reproduction test last, so the reviewed head's parent is the fix alone.
+2. With the user's yes, push only that parent commit as `fix/<id>-<neutral-slug>`
+   (`git push origin <parent-sha>:refs/heads/fix/<id>-<neutral-slug>`), open a pull request
+   with neutral text, merge it as below, and ask the user to run `/deploy` at once.
+3. After the deploy, push the reviewed head (its last commit adds the reproduction test), merge
+   it, then fill in the record's details. The round record reviewed that head, so it is the
+   merge's gate.
 
 Push, open a pull request into `main` with `Fixes #N` under `## Related issues`, read CI on the
 pinned head SHA, then merge as a separate command with a merge commit (task-delivery
-§ Branches, pull requests and merging). Merging into `main` deploys nothing. If the bug is
-live, ask the user to run `/deploy` for that `main` commit (in an S1, at once and in plain
-words), and say what else on `main` would ship with it. Agents never deploy themselves.
+§ Branches, pull requests and merging). Merging into `main` deploys nothing. As soon as it
+merges, fill in the record's `Fix commit:` line with the merged fix head's full SHA (the
+published fix commit, in a public security fix) on a record-only `docs/<fix-id>-record-<n>`
+branch merged at once, and set `Status: in progress`; `/deploy` reads that line to know a
+target contains the fix (`.claude/commands/deploy.md` Step 1.4). If the bug is live, ask the
+user to run `/deploy` for that `main` commit, or for the fix head itself when it was cut from
+the live commit (§ 2) — in an S1, at once and in plain words — and say what else on `main`
+would ship with it. Agents never deploy themselves.
 
 After an S1, also write a todo proposal (first line `Source: hotfix <fix-id>`) for a full
 `/redteam` of the affected area that names this fix record

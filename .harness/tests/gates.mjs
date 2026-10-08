@@ -368,14 +368,27 @@ function recorderRepo(t, { ws = "workspaces/demo" } = {}) {
   const heads = [];
   for (let n = 1; n <= 4; n++) {
     put(repo, `src/v${n}.txt`, `${n}\n`);
-    for (const id of ["correctness", "security"]) put(repo, `${ws}/04-validate/w01-${id}-r${n}.md`, "Verdict: NOT_CLEAR\n");
     git(repo, "add", "-A"); git(repo, "commit", "-qm", `work ${n}`);
     heads.push(git(repo, "rev-parse", "HEAD"));
   }
+  // Each report names the commit it reviewed and is added to git before its round is recorded.
+  for (let n = 1; n <= 4; n++)
+    for (const id of ["correctness", "security"]) put(repo, `${ws}/04-validate/w01-${id}-r${n}.md`, `Verdict: NOT_CLEAR\nCommit: ${heads[n - 1]}\n`);
+  git(repo, "add", "-A");
   // `scope` names the record file (round-<scope>-<n>.json); the recorder counts by scope or branch.
-  const record = (n, verdict, extra = {}, scope = "w01") => {
+  // `evidence` (optional) is cited by every reviewer instead of its own report.
+  const record = (n, verdict, extra = {}, scope = "w01", evidence) => {
     const file = `${ws}/04-validate/round-${scope}-${n}.json`;
-    const reviewers = ["correctness", "security"].map((id) => ({ id, verdict, evidence: `${ws}/04-validate/w01-${id}-r${n}.md` }));
+    const reviewers = ["correctness", "security"].map((id) => ({ id, verdict, evidence: evidence ?? `${ws}/04-validate/w01-${id}-r${n}.md` }));
+    // A report states the verdict recorded for its lens: keep each cited report's `Verdict:` line
+    // in step with the verdict this call records (the rest of the report is left as written).
+    for (const rv of extra.reviewers ?? reviewers) {
+      const p = join(repo, rv.evidence);
+      if (!/^workspaces\/.*\.md$/.test(rv.evidence) || !existsSync(p)) continue;
+      const before = readFileSync(p, "utf8");
+      const after = before.replace(/^Verdict: .*$/m, `Verdict: ${rv.verdict}`);
+      if (after !== before) { writeFileSync(p, after); git(repo, "add", "--", rv.evidence); }
+    }
     put(repo, file, JSON.stringify({ branch: "feat/w01", round: n, head: heads[n - 1], expected_reviewers: ["correctness", "security"],
       reviewers, root_causes: verdict === "NOT_CLEAR" ? [`cause-${n}`] : [], ...extra }));
     return node([join(root, ".harness/bin/record-review-round.mjs"), file], { cwd: repo });
@@ -394,6 +407,8 @@ test("recorder exit codes: refused branch/head is 1, DEBUG_ROUND is 2, VERIFY_CO
   assert.match(offBranch.stderr, /is not a commit on branch other/);
   const first = record(1, "CLEAR");
   assert.equal(first.status, 0, first.stderr);
+  // Round 2 re-reviews the same commit, so its reports name that commit.
+  for (const id of ["correctness", "security"]) put(repo, `workspaces/demo/04-validate/w01-${id}-r2.md`, `Verdict: CLEAR\nCommit: ${heads[0]}\n`);
   const second = record(2, "CLEAR", { head: heads[0] });
   assert.equal(second.status, 0, second.stderr);
   assert.match(second.stdout, /VERIFY_CONVERGENCE_RECEIPT/);
@@ -635,7 +650,7 @@ test("after one CLEAR round the recorder says only a standard-mode wave needs a 
   const first = record(1, "CLEAR");
   assert.equal(first.status, 0, first.stderr);
   assert.match(first.stdout, /Only a standard-mode wave convergence \(\/redteam, scope wNN\) needs this second clean round/);
-  assert.match(first.stdout, /a light-mode wave, a todo checkpoint, a \/fix branch, a planning review, an analysis review or a codify review is done after one complete CLEAR round/);
+  assert.match(first.stdout, /a light-mode wave, a todo checkpoint, a \/fix branch, a planning review, an analysis review, a codify review or a deploy onboarding is done after one complete CLEAR round/);
 });
 
 test("the rebuilt count follows the scope or the branch: a todo branch cut from a wave branch starts at round 1", (t) => {
@@ -828,10 +843,13 @@ function codifyRepo(t) {
   return { dir, log, branch, stageBlob };
 }
 
-test("codify allowlist: allowlisted guide, backlog, appended log rows and evidence may merge without the user", (t) => {
+test("codify allowlist: backlog, appended log rows and evidence may merge without the user; a guide edit may not", (t) => {
   const { dir, log, branch } = codifyRepo(t);
-  const ok = branch("docs/codify-ok", () => {
+  const guide = branch("docs/codify-guide", () => {
     put(dir, ".harness/guides/other.md", "guide, clearer\n");
+  });
+  assert.equal(guide.status, 1, "guides are instruction files, so a guide edit is ask-first");
+  const ok = branch("docs/codify-ok", () => {
     put(dir, ".harness/backlog/harness-02-b.md", "item\n");
     put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-ok | .harness/backlog/harness-02-b.md | awaiting user | PR #7 |\n");
     put(dir, ".harness/reviews/codify-ok-correctness-r1.md", "Verdict: CLEAR\n");
@@ -925,4 +943,279 @@ test("codify allowlist refuses case collisions, excluded guides, renames, deleti
     assert.match(result.stdout, /^FAIL /m, name);
   }
   assert.equal(node([join(root, ".harness/bin/check-codify-allowlist.mjs"), "main"], { cwd: fx.dir }).status, 2, "usage error");
+});
+
+// ---- audit fixes: re-scoped waves, main merged into a wave, light-mode detection, landed content -------
+
+const CHECKER = join(root, ".harness/bin/check-redteam-convergence-receipt.mjs");
+
+// A repository with main's base commit and an open wave branch. `certifier` then records clean
+// review rounds (dispatch rows, reports naming the reviewed commit, round records) and writes
+// the receipt with its journal entry in ONE commit, as /redteam § 4 says.
+function waveRepo(t, { ws = "workspaces/demo", branch = "feat/w01" } = {}) {
+  const dir = tempDir(t, "harness-wave2-");
+  git(dir, "init", "-q", "-b", "main");
+  put(dir, ".gitignore", ".claude/learning/\n");
+  put(dir, `${ws}/04-validate/acceptance-w01.md`, "# Acceptance w01\nw01-01 A1: echo returns its input. Approved by Fixture Owner (synthetic).\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-qm", "plan w01");
+  const base = git(dir, "rev-parse", "HEAD");
+  git(dir, "checkout", "-qb", branch);
+  put(dir, "src/echo.mjs", "export const echo = (v) => v;\n");
+  put(dir, `${ws}/todos/completed/w01-01-echo.md`, "# w01-01\n\n## Verification\n\nBrowser walk: not applicable — command-line fixture.\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-qm", "work");
+  const commit = (msg) => { git(dir, "add", "-A"); git(dir, "commit", "-qm", msg); return git(dir, "rev-parse", "HEAD"); };
+  const check = (...args) => node([CHECKER, "--workspace", resolve(dir, ws), ...args], { cwd: dir });
+  const sweep = () => node([CHECKER, "--sweep", join(dir, "workspaces")], { cwd: dir });
+  return { dir, ws, branch, base, commit, check, sweep, head: () => git(dir, "rev-parse", "HEAD") };
+}
+function certifier(fx, scope, { lenses = ["correctness", "security"] } = {}) {
+  const { dir, ws, branch } = fx;
+  const launches = [], rounds = [];
+  return {
+    round(n, head) {
+      const reviewers = lenses.map((lens) => {
+        const agent = lens === "security" ? "harness-security-reviewer" : "harness-reviewer";
+        const launch_id = `fixture-${scope}-${n}-${lens}`;
+        launches.push({ kind: "launch", launch_id, subagent_type: agent, ts: "2026-10-07T01:00:00Z" });
+        const evidence = `${ws}/04-validate/${scope}-${lens}-r${n}.md`;
+        put(dir, evidence, `Synthetic fixture report.\nVerdict: CLEAR\nCommit: ${head}\n`);
+        return { agent, lens, ran: true, evidence, launch_id };
+      });
+      put(dir, `${ws}/04-validate/round-${scope}-${n}.json`, JSON.stringify({ branch, round: n, head, expected_reviewers: lenses,
+        reviewers: reviewers.map((r) => ({ id: r.lens, verdict: "CLEAR", evidence: r.evidence })), root_causes: [] }));
+      put(dir, `${ws}/04-validate/convergence-${scope}.launches.jsonl`, launches.map((x) => JSON.stringify(x)).join("\n") + "\n");
+      fx.commit(`${scope} round ${n}`);
+      rounds.push({ n, head, clean: true, new_gating_findings: 0, reviewers });
+    },
+    receipt({ wave_base, acceptance = `04-validate/acceptance-${scope}.md`, todos = ["todos/completed/w01-01-echo.md"] }) {
+      const receipt = { ...template(scope), project: "demo", branch, wave_base, verdict_head: rounds.at(-1).head,
+        verdict_at: "2026-10-07T02:00:00Z", todos, acceptance_list: { path: acceptance, ratified_by: "Fixture Owner" },
+        journal: `journal/0001-DECISION-${scope}.md`, rounds };
+      put(dir, `${ws}/${receipt.journal}`, `# ${scope} converged (synthetic fixture)\n`);
+      put(dir, `${ws}/04-validate/convergence-${scope}.json`, JSON.stringify(receipt));
+      fx.commit(`${scope} receipt`);
+      return receipt;
+    },
+  };
+}
+
+test("C1: a re-scoped wave (wNNb) converges and its todos stay CLOSED after the merge, whichever branch carried the new acceptance list", (t) => {
+  for (const planOnMain of [true, false]) {
+    const fx = waveRepo(t);
+    const { dir, ws } = fx;
+    const list = "# Acceptance w01b (re-plan)\nw01-01 A1: echo returns its input. Approved by Fixture Owner (synthetic).\n";
+    if (planOnMain) {
+      // The path todos.md used to give: the re-plan reaches main by its own pull request AND the
+      // same file is committed on the wave branch.
+      git(dir, "checkout", "-q", "-b", "docs/w01b-plan", "main");
+      put(dir, `${ws}/04-validate/acceptance-w01b.md`, list); fx.commit("plan w01b");
+      git(dir, "checkout", "-q", "main"); git(dir, "merge", "--no-ff", "-qm", "merge plan w01b", "docs/w01b-plan");
+      git(dir, "checkout", "-q", fx.branch);
+      put(dir, `${ws}/04-validate/acceptance-w01b.md`, list); fx.commit("acceptance w01b on the wave branch");
+    } else {
+      // The path todos.md gives now: the re-plan branch is cut from the wave branch and merges back into it.
+      git(dir, "checkout", "-q", "-b", "docs/w01b-plan", fx.branch);
+      put(dir, `${ws}/04-validate/acceptance-w01b.md`, list); fx.commit("plan w01b");
+      git(dir, "checkout", "-q", fx.branch); git(dir, "merge", "--no-ff", "-qm", "merge plan w01b", "docs/w01b-plan");
+    }
+    put(dir, "src/more.mjs", "export const more = 1;\n");
+    const head = fx.commit("rest of the wave");
+    const cert = certifier(fx, "w01b");
+    cert.round(1, head); cert.round(2, head);
+    cert.receipt({ wave_base: fx.base });
+    const pre = fx.check("--scope", "w01b");
+    assert.equal(pre.status, 0, `planOnMain=${planOnMain}: ${pre.stdout}`);
+    git(dir, "checkout", "-q", "main"); git(dir, "merge", "--no-ff", "-qm", "merge wave", fx.branch);
+    const sweep = fx.sweep();
+    assert.equal(sweep.status, 0, `planOnMain=${planOnMain}: the sweep stays green after the merge: ${sweep.stdout}`);
+    assert.equal(fx.check("--todo", "w01-01").status, 0);
+  }
+});
+
+test("C1 control: an acceptance list first committed after the reviewed commit is still refused", (t) => {
+  const fx = waveRepo(t);
+  const head = fx.head();
+  const cert = certifier(fx, "w01b");
+  cert.round(1, head); cert.round(2, head);
+  put(fx.dir, `${fx.ws}/04-validate/acceptance-w01b.md`, "# Acceptance w01b\nw01-01 A1. Approved by Fixture Owner.\n");
+  cert.receipt({ wave_base: fx.base });
+  const late = fx.check("--scope", "w01b");
+  assert.equal(late.status, 1, late.stdout);
+  assert.match(late.stdout, /acceptance-list-not-before-verdict/);
+});
+
+test("C2: main merged into an open wave (task-delivery step 7) still certifies, with wave_base the wave's own fork point", (t) => {
+  const fx = waveRepo(t);
+  const { dir } = fx;
+  const cert = certifier(fx, "w01");
+  cert.round(1, fx.head());
+  git(dir, "checkout", "-q", "main");
+  put(dir, "src/fix.mjs", "export const fix = 1;\n"); fx.commit("fix f001");
+  git(dir, "checkout", "-q", fx.branch); git(dir, "merge", "--no-ff", "-qm", "merge main into the wave", "main");
+  const head = fx.head();
+  cert.round(2, head); cert.round(3, head);
+  cert.receipt({ wave_base: fx.base });
+  const ok = fx.check("--scope", "w01");
+  assert.equal(ok.status, 0, ok.stdout);
+  git(dir, "checkout", "-q", "main"); git(dir, "merge", "--no-ff", "-qm", "merge wave", fx.branch);
+  const sweep = fx.sweep();
+  assert.equal(sweep.status, 0, sweep.stdout);
+  // Control: the fork point is a fact, not a choice — the newer merge-base is refused before the merge.
+  const fx2 = waveRepo(t);
+  const c2 = certifier(fx2, "w01");
+  c2.round(1, fx2.head());
+  git(fx2.dir, "checkout", "-q", "main"); put(fx2.dir, "src/fix.mjs", "x\n"); const fixSha = fx2.commit("fix");
+  git(fx2.dir, "checkout", "-q", fx2.branch); git(fx2.dir, "merge", "--no-ff", "-qm", "merge main", "main");
+  const h2 = fx2.head(); c2.round(2, h2); c2.round(3, h2);
+  c2.receipt({ wave_base: fixSha });
+  const wrong = fx2.check("--scope", "w01");
+  assert.equal(wrong.status, 1, wrong.stdout);
+  assert.match(wrong.stdout, /wave-base-mismatch/);
+  assert.ok(wrong.stdout.includes(`(= ${fx2.base};`), `the message prints the full 40-character fork point the receipt needs: ${wrong.stdout}`);
+});
+
+function profileRound(t, profile, scope) {
+  const fx = recorderRepo(t);
+  put(fx.repo, ".harness/guides/project-profile.md", profile);
+  return fx.record(1, "CLEAR", { expected_reviewers: ["correctness"],
+    reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] }, scope);
+}
+
+test("H1 (lifecycle): the shipped standard profile row is not read as light mode", (t) => {
+  const row = readFileSync(join(root, ".harness/guides/project-profile.md"), "utf8").split("\n").find((l) => /`delivery_mode`/.test(l));
+  assert.match(row, /\| `standard` \|/, "the shipped profile is standard");
+  const standard = profileRound(t, `| Key | Value | Notes |\n| --- | --- | --- |\n${row}\n`, "w01");
+  assert.equal(standard.status, 0, `a standard wave round without a security seat is the reviewer's call: ${standard.stdout}${standard.stderr}`);
+});
+
+test("H1 (lifecycle): a re-scoped light-mode wave (wNNb) still needs the security seat", (t) => {
+  const light = "| `delivery_mode` | `light` | `standard` or `light` (task-delivery § Light mode) |\n";
+  for (const scope of ["w01", "w01b", "W01C"]) {
+    const result = profileRound(t, light, scope);
+    assert.equal(result.status, 1, `${scope}: ${result.stdout}`);
+    assert.match(result.stderr, /light-mode wave round always includes a security reviewer/, scope);
+  }
+  // Light mode has no todo checkpoint review, so a wNN-MM scope or a round on the wave branch
+  // counts as a wave round too; a /fix round on its own branch does not.
+  const todo = profileRound(t, light, "w01-02");
+  assert.equal(todo.status, 1, `a wNN-MM scope cannot skip the seat in light mode: ${todo.stdout}`);
+  const fx = recorderRepo(t);
+  put(fx.repo, ".harness/guides/project-profile.md", light);
+  git(fx.repo, "branch", "fix/f001-typo");
+  const fix = fx.record(1, "CLEAR", { branch: "fix/f001-typo", expected_reviewers: ["correctness"],
+    reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] }, "f001");
+  assert.equal(fix.status, 0, `control: a /fix round is not a wave round: ${fix.stderr}`);
+});
+
+test("H1 (security): code committed after the receipt never reaches main green, in --todo, --sweep or a pull request's merge", (t) => {
+  const backdoor = ({ dir }) => { put(dir, "src/backdoor.mjs", "export const b = 1;\n"); git(dir, "add", "-A"); git(dir, "commit", "-qm", "after the receipt"); };
+  const w = wave(t, () => {}, { after: backdoor });
+  assert.equal(w.status, 1, "--scope already refuses it");
+  // At pull-request time CI checks out a merge of main and the branch (not on main yet).
+  git(w.dir, "checkout", "-q", "--detach", "main"); git(w.dir, "merge", "--no-ff", "-qm", "pull request merge", w.branch);
+  const pr = node([CHECKER, "--sweep", join(w.dir, "workspaces")], { cwd: w.dir });
+  assert.equal(pr.status, 1, pr.stdout);
+  assert.match(pr.stdout, /landed-content-not-reviewed/);
+  git(w.dir, "checkout", "-q", "main"); git(w.dir, "merge", "--no-ff", "-qm", "merge wave", w.branch);
+  const todo = w.check("--todo", "w01-01");
+  assert.equal(todo.status, 1, todo.stdout);
+  assert.match(todo.stdout, /landed-content-not-reviewed — .*src\/backdoor\.mjs/);
+  assert.equal(node([CHECKER, "--sweep", join(w.dir, "workspaces")], { cwd: w.dir }).status, 1);
+});
+
+test("H1 (security): a code change made inside the merge commit, or a fast-forward merge, is refused; later work on main is not", (t) => {
+  const evil = wave(t);
+  git(evil.dir, "checkout", "-q", "main"); git(evil.dir, "merge", "--no-ff", "--no-commit", evil.branch);
+  put(evil.dir, "src/echo.mjs", "export const echo = (v) => v + 'x';\n");
+  git(evil.dir, "add", "-A"); git(evil.dir, "commit", "-qm", "merge wave (edited)");
+  const e = evil.check("--todo", "w01-01");
+  assert.equal(e.status, 1, e.stdout);
+  assert.match(e.stdout, /merge-commit-changed-code — .*src\/echo\.mjs/);
+  const ff = wave(t);
+  git(ff.dir, "checkout", "-q", "main"); git(ff.dir, "merge", "-q", "--ff-only", ff.branch);
+  const f = ff.check("--todo", "w01-01");
+  assert.equal(f.status, 1, f.stdout);
+  assert.match(f.stdout, /wave-merge-not-a-merge-commit/);
+  const later = wave(t);
+  git(later.dir, "checkout", "-q", "main"); git(later.dir, "merge", "--no-ff", "-qm", "merge wave", later.branch);
+  put(later.dir, "src/echo.mjs", "export const echo = (v) => v; // fixed later\n"); git(later.dir, "add", "-A"); git(later.dir, "commit", "-qm", "fix f001");
+  const l = later.check("--todo", "w01-01");
+  assert.equal(l.status, 0, `control: main moving on after the merge does not reopen the wave: ${l.stdout}`);
+});
+
+test("M5: a round record of the receipt's branch under another file name, committed after the receipt, reopens the scope in both modes", (t) => {
+  const recheck = ({ dir, ws, head }) => {
+    put(dir, `${ws}/04-validate/round-w01-recheck-3.json`, JSON.stringify({ branch: "feat/w01", round: 3, head, expected_reviewers: ["correctness"],
+      reviewers: [{ id: "correctness", verdict: "NOT_CLEAR", evidence: `${ws}/04-validate/w01-correctness-r2.md` }], root_causes: ["x"] }));
+    git(dir, "add", "-A"); git(dir, "commit", "-qm", "a later re-check");
+  };
+  const w = wave(t, () => {}, { after: recheck });
+  assert.equal(w.status, 1, w.stdout);
+  assert.match(w.stdout, /round-record-after-receipt — .*round-w01-recheck-3\.json/);
+  git(w.dir, "checkout", "-q", "main"); git(w.dir, "merge", "--no-ff", "-qm", "merge wave", w.branch);
+  const todo = w.check("--todo", "w01-01");
+  assert.equal(todo.status, 1, todo.stdout);
+  assert.match(todo.stdout, /round-record-after-receipt — .*round-w01-recheck-3\.json/);
+});
+
+test("M6: instruction files and folders are security surface at any depth and for every agent runtime", () => {
+  for (const path of ["AGENTS.override.md", "GEMINI.md", "CLAUDE.local.md", "apps/web/CLAUDE.local.md", ".cursor/rules/security.md",
+    ".windsurf/rules/x.md", ".clinerules/x.md", ".clinerules", ".cursorrules", ".windsurfrules", "apps/web/.claude/commands/deploy.md",
+    "apps/web/.claude/skills/x/SKILL.md", "apps/api/deploy/runbook.md", "packages/x/.github/workflows/ci.md", "docs/AGENTS.override.md"])
+    assert.equal(isSecuritySurface(path), true, path);
+  for (const path of ["docs/guide.md", "docs/deployment-notes.md", "README.md", "workspaces/demo/specs/overview.md"])
+    assert.equal(isSecuritySurface(path), false, path);
+});
+
+test("M4: a round's evidence must be a git-tracked report in 04-validate/ or .harness/reviews/ that names the reviewed commit", (t) => {
+  for (const [evidence, label] of [[".gitignore", "a repository file that is not a report"], [".git/HEAD", "git's own files"], ["src/v1.txt", "a source file"]]) {
+    const fx = recorderRepo(t);
+    const r = fx.record(1, "CLEAR", {}, "w01", evidence);
+    assert.equal(r.status, 1, `${label}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /must be a saved review report/, label);
+  }
+  const untracked = recorderRepo(t);
+  put(untracked.repo, "workspaces/demo/04-validate/w01-extra-r1.md", `Verdict: CLEAR\nCommit: ${untracked.heads[0]}\n`);
+  const u = untracked.record(1, "CLEAR", {}, "w01", "workspaces/demo/04-validate/w01-extra-r1.md");
+  assert.equal(u.status, 1, u.stdout + u.stderr);
+  assert.match(u.stderr, /not tracked by git/);
+  const noSha = recorderRepo(t);
+  put(noSha.repo, "workspaces/demo/04-validate/w01-correctness-r1.md", "Verdict: CLEAR\n"); git(noSha.repo, "add", "-A");
+  const n = noSha.record(1, "CLEAR");
+  assert.equal(n.status, 1, n.stdout + n.stderr);
+  assert.match(n.stderr, /does not name the reviewed commit/);
+  const reviews = recorderRepo(t);
+  put(reviews.repo, ".harness/reviews/codify-x-correctness-r1.md", `Verdict: CLEAR\nCommit: ${reviews.heads[0].slice(0, 12)}\n`); git(reviews.repo, "add", "-A");
+  const ok = reviews.record(1, "CLEAR", { expected_reviewers: ["correctness"], reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: ".harness/reviews/codify-x-correctness-r1.md" }] }, "codify-x");
+  assert.equal(ok.status, 0, `control: a tracked .harness/reviews/ report naming the commit by a 12-character prefix: ${ok.stderr}`);
+});
+
+test("L1: the sweep never silently skips a completed todo", (t) => {
+  const fx = waveRepo(t);
+  const { dir, ws } = fx;
+  const cert = certifier(fx, "w01");
+  const head = fx.head();
+  cert.round(1, head); cert.round(2, head);
+  cert.receipt({ wave_base: fx.base });
+  git(dir, "checkout", "-q", "main"); git(dir, "merge", "--no-ff", "-qm", "merge wave", fx.branch);
+  const control = fx.sweep();
+  assert.equal(control.status, 0, `control: the honest wave sweeps green: ${control.stdout}`);
+  for (const [label, setup, expected] of [
+    ["upper-case extension", () => put(dir, `${ws}/todos/completed/w01-02-x.MD`, "# w01-02\n"), /w01-02-x\.MD/],
+    ["nested folder", () => put(dir, `${ws}/todos/completed/old/w01-03-x.md`, "# w01-03\n"), /old\/w01-03-x\.md/],
+    ["symlinked workspace", () => { const other = tempDir(t, "harness-ws-outside-"); put(other, "todos/completed/w09-01-x.md", "# w09-01\n"); symlinkSync(other, join(dir, "workspaces/linked")); }, /linked/],
+  ]) {
+    setup();
+    const s = fx.sweep();
+    assert.equal(s.status, 1, `${label}: ${s.stdout}`);
+    assert.match(s.stdout, expected, label);
+    rmSync(join(dir, `${ws}/todos/completed/w01-02-x.MD`), { force: true });
+    rmSync(join(dir, `${ws}/todos/completed/old`), { recursive: true, force: true });
+    rmSync(join(dir, "workspaces/linked"), { force: true });
+  }
+  // An excluded folder is not swept, but completed todos inside it are not hidden either.
+  put(dir, "workspaces/_archive/todos/completed/w01-01-old.md", "# old\n");
+  const archived = fx.sweep();
+  assert.equal(archived.status, 1, archived.stdout);
+  assert.match(archived.stdout, /FAIL _archive\/: excluded-folder-holds-todos — 1 completed todo file\(s\)/);
 });

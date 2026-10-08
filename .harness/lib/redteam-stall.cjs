@@ -122,7 +122,7 @@ function describeNext({ action, cleanRounds, head, streakReset, capReached, revi
     const cap = capReached
       ? ` The ${TOTAL_ROUND_CAP}-round cap is reached: a same-head confirmation is the ONLY ordinary round left; if the head moves, the next round needs the branch's debug round${debugRound == null ? "" : " (already used)"} or a named human's escalation_accepts.`
       : "";
-    return `NEXT: dispatch round N+1 with head ${shortHead} UNCHANGED — the reviewers check out that same commit. A change to the reviewed code (a new head) resets cleanRounds to 0; committing this round's record, reports and ledger rows does not, as long as head stays ${shortHead}. Currently cleanRounds ${cleanRounds}/2. Only a standard-mode wave convergence (/redteam, scope wNN) needs this second clean round: a light-mode wave, a todo checkpoint, a /fix branch, a planning review, an analysis review or a codify review is done after one complete CLEAR round, so do not dispatch it there.${warning}${cap}`;
+    return `NEXT: dispatch round N+1 with head ${shortHead} UNCHANGED — the reviewers check out that same commit. A change to the reviewed code (a new head) resets cleanRounds to 0; committing this round's record, reports and ledger rows does not, as long as head stays ${shortHead}. Currently cleanRounds ${cleanRounds}/2. Only a standard-mode wave convergence (/redteam, scope wNN) needs this second clean round: a light-mode wave, a todo checkpoint, a /fix branch, a planning review, an analysis review, a codify review or a deploy onboarding is done after one complete CLEAR round, so do not dispatch it there.${warning}${cap}`;
   }
   return `NEXT: repair the findings, then dispatch a fresh round against the new head. Currently cleanRounds ${cleanRounds}/2 (it stays at 0 until two consecutive clean rounds share one unchanged head).`;
 }
@@ -368,6 +368,59 @@ function assertBranchAndHead(round, cwd) {
   catch { throw new Error(`head ${round.head} is not a commit on branch ${round.branch}`); }
 }
 
+// A NEW round's evidence is a saved review report, not any file in the checkout: it lives in a
+// workspace's `04-validate/` or in `.harness/reviews/` (directly, no subfolder), is tracked by git
+// (`git add` it before recording; committing it with the round record is enough afterwards), and
+// names the reviewed commit — the full head SHA or at least its first 12 characters. Single-CLEAR
+// gates (a light-mode wave, a todo checkpoint, /fix, planning, analysis, codify) have no
+// convergence receipt behind them, so this is where a report that never existed is caught.
+// Records already committed are replayed as written (rebuildFromHistory), never re-judged.
+// Each lens cites its OWN report (two lenses never share one file), a round record
+// (`round-*.json`) is never a report, and the report states its verdict on a `Verdict:` line
+// that agrees with the verdict recorded for that lens.
+const REPORT_PATH_RE = /^(?:workspaces\/[^/]+\/04-validate|\.harness\/reviews)\/[^/]+$/;
+const ROUND_RECORD_NAME_RE = /^round-.*\.json$/i;
+// A `Verdict:` line, plain or decorated (`**Verdict:** CLEAR`, `- Verdict: NOT_CLEAR`). Every such
+// line is read; the report's verdict is the set of values they state.
+const VERDICT_LINE_RE = /^[\s>*_#-]*verdict[\s*_]*:[\s*_`]*(not[_ -]clear|clear|error)\b/gim;
+/** null when `text` states exactly `verdict`; otherwise a short reason. */
+function reportVerdictProblem(text, verdict) {
+  const stated = [...String(text).matchAll(VERDICT_LINE_RE)].map((m) => m[1].toUpperCase().replace(/[ -]/, "_"));
+  if (!stated.length) return "does not state its verdict (a line `Verdict: CLEAR`, `Verdict: NOT_CLEAR`, or `Verdict: ERROR` for a failed dispatch)";
+  const other = stated.find((v) => v !== verdict);
+  return other ? `says ${other}, but the round records ${verdict}` : null;
+}
+function assertReviewReports(round, checkoutRoot) {
+  const short = round.head.slice(0, 12).toLowerCase();
+  const citedBy = new Map();
+  for (const r of round.reviewers) {
+    const cited = r.evidence;
+    if (!REPORT_PATH_RE.test(cited)) {
+      throw new Error(`Evidence for ${r.id} must be a saved review report directly under workspaces/<project>/04-validate/ or .harness/reviews/, not ${cited}`);
+    }
+    if (ROUND_RECORD_NAME_RE.test(path.posix.basename(cited))) {
+      throw new Error(`Evidence for ${r.id} (${cited}): a round record is not a review report; cite the reviewer's own saved report`);
+    }
+    const key = cited.toLowerCase();
+    if (citedBy.has(key)) {
+      throw new Error(`Evidence for ${r.id} and ${citedBy.get(key)} cite the same report (${cited}); each lens saves its own report`);
+    }
+    citedBy.set(key, r.id);
+    try {
+      execFileSync("git", ["-c", "core.quotePath=false", "ls-files", "--error-unmatch", "--", cited],
+        { cwd: checkoutRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch {
+      throw new Error(`Evidence for ${r.id} (${cited}) is not tracked by git; git add the saved report, then record the round`);
+    }
+    const raw = fs.readFileSync(path.join(checkoutRoot, cited), "utf8");
+    if (!raw.toLowerCase().includes(short)) {
+      throw new Error(`Evidence for ${r.id} (${cited}) does not name the reviewed commit ${round.head.slice(0, 12)}; a report states the commit it reviewed (its full SHA or at least the first 12 characters)`);
+    }
+    const problem = reportVerdictProblem(raw, r.verdict);
+    if (problem) throw new Error(`Evidence for ${r.id} (${cited}) ${problem}; the report and the round record must agree`);
+  }
+}
+
 function canonicalizeRound(round, ctx) {
   const reviewers = round.reviewers.map((r) => ({ ...r, evidence: resolveCitation(r.evidence, ctx) }));
   const replan = round.replan === undefined ? undefined : resolveCitation(round.replan, ctx);
@@ -509,6 +562,7 @@ function recordRound(repoDir, input, options = {}) {
   const normalized = normalizeRound(input);
   assertBranchAndHead(normalized, options.cwd || options.roundDir || repoDir);
   const round = canonicalizeRound(normalized, ctx);
+  assertReviewReports(round, ctx.checkoutRoot);
   // The CLI/lead is the normal writer. The lock also prevents lost updates if two
   // leads overlap. Busy and stale locks are LOUD, never resets. Containment is checked
   // BEFORE the directory is created, so a symlinked `.claude` never gets a directory
@@ -540,4 +594,4 @@ function recordRound(repoDir, input, options = {}) {
 }
 
 module.exports = { FIRING_THRESHOLD, TOTAL_ROUND_CAP, ERROR_RERUN_LIMIT, normalizeRound, advanceRound, readState, writeState,
-  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath };
+  recordRound, findCheckoutRoot, resolveCitation, scopeOfRecordPath, reportVerdictProblem };

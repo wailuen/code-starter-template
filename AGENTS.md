@@ -4,13 +4,16 @@
 
 This repository uses a shared delivery harness that Claude Code and Codex both follow.
 
-First time in this repository with Codex: if `.agents/skills/` or `.codex/agents/` is missing,
+First time in this checkout with Codex: if `.agents/skills/` or `.codex/agents/` is missing,
 run `node .harness/bin/check-adapters.mjs --write --codex` (Node.js 22+) and start a new Codex
-session; it generates the `$analyze` … `$learn` skills and the `harness-*` agents.
+session; it generates the `$analyze` … `$learn` skills and the `harness-*` agents. Both
+directories are generated and git-ignored, never committed, so every fresh clone and every new
+worktree runs this once.
 
 1. Read `.harness/adapters/codex.md` first: how harness skills, subagents and Claude-only
    commands map to Codex, and its § Known limitations (a Codex client without native custom
-   agents cannot pass `/redteam`'s security-reviewer gate; run that review from Claude Code).
+   agents cannot pass standard mode's `/redteam` security-reviewer gate, so run that review from
+   Claude Code; light mode is not blocked; read-only reviewer roles are not enforced by Codex).
 2. Read and follow every `.harness/rules/*.md` and every `.claude/rules/*.md`. Codex does not
    load these automatically; they apply to every task. A `.claude/rules/` file that only
    points at `.harness/rules/<name>.md` means "follow that file".
@@ -21,7 +24,7 @@ session; it generates the `$analyze` … `$learn` skills and the `harness-*` age
    `.harness/guides/task-delivery.md` for workspace paths, branches and review rounds.
 
 Phase skills, in order: `$analyze` → `$prototype` → `$todos` → `$implement` → `$redteam` → `$codify`, with
-`$prototype` skipped for a product with no screens, `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
+`$prototype` only recording `prototype/00-no-screens.md` for a product with no screens, `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
 `$codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs).
 Helpers are plain instruction files: to deploy, follow `.claude/commands/deploy.md`; to end a
 session, follow `.claude/commands/wrapup.md`; for a new user, `.claude/commands/start.md`.
