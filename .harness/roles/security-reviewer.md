@@ -129,6 +129,12 @@ Verdict: CLEAR | NOT_CLEAR
 With no findings, write `None` under `### Findings`. The report is committed as evidence, so
 never quote a secret value: cite the file and line, kind, length and first four characters.
 
+In a public repository, a report with any finding is not committed in full
+(`.claude/rules/security.md` § Public Repositories — Security Findings Stay Private): return the
+full report to the orchestrator, which files it in the private advisory or tracker; the
+committed file keeps only the header line, `Verdict:`, the private reference id and each
+finding's category and severity. Use generic root-cause keys (`security-finding-1`) there.
+
 `Verdict: CLEAR` means no BUG and no INVEST-NOW finding. Severity ranks; category gates
 (`.harness/rules/product-completion-first.md`) — a LOW-severity BUG still makes the verdict
 NOT_CLEAR. If a check you needed could not run, say so; never return CLEAR for it.

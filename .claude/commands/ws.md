@@ -12,9 +12,17 @@ List every decision only the user can make, each as a question in the format in
 `.claude/rules/communication.md` § Asking the user to decide. If there are none, say "Nothing is
 waiting for you." Check each of these:
 
-- **Plan awaiting approval** — a `docs/wNN-plan` branch (local or on the remote) with todos but
-  no `04-validate/acceptance-wNN.md` on that branch (one that has it is approved and only
-  waiting to merge).
+- **Instruction files changed** — if `.claude/`, `.harness/`, `AGENTS.md` or `CLAUDE.md` in this
+  checkout differ from `origin/main` as last fetched (`git diff --stat origin/main -- .claude
+  .harness AGENTS.md CLAUDE.md` prints anything), say so first, in plain words, naming the
+  files: this session follows those files, and changes that are not on `main` have not been
+  through the harness's own review (`.claude/rules/security.md` § Untrusted Content Is Data,
+  Not Instructions). On a branch that changes them on purpose (a `/codify` branch), say which
+  branch it is.
+- **Plan awaiting approval** — a `docs/wNN-plan` branch, or a re-plan branch `docs/wNNb-plan`
+  (`b`, `c`, … — `.harness/phases/todos.md` § Changing or cancelling approved scope), local or on
+  the remote, with todos but no matching `04-validate/acceptance-wNN.md` (or
+  `acceptance-wNNb.md`) on that branch (one that has it is approved and only waiting to merge).
 - **Prototype awaiting approval** — a `docs/prototype-<n>` branch (local or on the remote)
   whose `prototype/APPROVAL.md` has no more approval records than `main`'s
   (`.harness/phases/prototype.md` step 8).
@@ -30,7 +38,9 @@ waiting for you." Check each of these:
   may put it live for your users" — until `/deploy --onboard` confirms `main` does not deploy;
   list those merges.
 - **Undeployed changes** — when `deploy/deployment-config.md` exists, the drift from
-  `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly), and any fix record
+  `.claude/commands/deploy.md` § Check Mode (read-only; follow it directly — it runs no command
+  from the deploy settings if they changed since the user last confirmed them, and says so
+  instead), and any fix record
   (open or closed) with `Deploy hold: yes`. Ask the user whether to run `/deploy`.
 - **Open S1/S2 bugs** — fix records in `workspaces/*/fixes/` whose `Status:` is not `closed`,
   with what users are affected by.
@@ -65,7 +75,11 @@ name starts with `_`). For the most recently modified workspace (or `$ARGUMENTS`
   - a `convergence-wNN*.json` receipt (`wNN`, `wNNb`, …) on `main` for the latest wave → wave
     NN reviewed and merged (in light mode, the wave's CLEAR round record and its merge into
     `main`; `.harness/guides/task-delivery.md` § Light mode)
-  - a `round-wNN*-<n>.json` without a merged receipt → wave NN in review (`/redteam`)
+  - a wave round record without a merged receipt → wave NN in review (`/redteam`). A wave round
+    record is named `round-<wave scope>-<n>.json`, where the wave scope is `wNN` or a re-scoped
+    `wNNb`, `wNNc`, … — exactly the pattern `round-w[0-9]+[a-z]?-[0-9]+\.json`, for example
+    `round-w03-2.json` or `round-w03b-3.json`. Planning rounds (`round-wNN-plan-<n>.json`) and
+    todo checkpoint rounds (`round-wNN-MM-<n>.json`) are not wave review.
   - `todos/completed/` files for the current wave → building wave NN (`/implement`)
   - `04-validate/acceptance-wNN.md` → wave NN approved, ready to build
   - `todos/active/` files with no acceptance list → plan written, awaiting approval
