@@ -380,6 +380,15 @@ function recorderRepo(t, { ws = "workspaces/demo" } = {}) {
   const record = (n, verdict, extra = {}, scope = "w01", evidence) => {
     const file = `${ws}/04-validate/round-${scope}-${n}.json`;
     const reviewers = ["correctness", "security"].map((id) => ({ id, verdict, evidence: evidence ?? `${ws}/04-validate/w01-${id}-r${n}.md` }));
+    // A report states the verdict recorded for its lens: keep each cited report's `Verdict:` line
+    // in step with the verdict this call records (the rest of the report is left as written).
+    for (const rv of extra.reviewers ?? reviewers) {
+      const p = join(repo, rv.evidence);
+      if (!/^workspaces\/.*\.md$/.test(rv.evidence) || !existsSync(p)) continue;
+      const before = readFileSync(p, "utf8");
+      const after = before.replace(/^Verdict: .*$/m, `Verdict: ${rv.verdict}`);
+      if (after !== before) { writeFileSync(p, after); git(repo, "add", "--", rv.evidence); }
+    }
     put(repo, file, JSON.stringify({ branch: "feat/w01", round: n, head: heads[n - 1], expected_reviewers: ["correctness", "security"],
       reviewers, root_causes: verdict === "NOT_CLEAR" ? [`cause-${n}`] : [], ...extra }));
     return node([join(root, ".harness/bin/record-review-round.mjs"), file], { cwd: repo });
@@ -1062,6 +1071,7 @@ test("C2: main merged into an open wave (task-delivery step 7) still certifies, 
   const wrong = fx2.check("--scope", "w01");
   assert.equal(wrong.status, 1, wrong.stdout);
   assert.match(wrong.stdout, /wave-base-mismatch/);
+  assert.ok(wrong.stdout.includes(`(= ${fx2.base};`), `the message prints the full 40-character fork point the receipt needs: ${wrong.stdout}`);
 });
 
 function profileRound(t, profile, scope) {
@@ -1085,8 +1095,16 @@ test("H1 (lifecycle): a re-scoped light-mode wave (wNNb) still needs the securit
     assert.equal(result.status, 1, `${scope}: ${result.stdout}`);
     assert.match(result.stderr, /light-mode wave round always includes a security reviewer/, scope);
   }
+  // Light mode has no todo checkpoint review, so a wNN-MM scope or a round on the wave branch
+  // counts as a wave round too; a /fix round on its own branch does not.
   const todo = profileRound(t, light, "w01-02");
-  assert.equal(todo.status, 0, `control: a todo checkpoint scope is not a wave round: ${todo.stderr}`);
+  assert.equal(todo.status, 1, `a wNN-MM scope cannot skip the seat in light mode: ${todo.stdout}`);
+  const fx = recorderRepo(t);
+  put(fx.repo, ".harness/guides/project-profile.md", light);
+  git(fx.repo, "branch", "fix/f001-typo");
+  const fix = fx.record(1, "CLEAR", { branch: "fix/f001-typo", expected_reviewers: ["correctness"],
+    reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] }, "f001");
+  assert.equal(fix.status, 0, `control: a /fix round is not a wave round: ${fix.stderr}`);
 });
 
 test("H1 (security): code committed after the receipt never reaches main green, in --todo, --sweep or a pull request's merge", (t) => {
@@ -1195,8 +1213,9 @@ test("L1: the sweep never silently skips a completed todo", (t) => {
     rmSync(join(dir, `${ws}/todos/completed/old`), { recursive: true, force: true });
     rmSync(join(dir, "workspaces/linked"), { force: true });
   }
+  // An excluded folder is not swept, but completed todos inside it are not hidden either.
   put(dir, "workspaces/_archive/todos/completed/w01-01-old.md", "# old\n");
   const archived = fx.sweep();
-  assert.equal(archived.status, 0, archived.stdout);
-  assert.match(archived.stdout, /skip _archive\/: not swept \(underscore-prefixed\); 1 completed todo file\(s\) inside are not checked/);
+  assert.equal(archived.status, 1, archived.stdout);
+  assert.match(archived.stdout, /FAIL _archive\/: excluded-folder-holds-todos — 1 completed todo file\(s\)/);
 });

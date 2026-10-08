@@ -97,16 +97,19 @@ Save each report verbatim, with secret values redacted (task-delivery § Review 
 circuit breaker), at `workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` and
 write `workspaces/<project>/04-validate/round-<scope>-<n>.json` in the format in
 task-delivery § Review protocol and circuit breaker, with one verdict and a
-repository-root-relative evidence path per expected reviewer. Each report states the commit it
-reviewed (the full head SHA, or at least its first 12 characters). `git add` the reports, then
-run:
+repository-root-relative evidence path per expected reviewer. Each lens has its own report;
+each report states the commit it reviewed (the full head SHA, or at least its first 12
+characters) and its verdict on a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR`
+for an errored dispatch) that matches the round file. `git add` the reports, then run:
 
 `node .harness/bin/record-review-round.mjs <round.json>`
 
-then commit the round file and its reports; the receipt is checked against them. The recorder
-refuses evidence that is not a git-tracked report directly under `04-validate/` (or
-`.harness/reviews/` for codify) naming the reviewed commit
-(`.harness/guides/review-round-recorder.md`).
+then commit the round file and its reports in the same commit; the receipt is checked against
+them, and the convergence checker refuses a report that was not already in the commit that
+added its round file. The recorder refuses evidence that is not a git-tracked report directly
+under `04-validate/` (or `.harness/reviews/` for codify) naming the reviewed commit, a report
+whose `Verdict:` line disagrees with the round file, one report cited by two lenses, and a
+round file cited as a report (`.harness/guides/review-round-recorder.md`).
 
 Only complete rounds count. One lens's CLEAR cannot clear another lens's failure.
 Duplicate delivery cannot add a round. ERROR is never clean. The branch gets three rounds,

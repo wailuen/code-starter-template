@@ -16,13 +16,26 @@ a decision record; a debug round reusing a spent lens; a person-only acceptor th
 honest mistake (an agent, model, role or placeholder name — `.harness/rules/completion-criterion.md`
 MUST-1); and evidence that is not a saved review report. Each reviewer's `evidence` in a NEW
 round must be a file directly under `workspaces/<project>/04-validate/` or `.harness/reviews/`,
-tracked by git (`git add` it before recording; it is committed with the round record), whose
-text names the reviewed commit — the full `head` SHA or at least its first 12 characters
+tracked by git (`git add` it before recording), whose text names the reviewed commit — the
+full `head` SHA or at least its first 12 characters — and states its verdict on a `Verdict:`
+line (`Verdict: CLEAR`, `Verdict: NOT_CLEAR`, `Verdict: ERROR`; bold or list markers allowed)
+that matches the verdict recorded for that lens; every `Verdict:` line in the report must agree.
+Each lens cites its own report, and a round record (`round-*.json`) is never a report
 ("Evidence for <lens> … must be a saved review report …", "… is not tracked by git …", "… does
-not name the reviewed commit …"). Records already committed are replayed as written. A
-light-mode wave round (scope `wNN` or a re-scoped `wNNb`, `wNNc`, …; light mode read from the
-value cell of the profile's `delivery_mode` row, or the value after `delivery_mode:`) without a
-`security` or `security-debug` lens is refused. When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
+not name the reviewed commit …", "… does not state its verdict …", "… says <X>, but the round
+records <Y> …", "… cite the same report …", "… a round record is not a review report …").
+Commit each report in the same commit as its round record (or before it): the convergence
+checker refuses a report that was not in the commit that first added the round record
+(`reviewer-evidence-not-with-record`), and re-checks each report's `Verdict:` line against the
+record (`reviewer-evidence-verdict-mismatch`). Records already committed are replayed as
+written. Light mode is read from the value cell of the profile's `delivery_mode` row, or the
+value after a line-leading `delivery_mode:` / `Delivery mode =`; quotes, backticks, emphasis, a
+trailing `# comment` or `(note)` and a trailing word "mode" are ignored, letter case too, and
+any value that is then not exactly `standard` or `light` is an error (exit 1) rather than a
+silent standard. In light mode, a wave round without a `security` or `security-debug` lens is
+refused; a wave round is any round on a `feat/wNN-…` or `fix/wNN-…` branch, or under a scope
+starting with `w` or `wave` and a number (`w01`, `w01b`, `wave1`, `w01-final`). Light mode has no
+todo checkpoint review, so todo branches count too. When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
 every round record ever added in the branch's history or on the local `main` (where a merged
 record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and
@@ -52,8 +65,12 @@ What it does not detect:
   `/fix`, planning, analysis, codify, deploy onboarding) is the reviewed head plus bookkeeping. Only a
   standard-mode wave has that check (the convergence checker's `--todo` / `--sweep`); for the
   others it rests on the merge procedure and review.
-- A wave scope is recognised only as `w<digits>` with an optional letter; a wave reviewed under
-  another scope name (`wave1`) escapes the light-mode security-seat check.
+- A light-mode wave reviewed under a scope that does not start with `w`/`wave` and a number, on
+  a branch not named `feat/wNN-…` or `fix/wNN-…`, escapes the security-seat check; the branch
+  table in task-delivery names every wave branch that way, so review catches a branch that is not.
+- The recorder confirms a cited report is in git's index when the round is recorded, not that it
+  stays there; a report removed before the commit is caught only by the convergence checker,
+  which a standard-mode wave runs. Single-CLEAR gates rest on the merge procedure and review.
 - The branch check compares against `refs/heads`, not the invoking checkout's `HEAD`,
   because the CLI may legitimately run from the main checkout for a worktree branch.
 - A record named `__proto__` relies on null-prototype maps and `Object.hasOwn`; that

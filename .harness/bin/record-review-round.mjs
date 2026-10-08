@@ -77,10 +77,14 @@ function committedRoundRecords(cwd, roundFile) {
 
 // The profile's delivery mode, read from its VALUE only — never from the explanation beside it
 // (the shipped row is "| `delivery_mode` | `standard` | `standard` or `light` (… § Light mode) |").
-// A table row's value is the cell after the key cell; any other line names the key and then a
-// colon (`delivery_mode: light`, `- Delivery mode: **light**`). Light when ANY such value says
-// light, so a second, contradicting line fails safe towards the stricter rule.
-function lightMode(profile) {
+// A table row's value is the cell after the key cell; any other line starts with the key and
+// then a colon or an equals sign (`delivery_mode: light`, `- **Delivery mode:** light`,
+// `Delivery mode = light`). Each value is normalised — quotes, backticks and emphasis removed, a
+// trailing `# comment` or `(note)` dropped, a trailing word "mode" dropped, letter case ignored —
+// and must then be exactly `standard` or `light`; anything else is an error, so a value the
+// recorder cannot read never silently means standard. Light when ANY value says light, so a
+// second, contradicting line fails safe towards the stricter rule. No such line: standard.
+function deliveryMode(profile) {
   const KEY = /^[\s`*_]*delivery[_ -]?mode[\s`*_]*$/i;
   const values = [];
   for (const line of profile.split("\n")) {
@@ -88,14 +92,34 @@ function lightMode(profile) {
     if (/^\s*\|/.test(line)) {
       const cells = line.trim().replace(/^\||\|$/g, "").split("|");
       const at = cells.findIndex((cell) => KEY.test(cell));
-      if (at >= 0 && at + 1 < cells.length) values.push(cells[at + 1]);
+      if (at >= 0) values.push(at + 1 < cells.length ? cells[at + 1] : "");
     } else {
-      const m = line.match(/delivery[_ -]?mode[`*_\s]*:(.*)$/i);
+      const m = line.match(/^\s*(?:[-*+>]\s+)?[`*_]*delivery[_ -]?mode[`*_\s]*[:=](.*)$/i);
       if (m) values.push(m[1]);
     }
   }
-  return values.some((v) => /^light$/i.test(v.replace(/[`*_\s]/g, "")));
+  const modes = values.map((raw) => {
+    const v = raw
+      .replace(/(?:^|\s)#.*$/, "")
+      .replace(/\(.*$/, "")
+      .replace(/[`*_"']/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+mode$/, "");
+    if (v !== "standard" && v !== "light")
+      throw new Error(`delivery_mode in .harness/guides/project-profile.md reads ${JSON.stringify(raw.trim())}; it must be exactly "standard" or "light" — fix the profile, then record the round`);
+    return v;
+  });
+  return modes.includes("light") ? "light" : "standard";
 }
+
+// A wave round, for the light-mode security seat: a scope that names a wave (`wNN`, `wNNb`,
+// `wave1`, `w01-final`, any letter case — anything starting with `w` or `wave` and a number), or
+// any round on a wave or todo branch (`feat/wNN-…`, `fix/wNN-…`). Light mode has no todo
+// checkpoint reviews, so counting those branches too costs nothing and leaves no name to escape by.
+const WAVE_SCOPE_RE = /^w(?:ave)?[-_]?\d/i;
+const WAVE_BRANCH_RE = /^(?:feat|fix)\/w(?:ave)?[-_]?\d/i;
+const isWaveRound = (scope, branch) => (!!scope && WAVE_SCOPE_RE.test(scope)) || WAVE_BRANCH_RE.test(branch);
 
 try {
   if (process.argv.length !== 3) throw new Error("Usage: record-review-round.mjs <round.json>");
@@ -106,15 +130,13 @@ try {
   const cwd = process.cwd();
   // Light mode drops the convergence receipt, which is where the security seat was enforced, so
   // the recorder enforces it here: a light-mode wave round always includes a security lens
-  // (`security` or `security-debug`). A wave scope is `wNN`, or a re-scoped `wNNb`, `wNNc`, ...
-  // (`.harness/phases/todos.md` § Changing or cancelling approved scope).
+  // (`security` or `security-debug`). What counts as a wave round: isWaveRound above.
   const scope = scopeOfRecordPath(basename(file));
-  if (scope && /^w\d+[a-z]?$/i.test(scope)) {
-    let profile = "";
-    try { profile = readFileSync(join(target.repoDir, ".harness/guides/project-profile.md"), "utf8"); } catch { /* no profile: standard */ }
-    if (lightMode(profile) && !round.expected_reviewers.some((id) => /^security(?:-debug)?$/.test(id)))
-      throw new Error(`round ${round.round} of light-mode wave ${scope} refused: a light-mode wave round always includes a security reviewer (expected_reviewers needs "security", or "security-debug" in a debug round)`);
-  }
+  let profile = "";
+  try { profile = readFileSync(join(target.repoDir, ".harness/guides/project-profile.md"), "utf8"); } catch { /* no profile: standard */ }
+  const mode = deliveryMode(profile);
+  if (mode === "light" && isWaveRound(scope, round.branch) && !round.expected_reviewers.some((id) => /^security(?:-debug)?$/.test(id)))
+    throw new Error(`round ${round.round} of ${scope ?? "this round"} on ${round.branch} refused: a light-mode wave round always includes a security reviewer (expected_reviewers needs "security", or "security-debug" in a debug round); every round on a feat/wNN-… or fix/wNN-… branch, and every scope starting with w or wave and a number, is a wave round here`);
   const outcome = recordRound(target.repoDir, round, { roundDir: dirname(file), cwd, legacySeed: legacySeedFrom(file, round, cwd),
     history: committedRoundRecords(cwd, file), scope: scopeOfRecordPath(basename(file)) });
   console.log(JSON.stringify({ branch: round.branch, round: round.round, ...outcome }));
