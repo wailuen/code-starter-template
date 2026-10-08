@@ -41,7 +41,8 @@ Use the stack specialists (backend, frontend) for implementation todos in their 
 `tdd-implementer` for work that fits neither. A project with a distinct specialty (a mobile
 client, a data pipeline, an AI/model layer) adds its own agent file in the same thin shape —
 frontmatter plus a pointer to `.harness/roles/implementer.md` and the project-specific context
-it must read — and a row in the table above.
+it must read — and a row in the table above. If the project also uses Codex, it adds the
+matching `codex.agents` entry too (`.harness/adapters/codex.md` § Project additions).
 
 Where a phase or role brief calls for an agent that doesn't exist (`.harness/phases/analyze.md`
 names a possible future `value-auditor`, for instance), use the closest agent above instead —
