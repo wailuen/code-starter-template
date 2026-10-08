@@ -448,11 +448,12 @@ function scopeOfRecordPath(p) {
 // The state file is gitignored and local to one checkout. When it holds nothing for this
 // branch (deleted, a fresh clone, another machine), the count is rebuilt by replaying, in
 // round order, the committed round records that belong to this review: a record whose file
-// names the SAME SCOPE, or whose `branch` is THIS BRANCH. So a branch renamed or re-cut for the
-// same scope keeps its count, while a todo branch cut from a wave branch does not inherit the
-// wave's rounds. `history` is a list of {path, commit, text}: every record ever added in the
-// branch's history, as first committed (the CLI collects it), so deleting or editing a record
-// later changes nothing.
+// names the SAME SCOPE, or whose `branch` is THIS BRANCH. So a branch renamed with its history
+// keeps its count, while a todo branch cut from a wave branch does not inherit the wave's
+// rounds; a new branch cut from `main` sees only rounds already merged there. `history` is a list
+// of {path, commit, text}: every record ever added in the branch's history or on the local
+// `main`, in the same folder as the round, as first committed (the CLI collects it), so deleting
+// or editing a record later changes nothing.
 //
 // What this does NOT do: the budget is an aid against endless review loops, not a security
 // control. Rewriting local history (a reset, a new branch from `main` under a new scope name)

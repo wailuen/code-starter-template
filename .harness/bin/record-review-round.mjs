@@ -47,8 +47,10 @@ const ROUND_RECORD_RE = /(?:^|\/)(?:04-validate|\.harness\/reviews)\/round-[^/]+
 function committedRoundRecords(cwd, roundFile) {
   // Only records in the same folder as the round being recorded count: two projects in one
   // repository (workspaces/alpha, workspaces/beta) may use the same scope names.
+  // realpathSync.native returns the on-disk spelling, so a path typed with other capitals on a
+  // case-insensitive disk still names the same folder.
   const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
-  const sameDir = relative(realpathSync(top), realpathSync(dirname(roundFile))).split(sep).join("/");
+  const sameDir = relative(realpathSync.native(top), realpathSync.native(dirname(roundFile))).split(sep).join("/");
   return (branch) => {
     const git = (args) => execFileSync("git", ["-c", "core.quotePath=false", ...args],
       { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
@@ -87,7 +89,10 @@ try {
   if (scope && /^w\d+$/i.test(scope)) {
     let profile = "";
     try { profile = readFileSync(join(target.repoDir, ".harness/guides/project-profile.md"), "utf8"); } catch { /* no profile: standard */ }
-    const light = /\|\s*`delivery_mode`\s*\|\s*`?light`?\s*\|/i.test(profile);
+    // Light unless the profile clearly says standard: any delivery_mode line that mentions
+    // "light" (table row, `delivery_mode: light`, any spelling) counts.
+    const modeLines = profile.split("\n").filter((l) => /delivery[_ -]?mode/i.test(l));
+    const light = modeLines.some((l) => /\blight\b/i.test(l.replace(/`?standard`?\s+or\s+`?light`?/ig, "")));
     if (light && !round.expected_reviewers.some((id) => /^security(?:-debug)?$/.test(id)))
       throw new Error(`round ${round.round} of light-mode wave ${scope} refused: a light-mode wave round always includes a security reviewer (expected_reviewers needs "security", or "security-debug" in a debug round)`);
   }

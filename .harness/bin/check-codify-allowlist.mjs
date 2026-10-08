@@ -44,7 +44,10 @@ const USER_ANSWER_RE =
 // An automatic run's row never decides anything for anyone: no deciding word in the row at all,
 // whoever it names ("approved per the user", "you approved", "Jane approved" all read as consent).
 const DECIDING_RE =
-  /\b(?:approv\w*|confirm\w*|consent\w*|agree\w*|accept\w*|sign(?:s|ed)?[ -]?off|ok(?:ay)?|yes|decid\w*|decision|cho(?:se|ice)|reject\w*|authori[sz]\w*|green[ -]?light\w*)\b/i;
+  /\b(?:approv\w*|confirm\w*|consent\w*|agree\w*|accept\w*|sign(?:s|ed)?[ -]?off|ok(?:ay)?|yes|decid\w*|decision|cho(?:se|ice)|reject\w*|authori[sz]\w*|green[ -]?light\w*|sa(?:id|ys)|told|asked|wants?|instruct\w*|request\w*)\b/i;
+// Quoted speech in any quote style reads as someone's words: paired straight or curly quotes,
+// guillemets and CJK corner brackets. A lone apostrophe ("doesn't") is fine.
+const QUOTED_RE = /["“”«»「」『』]|(?:^|[\s(:])['‘][^'’]+['’](?=$|[\s).,;:!?])/;
 const EDITABLE_RE = /^\.harness\/(?:guides|backlog)\/(?:[^/]+\/)*[^/]+\.md$/;
 const EVIDENCE_RE =
   /^(?:\.harness\/reviews\/|workspaces\/[^/]+\/04-validate\/)(?:codify-[^/]+\.md|round-codify-[^/]+\.json)$|^workspaces\/[^/]+\/journal\/\d{4}-DECISION-[^/]+\.md$/;
@@ -88,7 +91,7 @@ function checkLog(baseText, headText) {
     const cells = line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
     if (!cells || cells.length !== 5) { problems.push(`appended line is not a five-cell table row: ${JSON.stringify(line.slice(0, 80))}`); continue; }
     if (!OUTCOMES.has(cells[3].toLowerCase())) problems.push(`row outcome ${JSON.stringify(cells[3])} is not folded in / declined / deferred / awaiting user`);
-    if (USER_ANSWER_RE.test(line) || DECIDING_RE.test(`${cells[2]} ${cells[4]}`) || /["“”«»]/.test(cells[4])) problems.push(`row records a decision or answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
+    if (USER_ANSWER_RE.test(line) || DECIDING_RE.test(`${cells[2]} ${cells[4]}`) || QUOTED_RE.test(cells.join(" "))) problems.push(`row records a decision or answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
     if (awaiting.has(cells[2])) problems.push(`${cells[2]} is waiting for the user's answer; only that answer may add a row for it`);
   }
   return problems;

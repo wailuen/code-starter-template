@@ -658,8 +658,29 @@ test("a light-mode wave round must include a security reviewer", (t) => {
   const noSecurity = fx.record(1, "CLEAR", { expected_reviewers: ["correctness"], reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] });
   assert.equal(noSecurity.status, 1, noSecurity.stdout + noSecurity.stderr);
   assert.match(noSecurity.stderr, /light-mode wave round always includes a security reviewer/);
+  for (const spelling of ["delivery_mode: light", "- Delivery mode: **light**"]) {
+    put(fx.repo, ".harness/guides/project-profile.md", `${spelling}\n`);
+    const other = fx.record(1, "CLEAR", { expected_reviewers: ["correctness"], reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] });
+    assert.equal(other.status, 1, `light mode is recognised in any spelling: ${spelling}`);
+  }
+  put(fx.repo, ".harness/guides/project-profile.md", "| `delivery_mode` | `light` | `standard` or `light` |\n");
   const withSecurity = fx.record(1, "CLEAR");
   assert.equal(withSecurity.status, 0, withSecurity.stdout + withSecurity.stderr);
+});
+
+test("a round file path typed with other capitals still finds the committed records", (t) => {
+  const fx = recorderRepo(t);
+  for (const n of [1, 2]) assert.equal(fx.record(n, "NOT_CLEAR").status, 0);
+  git(fx.repo, "add", "-A"); git(fx.repo, "commit", "-qm", "rounds");
+  rmSync(join(fx.repo, ".claude/learning/redteam-stall-state.json"));
+  // Re-record round 1 through an upper-case spelling of the same folder (same file on this disk).
+  const lower = join(fx.repo, "workspaces/demo/04-validate/round-w01-1.json");
+  const upper = join(fx.repo, "Workspaces/Demo/04-validate/round-w01-1.json");
+  if (!existsSync(upper)) return t.skip("case-sensitive filesystem: the path variant does not exist");
+  const again = node([join(root, ".harness/bin/record-review-round.mjs"), upper], { cwd: fx.repo });
+  assert.equal(again.status, 1, again.stdout + again.stderr);
+  assert.match(again.stderr, /already hold rounds 1-2/);
+  assert.ok(existsSync(lower));
 });
 
 test("a rebuilt count must start at round 1", (t) => {
@@ -854,6 +875,16 @@ test("codify allowlist: the -ask-review record-only branch (review report, round
   }
   const folder = branch("docs/codify-folder", () => stageBlob(".harness/guides/Project-Profile.md/notes.md", "text\n"));
   assert.equal(folder.status, 1, "a folder named like an existing file is ask-first");
+  for (const [i, detail] of ["'drop it'", "‘drop it’", "「drop it」", "Jane said drop it"].entries()) {
+    const q = branch(`docs/codify-q2-${i}`, () => {
+      put(dir, ".harness/codify-log.md", log + `| 2026-10-08 | docs/codify-q | .harness/backlog/harness-01-a.md | declined | ${detail} |\n`);
+    });
+    assert.equal(q.status, 1, `quoted or reported speech is refused: ${detail}`);
+  }
+  const apostrophe = branch("docs/codify-apos", () => {
+    put(dir, ".harness/codify-log.md", log + "| 2026-10-08 | docs/codify-apos | .harness/backlog/harness-02-b.md | declined | doesn't apply to this repo |\n");
+  });
+  assert.equal(apostrophe.status, 0, `a plain apostrophe is fine: ${apostrophe.stdout}`);
   const quoted = branch("docs/codify-quoted", () => {
     put(dir, ".harness/codify-log.md", log + '| 2026-10-08 | docs/codify-q | .harness/backlog/harness-01-a.md | declined | Jane: "no" |\n');
   });
