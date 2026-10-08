@@ -68,7 +68,7 @@ The user may not be technical: the agent works out every technical value and ask
 5. **Deploy from `production` only** — set the host (its git integration, or the CI deploy job) to deploy from the `production` branch or release tags, never from `main`. Verify it: a merge into `main` must not change what is live. Then set `main_deploys_live: no` in the project profile's § Production. Until then it stays `unknown`, and while the product may already be live (`.harness/rules/autonomous-execution.md` § What needs the user defines it) every merge into `main` asks the user first. Commit the config and profile change (step 6 too) on `docs/deploy-onboard-<n>` — `<n>` is 1 for the first onboarding and one more for each later one (a platform move), so each run has its own review scope `deploy-onboard-<n>` and its own round budget (`.harness/guides/task-delivery.md` § Branches, pull requests and merging). One complete CLEAR round is its bar: after it the recorder's `NEXT:` line still says `dispatch round N+1 … cleanRounds 1/2`; do not dispatch that round.
 6. **Create `deploy/deployment-config.md`** — the schema in the skill, including `rollback_command`, `rollback_check`, `health_check_url`, `alert_destination`, `backups` and `logs`. `production_paths` must not include `deploy/deployments/` or `deploy/.last-deployed`. If the product has no health endpoint yet, use the live address (`live_url`) as the health check for now and tell the user; adding a real health endpoint is product code, so write a todo proposal for it rather than editing code here. If the product has a database, record the profile's production migration command (owner: `backend-specialist`, run in Step 3).
 7. **Prove it works** — run `deploy_check_command` (it must print a commit SHA, or say nothing is live yet before the first deploy) and § Check Mode; set up the health check and alert on the platform (or a monitoring service) and send a test alert the user confirms they received.
-8. **Present for review** — summarize in plain words what will happen on each deploy, what it costs, how a bad deploy is undone, who is alerted, and what to do when an alert arrives (open the project and say "the site is down" — that starts `/fix` as an S1). Never show the raw config file as the question; the user confirms the summary before the first deploy. Record that yes, with their words and the date, in `deploy/deployments/YYYY-MM-DD-HHMMSS-onboard.md` on the onboarding branch: the newest file in `deploy/deployments/` marks the deploy settings the user last confirmed (§ Changed deploy settings).
+8. **Present for review** — summarize in plain words what will happen on each deploy, what it costs, how a bad deploy is undone, who is alerted, and what to do when an alert arrives (open the project and say "the site is down" — that starts `/fix` as an S1). Never show the raw config file as the question; the user confirms the summary before the first deploy. Record that yes, with their words, the date and `Confirmed config: <git hash-object deploy/deployment-config.md>`, in `deploy/deployments/YYYY-MM-DD-HHMMSS-onboard.md` on the onboarding branch (§ Changed deploy settings).
 
 ### Execute Mode
 
@@ -85,15 +85,19 @@ Read the config and execute. **Print the 5-step DEPLOY CHECKLIST (Steps 1-5) at 
 #### Changed deploy settings
 
 The commands in `deploy/deployment-config.md` run with production access, and an agent may have
-changed them since the user last saw them. The settings the user last confirmed are the ones as
-of the newest file in `deploy/deployments/` (a deploy, rollback or onboarding record):
-`last=$(git log -1 --format=%H -- deploy/deployments/)`. In the checkout whose config this run
-uses, run `git diff "$last" HEAD -- deploy/deployment-config.md`. If it prints anything, show the
-user in plain words, with the changed lines, what each changed command now does, and ask for a
-yes in the five-part shape before running any of them; quote it in this run's record, which
-then marks the new settings as confirmed. If `deploy/deployments/` holds no record yet, nothing
-has been confirmed: summarize the whole config as onboarding step 8 does and ask. Check mode
-never asks: it stops (§ Check Mode).
+changed them since the user last saw them. Every deploy, rollback and onboarding record in
+`deploy/deployments/` carries a line `Confirmed config: <hash>` — the output of
+`git hash-object deploy/deployment-config.md` for the file the user confirmed in that run. Take
+the newest record that has the line, then compare the file on disk, not a commit (uncommitted
+edits count): `git hash-object deploy/deployment-config.md`. If the hash differs, show the user
+in plain words, with the changed lines (`git diff <that record's commit> -- deploy/deployment-config.md`,
+which includes uncommitted edits), what each changed command now does, and ask for a yes in the
+five-part shape before running any of them; write the new hash, and their words, in this run's
+record. A run that showed the user only some of the settings (a rollback shows only
+`rollback_command` and `rollback_check`) writes the hash it was given, unchanged, never a new
+one, so the rest are still shown next time. If no record has the line yet, nothing has been
+confirmed: summarize the whole config as onboarding step 8 does and ask. Check mode never asks:
+it stops (§ Check Mode).
 
 #### Step 2: Pre-Deploy Gates
 
@@ -141,13 +145,13 @@ If the new revision is live but broken for users (smoke test or `user_visible_ch
 
 #### Step 5: Document
 
-Add a `DECISION` journal entry (`/journal new DECISION deploy-<date>`): what was deployed, the previous live commit (the next rollback target), smoke test result, any cache invalidations performed. If this deploy shipped the fix for an open `Deploy hold: yes`, set that fix record's hold to `cleared` in the same change. Commit them with the deployment record on a record-only `docs/deploy-<YYYY-MM-DD-HHMMSS>` branch (the record's own time stamp, so two deploys on one day never share a branch) cut from `main` and merge it at once — in light mode too (`.harness/guides/task-delivery.md` § Branches, pull requests and merging; the user already confirmed this deploy). Tell the user in one plain sentence what is now live.
+Add a `DECISION` journal entry (`/journal new DECISION deploy-<date>`): what was deployed, the previous live commit (the next rollback target), smoke test result, any cache invalidations performed. If this deploy shipped the fix for an open `Deploy hold: yes`, set that fix record's hold to `cleared` in the same change. The deployment record carries `Confirmed config: <hash>` — the new hash if the user confirmed changed settings in this run, otherwise the previous record's line unchanged (§ Changed deploy settings). Commit them with the deployment record on a record-only `docs/deploy-<YYYY-MM-DD-HHMMSS>` branch (the record's own time stamp, so two deploys on one day never share a branch) cut from `main` and merge it at once — in light mode too (`.harness/guides/task-delivery.md` § Branches, pull requests and merging; the user already confirmed this deploy). Tell the user in one plain sentence what is now live.
 
 ### Check Mode (`/deploy --check`)
 
 Drift detection only — no deployment side effects. `/ws` and `/wrapup` use it to report undeployed work.
 
-1. Check the settings first (§ Changed deploy settings): if `deploy/deployment-config.md` changed since the newest deploy record, or there is no record yet, run nothing from it — report `✗ unknown — the deploy settings changed since you last confirmed them; run /deploy to review them` and stop. (Onboarding step 7 is the one exception: it runs Check mode on the commands it just wrote, in the run the user started, before step 8 asks them to confirm.) Otherwise run `deploy_check_command` to get currently-deployed commit
+1. Check the settings first (§ Changed deploy settings): if `git hash-object deploy/deployment-config.md` differs from the newest record's `Confirmed config:` hash (uncommitted edits count), or no record has that line yet, run nothing from it — report `✗ unknown — the deploy settings changed since you last confirmed them; run /deploy to review them` and stop. (Onboarding step 7 is the one exception: it runs Check mode on the commands it just wrote, in the run the user started, before step 8 asks them to confirm.) Otherwise run `deploy_check_command` to get currently-deployed commit
 2. Compare to `git rev-parse main`
 3. Run `git diff <deployed_commit> main -- <production_paths>` to summarize drift
 4. Output a clear status:
@@ -165,7 +169,7 @@ The user starts a rollback (typing `/deploy --rollback`, or answering yes to `/f
 1. **Pick the target** — the most recent deploy record in `deploy/deployments/` whose Step 4 checks passed, that is older than the deploy now live (the one you are rolling back FROM), and whose commit no fix record — open or closed — names as rolled back from while its `Deploy hold:` is `yes` (not a rollback or decommission record); or the revision noted at Step 1.5 if it meets the same conditions. Never roll back to a revision that was not verified, and never to one a deploy hold names.
 2. **Run `rollback_command`** for that target, and point `production` back at that commit (`git push --force-with-lease origin <target>:production` — this rollback is the user's confirmation). `main` is not touched. Stream output and capture exit status.
 3. **Verify with `rollback_check`** — run it for the target; it must exit 0, meaning the target revision is live, receiving traffic, and passes `user_visible_check`. `rollback_command` exiting 0 is not verification, exactly as in Step 4.
-4. **Record it** — write the target commit to `deploy_state_file`, add `deploy/deployments/YYYY-MM-DD-HHMMSS-rollback.md` (from-commit, to-commit, why, check results) and a `DECISION` journal entry, and set `Deploy hold: yes` on the fix record for the defect — the one `/fix` already wrote if `/fix` asked for this rollback (in an S1 it may not be merged yet: commit it here with the rest), otherwise a new one — so no later deploy ships the bad change again before its fix (Step 1.4). Commit them on a record-only `docs/deploy-<YYYY-MM-DD-HHMMSS>-rollback` branch (the rollback record's time stamp) cut from `main`, merged into `main` at once, as in Step 5 and `.harness/phases/fix.md` (the user already confirmed this rollback). The fix is cut from the from-commit (`.harness/phases/fix.md` § 2).
+4. **Record it** — write the target commit to `deploy_state_file`, add `deploy/deployments/YYYY-MM-DD-HHMMSS-rollback.md` (from-commit, to-commit, why, check results, and the previous record's `Confirmed config:` line copied unchanged — § Changed deploy settings) and a `DECISION` journal entry, and set `Deploy hold: yes` on the fix record for the defect — the one `/fix` already wrote if `/fix` asked for this rollback (in an S1 it may not be merged yet: commit it here with the rest), otherwise a new one — so no later deploy ships the bad change again before its fix (Step 1.4). Commit them on a record-only `docs/deploy-<YYYY-MM-DD-HHMMSS>-rollback` branch (the rollback record's time stamp) cut from `main`, merged into `main` at once, as in Step 5 and `.harness/phases/fix.md` (the user already confirmed this rollback). The fix is cut from the from-commit (`.harness/phases/fix.md` § 2).
 
 If the rollback itself fails, say "ROLLBACK FAILED AT STEP N: <reason>" and stop for the human; do not improvise production changes.
 
