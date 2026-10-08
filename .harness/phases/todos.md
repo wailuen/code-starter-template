@@ -9,10 +9,17 @@ Read relevant analysis decisions and any existing active/completed todos.
 
 For a product with screens, read the approved prototype on `main`
 (`workspaces/<project>/prototype/`, `.harness/phases/prototype.md`): `SCREENS.md`, `DESIGN.md`
-and `APPROVAL.md`. Plan screen work only for PRD phases an approval record names. If no
-approval covers the phase being planned, stop and recommend `/prototype`; plan without it only
-when the user says so, recorded as a journal `DECISION` entry with `author: human`. A product
-with no screens has `prototype/00-no-screens.md` instead.
+and `APPROVAL.md`. Run `node .harness/bin/check-prototype.mjs workspaces/<project>` on `main`
+and plan screen work only for phases whose `status` it reports as `approved` (the Approval cell
+in `SCREENS.md` says the same); a held or changed phase reads `awaiting approval` and is not
+planned. If `SCREENS.md` ends with `Screen check: owed`, run the screen check first, now that a
+browser can run, and show the user anything it changed. If no approval covers the phase being
+planned, stop and recommend `/prototype`; plan without it only when the user says so, recorded
+as a journal `DECISION` entry with `author: human` — the same record covers a product whose
+built screens stand in for the prototype (`.harness/phases/prototype.md` § When to run). A
+product with no screens has only `prototype/00-no-screens.md` instead. Proposals in
+`todos/parked/` marked `design change` come from a revised prototype and are ranked with the
+rest.
 
 Plan on a `docs/wNN-plan` branch cut from `main` (`.harness/guides/task-delivery.md`
 § Branches, pull requests and merging). It merges into `main` after plan approval, before
@@ -65,7 +72,8 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    and integration owner required by task-delivery; never mark an unwired user outcome done.
    A todo that builds or changes a screen has a `Prototype screens:` line naming the
    `SCREENS.md` files it builds, and an acceptance criterion that the built screens match
-   them — layout, words and states — at phone, tablet and desktop widths. Every approved screen
+   them — layout, words and states — at 400, 800 and 1280 pixels wide (the phone, tablet and
+   desktop widths of the prototype's `views.html`). Every approved screen
    has an owner in `WAVE-SEQUENCE.md`: a current-wave todo, or a later wave.
 4. Resolve every current-wave task's dependency signatures, input/output/error shapes,
    authorization source, transaction/lock owner, concurrency behavior, and test environment.

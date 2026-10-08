@@ -38,8 +38,10 @@ git rev-parse --abbrev-ref HEAD
 - The approved prototype screens the todo names on its `Prototype screens:` line
   (`workspaces/<project>/prototype/`, with `DESIGN.md` for colours, type and tone). Match their
   layout, words, states and phone/tablet/desktop behavior; never copy their sample content as
-  data. If the screen must differ, stop and ask the owner. Do not build a screen whose design
-  still awaits the owner's approval.
+  data. If the screen must differ, stop and ask the owner. Do not build a screen whose
+  `SCREENS.md` Approval cell reads `awaiting approval` (`node .harness/bin/check-prototype.mjs
+  workspaces/<project>` confirms it). Compare the built screen with its prototype page at 400,
+  800 and 1280 pixels wide in the browser walk-through.
 - If the project syncs designs with an external design tool, follow the workspace's
   design-sync notes for making new components sync-ready.
 - The specs for anything that renders model output or user-generated content.

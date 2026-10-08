@@ -81,6 +81,10 @@ authority changes outside approval require a decision before closure.
 
 Before closing any browser-visible task, walk the changed flow in a headed browser
 as a real user, including write→reload→read-back. Follow `.harness/rules/e2e-god-mode.md`.
+For a todo with a `Prototype screens:` line, put each built screen beside the approved
+prototype page it names, at 400, 800 and 1280 pixels wide, and record in `Observed:` every
+difference in layout, words or states; an unapproved difference keeps the todo active until
+the owner accepts it or it is fixed.
 Record it as a `### Browser walk receipt` subsection inside the todo's `## Verification`
 section — exactly that heading, once; a second `## Verification` makes the todo contradictory —
 with non-empty `Steps:`, `Observed:` and

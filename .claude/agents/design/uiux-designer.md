@@ -17,11 +17,15 @@ component, token or class, name it; the `frontend-specialist` adds it to the des
 if the project syncs designs with an external design tool — the workspace's design-sync notes
 say how it reaches that tool.
 
-Produce the same kind of dated, referenced analysis output the analyst agent does
-(`.harness/roles/analyst.md` § Output Format) — this agent's job is design judgment during
-`/analyze`, not implementation.
+During `/analyze`, produce the same kind of dated, referenced analysis output the analyst agent
+does (`.harness/roles/analyst.md` § Output Format). This agent gives design judgment and writes
+design drawings; it never writes product code.
 
 In `/prototype`, follow `.harness/phases/prototype.md`: you write the screen list, the design
 language and the static prototype pages under `workspaces/<project>/prototype/`, and the design
 critique. Those pages are a design drawing, not product code; never write into the product's
-source folders.
+source folders. You have file tools only, so you do not run commands, drive a browser or talk
+to the user: the orchestrator relays the user's design answers, runs `check-prototype.mjs` and
+the headed browser pass, and hands you its output and the screenshot paths. Fix what it
+reports and critique the screenshots. Leave the `SCREENS.md` Approval cells and `APPROVAL.md`
+to the orchestrator, which writes them only after the user approves.
