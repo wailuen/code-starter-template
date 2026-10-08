@@ -238,7 +238,7 @@ release tag), which only `/deploy` moves; merging into `main` never deploys.
 | Work | Branch | Cut from | Review rounds recorded there (scope) | Merges into |
 | --- | --- | --- | --- | --- |
 | Analysis (`/analyze`) | `docs/<slug>` | `main` | analysis review (`analysis-<slug>`; none in light mode) | `main`, after its CLEAR round and the user's stack, hosting and mode approval (light mode: the approval only) |
-| Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates; a brief or spec requirement change goes through `/analyze` on its own `docs/<slug>` branch) | `main`, after the user approved and `check-prototype.mjs --require-approval` exits 0 |
+| Prototype (`/prototype`) | `docs/prototype-<n>` | `main` | none (the screen check and the user's approval are its gates; a brief or spec requirement change goes through `/analyze` on its own `docs/<slug>` branch) | `main`, after the user approved and `check-prototype.mjs --require-approval --base origin/main` (`--base main` with no remote) exits 0 |
 | Wave plan (`/todos`) | `docs/wNN-plan` | `main` | planning review (`wNN-plan`; none in light mode) | `main`, after plan approval |
 | Re-plan of an approved wave (`/todos` § Changing or cancelling approved scope) | `docs/wNNb-plan` (then `wNNc`, …) | the wave branch | planning review (`wNNb-plan`; none in light mode) | the wave branch, after plan approval |
 | Wave integration | `feat/wNN-<slug>` | `main`, after the plan merged | wave `/redteam` (`wNN`) | `main`, after the convergence receipt check exits 0 (light mode: after its one CLEAR round) |

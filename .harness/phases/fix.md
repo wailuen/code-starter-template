@@ -186,7 +186,7 @@ keeps them in a private place and the committed file carries only its reference 
 
 Before running it, each reviewer's report must sit in `workspaces/<project>/04-validate/` (one
 report per lens), name the full commit SHA it reviewed (or its first 12 characters), state its
-verdict on a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line that matches the round file, and be
+verdict on a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR` for a failed dispatch) that matches the round file, and be
 added to git before the recorder runs; otherwise the recorder refuses the round
 (`.harness/guides/review-round-recorder.md`). Commit the reports with the round file.
 

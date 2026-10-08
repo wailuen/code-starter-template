@@ -124,7 +124,8 @@ Rules for the pages:
    `Screen check: owed — <reason>; accepted by <their name> <YYYY-MM-DD>` (the checker refuses an
    agent, a placeholder such as "nobody yet", or a missing date) and quote their words in
    the approval's journal entry. An owed check stays owed until it runs: `/ws` lists it, and
-   `/todos` runs it before planning from these screens and shows the user anything it changed.
+   `/todos` stops and sends the work back here, where the check runs on a new
+   `docs/prototype-<n>` branch and any page it changed is approved again.
 6. **Show the user.** Say in plain words what is there (how many screens, in which phases) and
    how to look at it: offer to open `index.html` in their browser; each screen's phone · tablet ·
    desktop link shows the three sizes (400, 800 and 1280 pixels). To try it on their own phone,

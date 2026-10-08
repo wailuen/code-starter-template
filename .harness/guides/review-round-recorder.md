@@ -35,7 +35,9 @@ any value that is then not exactly `standard` or `light` is an error (exit 1) ra
 silent standard. In light mode, a wave round without a `security` or `security-debug` lens is
 refused; a wave round is any round on a `feat/wNN-…` or `fix/wNN-…` branch, or under a scope
 starting with `w` or `wave` and a number (`w01`, `w01b`, `wave1`, `w01-final`). Light mode has no
-todo checkpoint review, so todo branches count too. When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
+todo checkpoint review, so todo branches count too. The one exception is a planning review
+(`wNN-plan`) on its own `docs/wNN-plan` branch — the review a light-to-standard switch's first
+plan gets (task-delivery § Light mode). When its local state (git-ignored `.claude/learning/`) is missing, it rebuilds from
 every round record ever added in the branch's history or on the local `main` (where a merged
 record-only branch, such as a codify `-ask` review's, leaves them) whose file name is this scope's
 (`round-<scope>-<n>.json`) or whose `branch` is this branch, each as first committed, and

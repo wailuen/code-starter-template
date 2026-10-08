@@ -225,6 +225,19 @@ test("in light mode a round on a wave branch, or under any wave-like scope, need
   assert.equal(f.status, 0, `control: a /fix round is not a wave round: ${f.stderr}`);
 });
 
+test("the light-to-standard switch: a planning review on a docs/wNN-plan branch is not a wave round", (t) => {
+  const light = "| `delivery_mode` | `light` | |\n";
+  const fx = recorderRepo(t);
+  fx.profile(light);
+  git(fx.repo, "branch", "docs/w02-plan");
+  const plan = fx.record({ scope: "w02-plan", branch: "docs/w02-plan" });
+  assert.equal(plan.status, 0, `the switch's planning review needs one reviewer, as todos.md step 7 says: ${plan.stderr}`);
+  const wave = recorderRepo(t);
+  wave.profile(light);
+  const disguised = wave.record({ scope: "w01-plan" });
+  assert.equal(disguised.status, 1, "control: a -plan scope on the wave branch is still a wave round");
+});
+
 // ---- 5: a report is bound to its lens and its verdict ---------------------------------------
 
 test("the recorder refuses a report without a matching Verdict line, one report for two lenses, and a round record as evidence", (t) => {

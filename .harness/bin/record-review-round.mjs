@@ -119,7 +119,12 @@ function deliveryMode(profile) {
 // checkpoint reviews, so counting those branches too costs nothing and leaves no name to escape by.
 const WAVE_SCOPE_RE = /^w(?:ave)?[-_]?\d/i;
 const WAVE_BRANCH_RE = /^(?:feat|fix)\/w(?:ave)?[-_]?\d/i;
-const isWaveRound = (scope, branch) => (!!scope && WAVE_SCOPE_RE.test(scope)) || WAVE_BRANCH_RE.test(branch);
+// A planning review (`wNN-plan`, `wNNb-plan`) on its own `docs/` plan branch is not a wave round: it
+// is the one review a light→standard switch's first plan gets (task-delivery § Light mode). The same
+// scope on any other branch still counts as a wave round.
+const isPlanRound = (scope, branch) => !!scope && /^w\d+[a-z]?-plan$/i.test(scope) && /^docs\/w\d+[a-z]?-plan$/i.test(branch ?? "");
+const isWaveRound = (scope, branch) => !isPlanRound(scope, branch) &&
+  ((!!scope && WAVE_SCOPE_RE.test(scope)) || WAVE_BRANCH_RE.test(branch));
 
 try {
   if (process.argv.length !== 3) throw new Error("Usage: record-review-round.mjs <round.json>");

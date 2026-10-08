@@ -133,8 +133,9 @@ Run each code block from the documentation as written, in your own disposable ch
 
 Use these exact words. The orchestrator saves your report verbatim as the round's evidence
 file and transcribes your verdict and root-cause keys into the round file
-(`.harness/guides/task-delivery.md` § Review protocol and circuit breaker); neither the round
-recorder nor the convergence checker parses report text.
+(`.harness/guides/task-delivery.md` § Review protocol and circuit breaker); the round recorder and the convergence checker read the reviewed commit's
+SHA and every line that starts with `Verdict:` in the report, so start no other line with
+`Verdict:`.
 
 ```
 ## Review Report — <scope>, round <n>, commit <full SHA>, lens: correctness

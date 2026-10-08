@@ -94,7 +94,7 @@ over the workflow where they differ.
   local `main` that differs from origin's — exits 2, so no base can narrow what it sees.
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
   `round-codify-<slug>-<n>.json` (one report per lens; each names the full SHA of the commit it
-  reviewed, or its first 12 characters, states a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line
+  reviewed, or its first 12 characters, states a `Verdict: CLEAR` or `Verdict: NOT_CLEAR` line (`Verdict: ERROR` for a failed dispatch)
   matching the round file, is added to git before the recorder runs, and is committed with the
   round file); only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
   existing file); and write each log row as its fields — a `YYYY-MM-DD` date, a run cell holding

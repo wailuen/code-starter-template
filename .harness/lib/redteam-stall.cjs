@@ -386,7 +386,7 @@ const VERDICT_LINE_RE = /^[\s>*_#-]*verdict[\s*_]*:[\s*_`]*(not[_ -]clear|clear|
 /** null when `text` states exactly `verdict`; otherwise a short reason. */
 function reportVerdictProblem(text, verdict) {
   const stated = [...String(text).matchAll(VERDICT_LINE_RE)].map((m) => m[1].toUpperCase().replace(/[ -]/, "_"));
-  if (!stated.length) return "does not state its verdict (a line `Verdict: CLEAR` or `Verdict: NOT_CLEAR`)";
+  if (!stated.length) return "does not state its verdict (a line `Verdict: CLEAR`, `Verdict: NOT_CLEAR`, or `Verdict: ERROR` for a failed dispatch)";
   const other = stated.find((v) => v !== verdict);
   return other ? `says ${other}, but the round records ${verdict}` : null;
 }

@@ -104,7 +104,9 @@ See: `.claude/skills/12-testing-strategies/probe-driven-verification.md`.
 
 Same shape as `.harness/roles/reviewer.md` § Review Output Format, with `lens: security`.
 Use these exact words. The orchestrator transcribes your verdict and root-cause keys into the
-round file; neither the round recorder nor the convergence checker parses report text:
+round file; the round recorder and the convergence checker read the reviewed commit's
+SHA and every line that starts with `Verdict:` in the report, so start no other line with
+`Verdict:`:
 
 ```
 ## Security Review — <scope>, round <n>, commit <full SHA>, lens: security

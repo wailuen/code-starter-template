@@ -63,7 +63,7 @@ harness lesson.
     CLEAR review round (none in light mode) and the user's approval of the plan;
   - a deploy onboarding (`docs/deploy-onboard-<n>`): after its one CLEAR review round;
   - a prototype (`docs/prototype-<n>`): only after the user approved it, in the session they
-    gave the words, with `check-prototype.mjs --require-approval` exiting 0 — every phase
+    gave the words, with `check-prototype.mjs --require-approval --base origin/main` (`--base main` with no remote) exiting 0 — every phase
     approved for the pages it has now, or held by the user;
   - a record-only pull request: it changes only records — review reports, round records,
     journal entries, fix records, deploy records under `deploy/deployments/`, a sweep report or
