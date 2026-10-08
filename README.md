@@ -100,8 +100,9 @@ Along the way:
   `/codify` folds them into the harness's own rules and guides automatically — after each
   wave (including anything `/debug` traced to the harness), at `/wrapup`, and after a bug
   fix that taught something. Each update is independently reviewed by pull request. Only
-  updates to reference guides and harness notes merge on their own; anything that changes the
-  AI's rules, roles, skills, commands or what it may do without you waits for your OK. `/ws` shows what is waiting.
+  backlog notes and the change log merge on their own; anything that changes the AI's
+  instructions — its rules, phases, roles, guides, skills, commands or what it may do without
+  you — waits for your OK. `/ws` shows what is waiting.
 
 You decide at a few fixed points — plan approval, trying the result, deploying or undoing a
 deploy, spending money, anything destructive or public, and questions only you can answer (the

@@ -12,8 +12,9 @@ For a product with screens, read the approved prototype on `main`
 and `APPROVAL.md`. Run `node .harness/bin/check-prototype.mjs workspaces/<project>` on `main`
 and plan screen work only for phases whose `status` it reports as `approved` (the Approval cell
 in `SCREENS.md` says the same); a held or changed phase reads `awaiting approval` and is not
-planned. If `SCREENS.md` ends with `Screen check: owed`, run the screen check first, now that a
-browser can run, and show the user anything it changed. If no approval covers the phase being
+planned. If `SCREENS.md` ends with `Screen check: owed`, stop and run `/prototype` first: it runs the
+owed check on a new `docs/prototype-<n>` branch and, if any page changed, takes a new approval
+for that phase before the branch merges. If no approval covers the phase being
 planned, stop and recommend `/prototype`; plan without it only when the user says so, recorded
 as a journal `DECISION` entry with `author: human` — the same record covers a product whose
 built screens stand in for the prototype (`.harness/phases/prototype.md` § When to run). A
@@ -71,7 +72,9 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
    scenario per todo. Split build and wire only with the independently testable interface
    and integration owner required by task-delivery; never mark an unwired user outcome done.
    A todo that builds or changes a screen has a `Prototype screens:` line naming the
-   `SCREENS.md` files it builds, and an acceptance criterion that the built screens match
+   `SCREENS.md` files it builds (for a built screen the prototype does not list, under the
+   journal decision in `.harness/phases/prototype.md` § When to run: `Prototype screens: built —
+   <that journal entry's path>`), and an acceptance criterion that the built screens match
    them — layout, words and states — at 400, 800 and 1280 pixels wide (the phone, tablet and
    desktop widths of the prototype's `views.html`). Every approved screen
    has an owner in `WAVE-SEQUENCE.md`: a current-wave todo, or a later wave.
@@ -123,15 +126,16 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 11. After the user approves, write the wave's acceptance list to
     `workspaces/<project>/04-validate/acceptance-wNN.md`: the approval record (`approved_by`
     with the user's name, `approved_on`, and the user's approving words quoted — task-delivery
-    § Workspace file layout — naming anything else they approved with it, such as the delivery
-    mode they chose or the CI workflow push), the scope name `wNN`, every current-wave todo id and each todo's
+    § Workspace file layout — naming anything else they approved with it, such as the CI workflow
+    push; the delivery mode was approved in `/analyze` § 5, so cite that journal entry instead), the scope name `wNN`, every current-wave todo id and each todo's
     acceptance IDs. Set the same name as `approved_by` in each current-wave todo's delivery
     contract, then run `node .harness/bin/check-task-contract.mjs <todo.md>` (the full check)
     on each. Never fill either before the user has approved, and never with an agent's name.
     Commit it with the todos; never edit it afterwards — the convergence receipt
     requires it byte-identical at the verdict commit, so changed acceptance means a new scope.
     Only now — after the user approved — merge the plan branch into `main` (task-delivery
-    § Branches, pull requests and merging).
+    § Branches, pull requests and merging); a re-plan merges into the wave branch instead
+    (§ Changing or cancelling approved scope step 4).
 
 ## Changing or cancelling approved scope
 

@@ -142,7 +142,8 @@ retry limit changes the approach; it never makes broken code done.
 For a small project — one person, a prototype or hobby, no real users' data and no money
 moving — the project profile can say `delivery_mode: light`. `/analyze` recommends the mode in
 plain words when it proposes the stack, and the user picks it there, before `/todos` plans the
-first wave; the first plan's approval record quotes that choice. Until the user has chosen,
+first wave; the journal `DECISION` entry from `/analyze` § 5 records that choice, and the first
+plan's approval record cites it. Until the user has chosen,
 standard applies. Light mode changes only this:
 
 - No analysis or planning review rounds. The analysis pull request merges into `main` once the
@@ -289,6 +290,11 @@ For every branch:
    profile's `main_deploys_live` is still `unknown` and the product may already be live (as
 `.harness/rules/autonomous-execution.md` § What needs the user defines it);
    `--admin` always does, and never in an automatic run.
+
+   A repository with no remote has no pull requests: after the same gate (Local CI parity on
+   a checkout of the pinned head, plus the branch's own review or approval), merge locally with
+   `git checkout main && git merge --no-ff <branch>`, and name the gate and the reviewed head in
+   the merge commit's message. Add a remote before the first deploy.
 5. Merge with a merge commit, not squash or rebase: the convergence receipt pins
    `verdict_head`, which must stay reachable from `main`. A repository set to squash-only must
    allow merge commits before the first wave (a repository-settings change, so ask the user).
@@ -440,7 +446,9 @@ commit. Security work still requires independent correctness and security review
 ## Screen red-team before the owner sees it
 
 Applies to projects with a visual interface. No proposed screen — a design drawing or a
-built screen — goes to the product owner for review until it has passed:
+built screen — goes to the product owner for review until it has passed (the one exception: a
+prototype whose check cannot run yet, shown only after the user says yes to seeing it
+unchecked — `.harness/phases/prototype.md` step 5):
 
 1. **A headed browser pass** (the project profile's E2E runner, e.g. Playwright) at widths
    1440, 1280, 1024, 800 and 400 over every drawn state:

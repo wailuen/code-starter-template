@@ -27,8 +27,9 @@ it; `/wrapup` lists the pending lessons under Outstanding work so the next sessi
    `workspaces/<project>/04-validate/` or `.harness/reviews/`
    (`<scope>-<lens>-r<n>.md`) has its `round-<scope>-<n>.json` record beside it. A refused
    round leaves no record, so its reports must not be left there: when the recorder refuses a
-   round, delete that round's uncommitted reports together with its round file (nothing cites a
-   refused round; the re-run writes fresh reports). If reports without a record are already
+   round because a report is not yet in git, `git add` it and record again; when it refuses the
+   round itself as invalid, delete that round's uncommitted reports together with its round file
+   (nothing cites a refused round; the re-run writes fresh reports). If reports without a record are already
    there and no reviewer you dispatched is running, the run does not delete them itself — it
    does not start, and `/wrapup` lists each such file under Outstanding work as "report of a
    refused or unfinished round: delete it, or record its round", so one answer unblocks the

@@ -25,7 +25,7 @@ The AI handles all the technical work — writing code, testing, security checks
 | 3. Planning | `/todos` | Create a complete project roadmap from the approved screens | Approve the plan before building starts |
 | 4. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
 | 5. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
-| 6. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules, skills, commands or what it may do without you; `/ws` shows those |
+| 6. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's instructions (its rules, phases, roles, guides, skills, commands) or what it may do without you; `/ws` shows those |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.

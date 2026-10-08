@@ -42,8 +42,8 @@ workspaces/*/prototype/.screenshots/
 
 # Generated Codex adapters — each checkout generates its own with
 # `node .harness/bin/check-adapters.mjs --write --codex` (see .harness/adapters/codex.md)
-.agents/
-.codex/
+.agents/*
+.codex/*
 
 # Per-user Claude Code files
 .claude/settings.local.json

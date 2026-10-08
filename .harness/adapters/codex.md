@@ -32,7 +32,9 @@ them, and each checkout generates its own with the first command above. A fresh 
 sibling worktree (`.claude/commands/worktree.md`) therefore starts without them; run the first
 command there before starting the Codex session. Because they are ignored, a broad stage-all
 never puts them into a product pull request. A project that keeps its own hand-written skill
-under `.agents/skills/` adds a `!` exception line for it to `.gitignore`.
+under `.agents/skills/<name>/` adds these lines after `.agents/*` in `.gitignore` (git cannot
+re-include a file inside an ignored folder, so each level is re-opened in turn):
+`!.agents/skills/`, `.agents/skills/*`, `!.agents/skills/<name>/`.
 
 The source is `.harness/manifest.json`: `phases` supplies every shared phase (one skill each);
 `codex.agents` supplies role instructions, model and reasoning settings.

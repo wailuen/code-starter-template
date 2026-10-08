@@ -17,7 +17,7 @@ For `/learn`, report what's been captured but not yet folded into the harness vi
      was closed without merging, it never got one, or — with no remote — it has had no commit
      for 24 hours, as after an escalated or interrupted run) → **stalled**: shown with the
      waiting ones as a question for the user — resume that branch, or drop it — and never
-     starts a run on its own. "Resume" reopens or opens its pull request (it is then in
+     starts a run on its own. "Resume" reopens or opens its pull request (with no remote: merges it locally after its gate, task-delivery § Branches, pull requests and merging step 4) (it is then in
      progress); "drop" deletes the branch, after which the lesson is open again;
    - no row anywhere → **open**;
    - `folded in` or `declined` → closed (a declined lesson reopens only through a new journal

@@ -59,8 +59,9 @@ harness lesson.
   - a fix: its one CLEAR review round was recorded;
   - an analysis (`docs/<slug>`): after its CLEAR review round (none in light mode) and the
     user's approval of the stack, hosting and delivery mode (below);
-  - a plan (`docs/wNN-plan`): after its CLEAR review round (none in light mode) and the user's
-    approval of the plan;
+  - a plan (`docs/wNN-plan`), or a re-plan (`docs/wNNb-plan`) into its wave branch: after its
+    CLEAR review round (none in light mode) and the user's approval of the plan;
+  - a deploy onboarding (`docs/deploy-onboard-<n>`): after its one CLEAR review round;
   - a prototype (`docs/prototype-<n>`): only after the user approved it, in the session they
     gave the words, with `check-prototype.mjs --require-approval` exiting 0 — every phase
     approved for the pages it has now, or held by the user;

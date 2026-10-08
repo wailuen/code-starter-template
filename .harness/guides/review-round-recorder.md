@@ -49,7 +49,7 @@ What it does not detect:
 - The evidence check proves a report file exists, is in git and names the commit — not that a
   reviewer wrote it or that the review happened. The same session writes both.
 - Nothing checks that what merges for a single-CLEAR gate (a light-mode wave, a todo branch,
-  `/fix`, planning, analysis, codify) is the reviewed head plus bookkeeping. Only a
+  `/fix`, planning, analysis, codify, deploy onboarding) is the reviewed head plus bookkeeping. Only a
   standard-mode wave has that check (the convergence checker's `--todo` / `--sweep`); for the
   others it rests on the merge procedure and review.
 - A wave scope is recognised only as `w<digits>` with an optional letter; a wave reviewed under
