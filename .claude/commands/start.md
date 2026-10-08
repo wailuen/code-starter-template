@@ -7,7 +7,7 @@ Present this orientation to the user in a warm, clear, jargon-free way. Adapt to
 
 ## What is this workflow?
 
-This is a step-by-step way for YOU to direct an AI to build software. The steps always run in the same order: research (`/analyze`), plan (`/todos`), build (`/implement`), test (`/redteam`), save what we learned (`/codify`), and ship (`/deploy`). You don't need to write code. Your job is to:
+This is a step-by-step way for YOU to direct an AI to build software. The steps always run in the same order: research (`/analyze`), design the screens (`/prototype`), plan (`/todos`), build (`/implement`), test (`/redteam`), save what we learned (`/codify`), and ship (`/deploy`). You don't need to write code. Your job is to:
 
 1. **Describe what you want** (in your own words, as detailed as you like)
 2. **Make decisions** when choices come up (we'll always explain the options clearly)
@@ -16,15 +16,16 @@ This is a step-by-step way for YOU to direct an AI to build software. The steps 
 
 The AI handles all the technical work — writing code, testing, security checks, and deployment.
 
-## The 5 Phases
+## The 6 Phases
 
 | Step | Command | What Happens | Your Role |
 |------|---------|-------------|-----------|
 | 1. Research | `/analyze` | Study your idea — market fit, user needs, competition | Pick between the options it recommends (how to build it, where it runs and what that costs) |
-| 2. Planning | `/todos` | Create a complete project roadmap | Approve the plan before building starts |
-| 3. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
-| 4. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
-| 5. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules, skills, commands or what it may do without you; `/ws` shows those |
+| 2. Design | `/prototype` | Draw every screen of every phase as clickable pages that fit phone, tablet and computer (skipped when there are no screens) | Answer design questions, ask for changes, then approve the screens |
+| 3. Planning | `/todos` | Create a complete project roadmap from the approved screens | Approve the plan before building starts |
+| 4. Building | `/implement` | Build the project one task at a time | Answer questions when choices come up |
+| 5. Testing | `/redteam` | Test everything from a real user's perspective | Try it yourself and say whether it matches what you wanted |
+| 6. Knowledge | `/codify` | Improve the AI's own working instructions from what went wrong — runs on its own after each stretch of work, after some bug fixes, and at `/wrapup` | Nothing, except saying yes or no when a change touches the AI's rules, skills, commands or what it may do without you; `/ws` shows those |
 
 If testing turns up a repeated problem, `/debug` steps back to reconsider the approach before
 trying another fix — you won't usually need to run this yourself.
@@ -56,6 +57,7 @@ Walk the user through these steps:
 1. **Create a workspace**: Tell the AI the project's name and what you want (e.g., "start a project called my-project: …"). `/analyze` creates `workspaces/my-project/briefs/` and saves your description as the first brief. You can also create that folder yourself.
 2. **Write a brief**: Create a file in the briefs folder describing what you want to build — in your own words, as detailed as you like. Include who it's for, what problem it solves, and what success looks like. You can also just tell the AI what you want and ask it to write the brief for you.
 3. **Run `/analyze`**: This kicks off the research phase
+4. **Run `/prototype`** (if the product has screens): see and approve every screen before anything is built
 
 If the user already has a workspace, show them their current status with `/ws` instead.
 
@@ -65,6 +67,7 @@ If the user already has a workspace, show them their current status with `/ws` i
 |---------|--------------|
 | `/start` | This orientation |
 | `/analyze` | Research the idea and write the specifications |
+| `/prototype` | Draw every screen as clickable pages, for your approval |
 | `/todos` | Plan the work as small tasks, for your approval |
 | `/implement` | Build the next approved task |
 | `/redteam` | Independent review and real-user testing of finished work |

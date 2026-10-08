@@ -7,6 +7,13 @@ briefs, `02-plans/` and `specs/_index.md`. If the workspace has no spec index, r
 `/analyze`; do not invent domain specifications during task creation.
 Read relevant analysis decisions and any existing active/completed todos.
 
+For a product with screens, read the approved prototype on `main`
+(`workspaces/<project>/prototype/`, `.harness/phases/prototype.md`): `SCREENS.md`, `DESIGN.md`
+and `APPROVAL.md`. Plan screen work only for PRD phases an approval record names. If no
+approval covers the phase being planned, stop and recommend `/prototype`; plan without it only
+when the user says so, recorded as a journal `DECISION` entry with `author: human`. A product
+with no screens has `prototype/00-no-screens.md` instead.
+
 Plan on a `docs/wNN-plan` branch cut from `main` (`.harness/guides/task-delivery.md`
 § Branches, pull requests and merging). It merges into `main` after plan approval, before
 the wave branch is cut.
@@ -56,6 +63,10 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 3. Slice by observable outcome. Prefer one small real caller→component→data-store
    scenario per todo. Split build and wire only with the independently testable interface
    and integration owner required by task-delivery; never mark an unwired user outcome done.
+   A todo that builds or changes a screen has a `Prototype screens:` line naming the
+   `SCREENS.md` files it builds, and an acceptance criterion that the built screens match
+   them — layout, words and states — at phone, tablet and desktop widths. Every approved screen
+   has an owner in `WAVE-SEQUENCE.md`: a current-wave todo, or a later wave.
 4. Resolve every current-wave task's dependency signatures, input/output/error shapes,
    authorization source, transaction/lock owner, concurrency behavior, and test environment.
    Read the actual dependency code. Unknown load-bearing behavior becomes a design/spike

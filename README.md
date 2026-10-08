@@ -38,7 +38,8 @@ pick it up.
 | Setup | `/start`, `/doctor` | Orientation; check git, GitHub login and the runtimes the project needs | — |
 | Requirements and discovery | `/analyze` | Research the problem, users and constraints; challenge assumptions; red-team the analysis | `briefs/`, `01-analysis/`, `02-plans/`, `03-user-flows/` |
 | Architecture and design | `/analyze`, `/design` | Choose the stack and where it will run (with monthly cost), record decisions, write the specs; UI/UX standards for screens | `docs/adr/`, `specs/`, the project profile filled in |
-| Planning | `/todos` | Break the work into waves of todos, each with an acceptance contract; **stops for your approval**; the first wave also sets up CI | `todos/WAVE-SEQUENCE.md`, `todos/active/wNN-MM-<slug>.md`, a frozen acceptance list with your approval |
+| Screen design | `/prototype` | Every screen of every PRD phase as clickable pages that fit phone, tablet and desktop; design questions, your change requests, then **your approval**; skipped for a product with no screens | `prototype/` with the screen list, design language and your approval |
+| Planning | `/todos` | Break the work into waves of todos, each with an acceptance contract and the approved screens it builds; **stops for your approval**; the first wave also sets up CI | `todos/WAVE-SEQUENCE.md`, `todos/active/wNN-MM-<slug>.md`, a frozen acceptance list with your approval |
 | Changing your mind | `/todos` | Drop, park or re-plan approved work; the change is recorded with your words | A journal decision, a new acceptance list |
 | Implementation | `/implement` | Build one todo test-first on its own branch, with backend, frontend and test specialists | Code, tests, the todo moved to `todos/completed/` |
 | Testing | `/implement`, `/test` | Unit, integration and end-to-end tests; integration and end-to-end run against real, throwaway infrastructure | Test results and walk-through receipts in the todo |
@@ -61,22 +62,25 @@ pick it up.
    prototype or hobby with no real users' data or money) it suggests **light mode**: fewer
    review rounds and less paperwork, the same tests and the same questions to you; you pick
    the mode together with the stack (`.harness/guides/task-delivery.md` § Light mode).
-2. **Plan a wave.** Run `/todos`. Review the plan it shows you and approve it — nothing is
+2. **Design the screens.** Run `/prototype`. It asks about the look you want, then shows every
+   screen of every phase as clickable pages you can try at phone, tablet and desktop size.
+   Ask for changes until it is right, then approve it; planning and building follow it.
+3. **Plan a wave.** Run `/todos`. Review the plan it shows you and approve it — nothing is
    built until you do. Approval freezes that wave's scope; changing your mind later is
    supported, but it means re-planning that part under a new name.
-3. **Build.** Run `/implement` for each todo (or let it take the next one). Each todo is built
+4. **Build.** Run `/implement` for each todo (or let it take the next one). Each todo is built
    test-first on its own branch and gets one independent review before it joins the wave.
-4. **Review the wave.** Run `/redteam`. It repeats independent review until two rounds in a
+5. **Review the wave.** Run `/redteam`. It repeats independent review until two rounds in a
    row are clean, shows you the result to try, then the wave merges into `main` by pull
    request. If review keeps failing, it routes to `/debug` instead of looping.
-5. **Ship.** Run `/deploy`. The first time, it recommends where to host the product and what
+6. **Ship.** Run `/deploy`. The first time, it recommends where to host the product and what
    that costs, walks you through anything only you can do (an account, billing, a domain),
    and sets up health checks and alerts that reach you. Production runs a separate
    `production` branch, so once `/deploy` setup has checked your host, merging work into `main`
    never changes what users see; only `/deploy` does. Until then, don't connect a hosting
    service yourself — if one is already connected, say so, and every merge asks you first. If users are hurt, `/fix` asks first
    whether to undo the last update (`/deploy --rollback`), then fixes the cause.
-6. **Repeat** steps 2–5 wave by wave.
+7. **Repeat** steps 3–6 wave by wave.
 
 Along the way:
 

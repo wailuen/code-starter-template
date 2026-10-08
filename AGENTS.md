@@ -20,8 +20,8 @@ session; it generates the `$analyze` … `$learn` skills and the `harness-*` age
 4. Read `.harness/guides/project-profile.md` for every concrete command (never guess one) and
    `.harness/guides/task-delivery.md` for workspace paths, branches and review rounds.
 
-Phase skills, in order: `$analyze` → `$todos` → `$implement` → `$redteam` → `$codify`, with
-`$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
+Phase skills, in order: `$analyze` → `$prototype` → `$todos` → `$implement` → `$redteam` → `$codify`, with
+`$prototype` skipped for a product with no screens, `$debug` for a stalled review loop, `$fix` for a reported bug and `$learn` for open lessons.
 `$codify` also runs on its own at set points (`.harness/phases/codify.md` § When it runs).
 Helpers are plain instruction files: to deploy, follow `.claude/commands/deploy.md`; to end a
 session, follow `.claude/commands/wrapup.md`; for a new user, `.claude/commands/start.md`.

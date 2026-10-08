@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { renderAdapters, codexEnabled, root } from "../bin/check-adapters.mjs";
 import { isSecuritySurface, liveLaunchIndex, GRANDFATHER_PIN } from "../bin/check-redteam-convergence-receipt.mjs";
 
-const PHASES = ["analyze", "todos", "implement", "redteam", "debug", "fix", "codify", "learn"];
+const PHASES = ["analyze", "prototype", "todos", "implement", "redteam", "debug", "fix", "codify", "learn"];
 function tempDir(t, prefix) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
