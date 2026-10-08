@@ -77,10 +77,16 @@ over the workflow where they differ.
   `.harness/reviews/`) and its `DECISION` journal summary, whose front matter has exactly one
   `author:` line, `author: agent`, and no `human` or `co-authored`.
   Before any merge without the user, run
-  `node .harness/bin/check-codify-allowlist.mjs origin/main <head-ref>` — or
-  `node .harness/bin/check-codify-allowlist.mjs main <head-ref>` when the repository has no
-  remote at all; it must exit 0 (0 may merge without the user, 1 findings — ask-first, 2 usage or
-  git error; the reviewer still reviews). The check works out the base itself and only confirms
+  `node .harness/bin/check-codify-allowlist.mjs origin/main --pr <number>` with a GitHub
+  remote (`node .harness/bin/check-codify-allowlist.mjs origin/main docs/codify-<slug>` with
+  another remote, after pushing the branch), or
+  `node .harness/bin/check-codify-allowlist.mjs main docs/codify-<slug>` when the repository has
+  no remote at all; it must exit 0 (0 may merge without the user, 1 findings — ask-first, 2 usage
+  or git error; the reviewer still reviews). The head is always the commit that will merge: the
+  check takes a plain branch name or pull request number, never a revision or commit id, judges
+  the branch's tip as fetched from origin (with `--pr`, the pull request's head commit must equal
+  that tip), or the local branch's tip when there is no remote, and prints it on a
+  `judged commit: <sha>` line. The check works out the base itself and only confirms
   the one you name: with an `origin` remote it fetches origin's default branch and judges
   against that; with no remote it judges against the local `main` and prints
   `no remote: judging against local main`. Any other base — an older commit, another branch, a
@@ -137,7 +143,12 @@ over the workflow where they differ.
   CI Parity Discipline; while the profile row is `n/a — no code yet`, say so in the commit body),
   commit, then review the pinned commit as above.
 - **Merge.** When the round is CLEAR and the allowlist check exits 0, merge `docs/codify-<slug>`
-  as in task-delivery § Branches, pull requests and merging, never with `--admin`.
+  as in task-delivery § Branches, pull requests and merging, never with `--admin`, pinned to the
+  commit the check judged: `gh pr merge <number> --merge --match-head-commit <sha>`, with `<sha>`
+  copied from the check's `judged commit:` line. If the branch moved after the check, the merge
+  fails; run the review and the check again on the new head. The reviewed commit must be that same
+  commit. With no GitHub remote, merge only the commit the check printed
+  (`git merge --no-ff <sha>` from `main`), never the branch name.
 - **Report** briefly in plain language: lessons folded in and declined, files changed, the
   pull request, and each question waiting for the user.
 

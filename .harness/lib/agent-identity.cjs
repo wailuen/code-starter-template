@@ -23,11 +23,18 @@
 //     ("ClaudeCode", "C l a u d e");
 //   - it is the name of an agent, role or Codex model this repository ships (read from
 //     `.harness/manifest.json` and `.claude/agents/**/*.md`), or any `harness-*` name;
-//   - it opens by saying nobody has approved yet ("Not yet approved", "To be confirmed"), or every
-//     word is such a placeholder or an automation account ("Awaiting user", "TBC", "github-actions",
-//     "dependabot", "Implementer agent (auto)");
+//   - it opens by saying nobody has approved yet ("Not yet approved", "To be confirmed",
+//     "Will confirm"), or every word is such a placeholder, a deferral, an anonymous stand-in or
+//     an automation account ("Awaiting user", "TBC", "TBD later", "Soon", "no one", "Anon",
+//     "same", "PO", "github-actions", "dependabot", "Implementer agent (auto)");
 //   - it contains a placeholder bracket (`<…>`, `{…}`, `[…]`), is a no-reply or bot address, an
-//     o-series model id ("o3"), or starts with "approved by", "user's" or "user (".
+//     o-series model id ("o3"), or starts with "approved by", "user's", "user (" or "owner (".
+//
+// Trade-off: "Will", "Soon" and "Po" are real given names as well as placeholders ("Will confirm",
+// "Soon", "PO" for product owner). "soon" and "po" are refused only when every word of the value
+// is a refused word, so "Soon" or "PO" alone is refused while "Soon-Yi Lee" and "Po Chen" pass; a
+// person known by that one word alone must give a fuller name. "Will" is refused only at the start
+// of a "will confirm / approve / decide" phrase, so "Will Smith" and "Will Self" pass.
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -57,9 +64,13 @@ const DENY_WORDS = new Set([
   "awaiting", "waiting", "await", "tbc", "unconfirmed", "unapproved", "unassigned", "confirm", "decided", "determined",
   // automation accounts and auto-filled labels ("github-actions", "dependabot", "Implementer agent (auto)")
   "actions", "dependabot", "renovate", "auto", "automated", "automatic", "automation",
+  // deferrals, anonymous stand-ins and role abbreviations ("TBD later", "Soon", "no one", "Anon",
+  // "same as above", "PO" for product owner, "Owner (verbal)")
+  "later", "soon", "same", "above", "anonymous", "anon", "no", "one", "noone", "po", "verbal",
 ]);
 // A value that opens by saying the approval has not happened ("Not yet approved", "To be confirmed").
-const NOT_YET_RE = /^(?:not yet|yet to|to be|not (?:approved|confirmed|decided))(?: |$)/;
+// "Will confirm" says the same; "will" opens it, so "Will Smith" is untouched.
+const NOT_YET_RE = /^(?:not yet|yet to|to be|not (?:approved|confirmed|decided)|will (?:confirm|approve|decide|sign off|check|follow up))(?: |$)/;
 // Fold these to Latin before anything else (they survive NFKC and lowercasing).
 const LOOKALIKES = {
   // Cyrillic
@@ -137,6 +148,8 @@ const WEAK_WORDS = new Set([
   "na", "tbd", "tba", "tbc", "me", "you", "i", "we", "us", "it", "my", "our", "your", "who",
   "the", "a", "an", "s", "via", "by", "from", "in", "on", "at", "of", "and", "or", "with", "as", "per", "for", "to",
   "yes", "this", "said", "says",
+  // Short placeholders that are also pieces of real names ("Poon", "Nona", "Soonja", "Leone").
+  "later", "soon", "same", "above", "anon", "no", "one", "po",
 ]);
 // One word made only of denied words run together ("claudecode"); each piece at least 2 letters,
 // and at least one piece an agent, model, tool, role or lens word rather than filler.
@@ -160,7 +173,7 @@ function isAgentIdentity(value) {
   const v = normalizeIdentity(value);
   if (!v) return true;
   if (BOT_EMAIL_RE.test(v) || O_SERIES_RE.test(v) || /^harness-/.test(v)) return true;
-  if (/^(?:approved by|user['’]s|user \()/.test(v) || NOT_YET_RE.test(v)) return true;
+  if (/^(?:approved by|user['’]s|(?:users?|owners?) \()/.test(v) || NOT_YET_RE.test(v)) return true;
   if (SHIPPED.has(v) || SHIPPED.has(v.replace(/\s+/g, "-")) || SHIPPED.has(v.replace(TRAILING_VERSION_RE, "").replace(/[\s-]+$/, ""))) return true;
   const raw = v.split(/[^\p{L}\p{N}@$]+/u).filter(Boolean);
   if (raw.length >= 2 && MODEL_FAMILIES.has(raw[0]) && VERSION_RE.test(raw[1])) return true;

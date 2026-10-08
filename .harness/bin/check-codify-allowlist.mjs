@@ -3,7 +3,21 @@
  * check-codify-allowlist.mjs — may this automatic /codify pull request merge WITHOUT the user?
  * Run before the merge (`.harness/phases/codify.md` § Automatic runs); the reviewer still reviews.
  *
- *   node .harness/bin/check-codify-allowlist.mjs <base-ref> <head-ref>
+ *   node .harness/bin/check-codify-allowlist.mjs <base-ref> --pr <number>   (GitHub remote)
+ *   node .harness/bin/check-codify-allowlist.mjs <base-ref> <branch>        (any remote, or none)
+ *
+ * The head is the commit that will merge, never a caller-chosen revision. `<branch>` must be a
+ * plain branch name (`docs/codify-x`): a revision such as `x~1`, a commit id, `HEAD` or a full
+ * ref name is refused (exit 2). It is judged at its tip:
+ *   - with an `origin` remote: origin's copy, fetched first into `refs/remotes/origin/<branch>`;
+ *     a branch not on origin is exit 2 (push it first);
+ *   - with no remote at all: the local branch `refs/heads/<branch>`.
+ * With `--pr <number>`, `gh pr view` supplies the pull request's head branch and head commit; the
+ * pull request must be open, from this repository (not a fork) and into origin's default branch,
+ * and its head commit must equal origin's fetched branch tip, or exit 2.
+ * The output names the commit judged on a line `judged commit: <full sha> (...)`. Merge with
+ * `gh pr merge <number> --merge --match-head-commit <that sha>`, so a push after the check makes
+ * the merge fail instead of merging an unjudged commit.
  *
  * The base is always the branch the pull request merges into, never the caller's choice (a base
  * nearer the head would hide the head's earlier commits from the check). The check works it out:
@@ -22,8 +36,9 @@
  *         `.harness/reviews/round-codify-*.json`, `workspaces/<p>/04-validate/codify-*.md`,
  *         `workspaces/<p>/04-validate/round-codify-*.json` and
  *         `workspaces/<p>/journal/<NNNN>-DECISION-*.md` whose front matter (between the opening
- *         and closing `---` lines) has exactly one `author:` key, equal to `agent`, and no
- *         `human` or `co-authored` anywhere in it; the body is not read;
+ *         and closing `---` lines) is plain unquoted `key: value` lines, each key once, with
+ *         `author: agent` and no `human` or `co-authored` anywhere in it, and no second `---` or
+ *         `...` line anywhere after it; the body is not otherwise read;
  *     `.harness/guides/**` is NOT on it: guides are instruction files (`.claude/rules/security.md`
  *     § Untrusted Content), so a guide change is ask-first;
  *   - nothing is deleted, renamed, copied, a symlink, a submodule, or changes mode (only plain
@@ -94,16 +109,31 @@ function parseRaw(out) {
 const lessonKey = (cell) => cell.replace(/^`([^`]*)`$/, "$1");
 const tableCells = (line) => line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
 
-/** Why the run's journal entry is not an agent's record, or null when it is. Reads front matter only. */
+// A front-matter line the check accepts: a plain lowercase key, one space, a plain value. No
+// quoted or indented keys, no quoted, block, anchor, alias, tag or comment values, no escapes.
+const FRONT_LINE_RE = /^([a-z][a-z0-9_-]*): ([^\s"'\\{}|>&*!%@`#][^\\]*)$/;
+
+/**
+ * Why the run's journal entry is not an agent's record, or null when it is. Reads front matter
+ * only. The file holds exactly one front-matter block, first; every line in it is a plain
+ * `key: value` line, each key once; `author` is exactly `agent`; no `human` or `co-authored`.
+ */
 export function journalAuthorProblem(text) {
   const lines = (text || "").split(/\r?\n/);
   if (lines[0] !== "---") return "the run's journal entry must open with front matter holding `author: agent`";
   const end = lines.indexOf("---", 1);
   if (end < 0) return "the run's journal entry has no closing `---`; its front matter must hold `author: agent`";
+  if (lines.slice(end + 1).some((l) => /^(?:---|\.\.\.)\s*$/.test(l))) return "the run's journal entry has a second front-matter block or document marker (`---` or `...`); it has exactly one front matter, holding `author: agent`";
   const front = lines.slice(1, end);
-  const authors = front.filter((l) => /^\s*author\s*:/i.test(l));
-  if (authors.length !== 1) return `the run's journal entry must have exactly one \`author:\` key, \`author: agent\` (found ${authors.length})`;
-  if (!/^author:[ \t]*agent[ \t]*$/.test(authors[0])) return "the run's journal entry must have `author: agent`, nothing else on that line";
+  if (!front.length) return "the run's journal entry has empty front matter; it must hold `author: agent`";
+  const keys = new Map();
+  for (const l of front) {
+    const m = l.match(FRONT_LINE_RE);
+    if (!m) return `the run's journal entry front matter must be plain unquoted \`key: value\` lines (no quotes, escapes, indentation or comments); refused ${JSON.stringify(l.slice(0, 60))} — it must hold \`author: agent\``;
+    if (keys.has(m[1])) return `the run's journal entry front matter repeats the key \`${m[1]}\`; it must have exactly one \`author: agent\``;
+    keys.set(m[1], m[2].replace(/[ \t]+$/, ""));
+  }
+  if (keys.get("author") !== "agent") return "the run's journal entry must have exactly one `author:` key, `author: agent`, nothing else on that line";
   if (front.some((l) => /human|co-?authored/i.test(l))) return "the run's journal entry must have `author: agent` and no `human` or `co-authored` in its front matter";
   return null;
 }
@@ -186,30 +216,75 @@ export function checkCodifyAllowlist(base, head, cwd = process.cwd()) {
 /**
  * The commit the pull request merges into: origin's default branch, fetched first, or the local
  * `main` when the repository has no remote at all. Never the caller's choice.
- * @returns {{ ref: string, label: string }}
+ * @returns {{ ref: string, label: string, branch: string, remote: boolean }}
  */
 export function defaultBase(cwd = process.cwd()) {
   const remotes = git(["remote"], cwd).split("\n").map((r) => r.trim()).filter(Boolean);
   if (!remotes.length) {
     git(["rev-parse", "--verify", "--quiet", "refs/heads/main^{commit}"], cwd);
-    return { ref: "refs/heads/main", label: "no remote: judging against local main" };
+    return { ref: "refs/heads/main", label: "no remote: judging against local main", branch: "main", remote: false };
   }
   if (!remotes.includes("origin")) throw new Error(`remotes ${remotes.join(", ")} exist but none is named origin; the pull request's base is origin's default branch`);
   const symref = git(["ls-remote", "--symref", "origin", "HEAD"], cwd).match(/^ref: refs\/heads\/(\S+)\tHEAD$/m);
   if (!symref) throw new Error("could not read origin's default branch (git ls-remote --symref origin HEAD)");
   const branch = symref[1];
   git(["fetch", "--quiet", "--no-tags", "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`], cwd);
-  return { ref: `refs/remotes/origin/${branch}`, label: `judging against origin/${branch} (just fetched)` };
+  return { ref: `refs/remotes/origin/${branch}`, label: `judging against origin/${branch} (just fetched)`, branch, remote: true };
 }
 
-function main(argv) {
-  if (argv.length !== 2 || argv.some((a) => a.startsWith("-"))) {
-    process.stderr.write("usage: check-codify-allowlist.mjs <base-ref> <head-ref>\n(<base-ref> must be origin's default branch, e.g. origin/main, or main when there is no remote)\nexit 0 may merge without the user · 1 findings (ask-first) · 2 usage or git error\n");
-    return 2;
+/** A plain branch name: a valid `refs/heads/<name>`, not a revision, a full ref name or `HEAD`. */
+function plainBranchName(name, cwd) {
+  if (typeof name !== "string" || !name || name.startsWith("-") || name.startsWith("refs/") || name === "HEAD" || /[~^:@\\\s?*[]/.test(name)) return false;
+  try { git(["check-ref-format", `refs/heads/${name}`], cwd); return true; } catch { return false; }
+}
+
+/**
+ * The commit that will merge: the branch's tip on origin (fetched first) or, with no remote, the
+ * local branch's tip. With a pull request, gh's head commit must equal origin's tip.
+ * @returns {{ sha: string, label: string }}
+ */
+export function resolveHead(base, head, cwd = process.cwd()) {
+  const commit = (ref) => git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd).trim();
+  let branch = head.branch;
+  let pr = null;
+  if (head.pr !== undefined) {
+    if (!/^[1-9]\d*$/.test(head.pr)) throw new Error(`--pr needs a pull request number, got ${JSON.stringify(head.pr)}`);
+    if (!base.remote) throw new Error("--pr needs an origin remote; with no remote, name the local branch instead");
+    let out;
+    try {
+      out = execFileSync("gh", ["pr", "view", head.pr, "--json", "headRefName,headRefOid,baseRefName,isCrossRepository,state"],
+        { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch (error) { throw new Error(`gh pr view ${head.pr} failed: ${String(error.stderr || error.message).trim()}`); }
+    pr = JSON.parse(out);
+    if (pr.state !== "OPEN") throw new Error(`pull request #${head.pr} is ${pr.state}, not open`);
+    if (pr.isCrossRepository !== false) throw new Error(`pull request #${head.pr} comes from another repository; only a branch on origin is judged`);
+    if (pr.baseRefName !== base.branch) throw new Error(`pull request #${head.pr} merges into ${pr.baseRefName}, not origin's default branch ${base.branch}`);
+    if (!/^[0-9a-f]{40}$/.test(pr.headRefOid || "")) throw new Error(`pull request #${head.pr} has no head commit id`);
+    branch = pr.headRefName;
   }
-  const head = argv[1];
+  if (!plainBranchName(branch, cwd)) throw new Error(`${JSON.stringify(branch)} is not a plain branch name; name the branch itself (docs/codify-x), not a revision, commit id or ref`);
+  if (!base.remote) {
+    let sha;
+    try { sha = commit(`refs/heads/${branch}`); } catch { throw new Error(`no local branch ${branch}`); }
+    return { sha, label: `local branch ${branch}, no remote` };
+  }
+  try { git(["fetch", "--quiet", "--no-tags", "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`], cwd); }
+  catch (error) { throw new Error(`branch ${branch} could not be fetched from origin (push it first): ${String(error.stderr || error.message).trim()}`); }
+  const sha = commit(`refs/remotes/origin/${branch}`);
+  if (pr && pr.headRefOid !== sha) throw new Error(`pull request #${head.pr} head ${pr.headRefOid.slice(0, 12)} is not origin/${branch} tip ${sha.slice(0, 12)}; re-run once they agree`);
+  return { sha, label: pr ? `pull request #${head.pr}, origin/${branch} tip (just fetched)` : `origin/${branch} tip (just fetched)` };
+}
+
+const USAGE = "usage: check-codify-allowlist.mjs <base-ref> --pr <number>\n       check-codify-allowlist.mjs <base-ref> <branch>\n(<base-ref> must be origin's default branch, e.g. origin/main, or main when there is no remote; <branch> is a plain branch name, judged at its tip on origin, or locally when there is no remote)\nexit 0 may merge without the user · 1 findings (ask-first) · 2 usage or git error\n";
+
+function main(argv) {
+  let head;
+  if (argv.length === 3 && argv[1] === "--pr" && !argv[0].startsWith("-")) head = { pr: argv[2] };
+  else if (argv.length === 2 && !argv.some((a) => a.startsWith("-"))) head = { branch: argv[1] };
+  else { process.stderr.write(USAGE); return 2; }
   const sha = (ref) => git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], process.cwd()).trim();
   let base;
+  let judged;
   try {
     base = defaultBase();
     let given = null;
@@ -222,13 +297,15 @@ function main(argv) {
       process.stderr.write(`base ${argv[0]} (${given ? given.slice(0, 12) : "not found"}) is not the default branch the pull request merges into (${want.slice(0, 12)}); ${hint}\n`);
       return 2;
     }
+    judged = resolveHead(base, head);
   } catch (error) {
     process.stderr.write(`${String(error.stderr || error.message || "git error").trim()}\n`);
     return 2;
   }
   process.stdout.write(`${base.label}\n`);
+  process.stdout.write(`judged commit: ${judged.sha} (${judged.label})\n`);
   let result;
-  try { result = checkCodifyAllowlist(base.ref, head); }
+  try { result = checkCodifyAllowlist(base.ref, judged.sha); }
   catch (error) { process.stderr.write(`${String(error.stderr || error.message).trim()}\n`); return 2; }
   for (const f of result.findings) process.stdout.write(`FAIL ${f}\n`);
   if (result.findings.length) {

@@ -3,7 +3,7 @@
 // disposable repository. Run from the repository root: `node --test ".harness/tests/*.mjs"`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdirSync, mkdtempSync, rmSync, realpathSync } from "node:fs";
+import { writeFileSync, readFileSync, chmodSync, mkdirSync, mkdtempSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -89,6 +89,7 @@ test("with a remote, the checker fetches the default branch and refuses a local 
   const { dir, branch } = repo(t);
   const bare = withOrigin(t, dir);
   branch("docs/codify-ok", () => put(dir, ".harness/backlog/harness-02-b.md", "item\n"));
+  git(dir, "push", "-q", "origin", "docs/codify-ok");
   const r = check(dir, "origin/main", "docs/codify-ok");
   assert.equal(r.status, 0, out(r));
   assert.match(r.stdout, /judging against origin\/main \(just fetched\)/);
@@ -104,6 +105,83 @@ test("with a remote, the checker fetches the default branch and refuses a local 
   const local = check(dir, "main", "docs/codify-ok");
   assert.equal(local.status, 2, out(local));
   assert.match(local.stderr, /pass origin\/main/);
+});
+
+// ---- which head is judged (the head is the commit that merges) ---------------------------------
+
+/** A fake `gh` on PATH that prints `json` for `gh pr view`, and records its arguments. */
+function fakeGh(t, json) {
+  const bin = tempDir(t, "harness-codify-gh-");
+  put(bin, "gh.json", JSON.stringify(json));
+  put(bin, "gh", `#!/bin/sh\necho "$@" >> "${bin}/args"\ncat "${bin}/gh.json"\n`);
+  chmodSync(join(bin, "gh"), 0o755);
+  return { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, args: () => readFileSync(join(bin, "args"), "utf8") };
+}
+const checkEnv = (cwd, env, ...args) => spawnSync(process.execPath, [CHECK, ...args], { cwd, env, encoding: "utf8" });
+const judged = (r) => r.stdout.match(/^judged commit: ([0-9a-f]{40})\b/m)?.[1];
+
+test("with no remote, the head is a local branch judged at its tip, never an arbitrary ref", (t) => {
+  const { dir } = repo(t);
+  git(dir, "checkout", "-q", "-b", "docs/codify-tip", "main");
+  put(dir, ".harness/backlog/harness-02-b.md", "item\n"); git(dir, "add", "-A"); git(dir, "commit", "-qm", "t1");
+  put(dir, ".claude/rules/security.md", "weakened rule\n"); git(dir, "commit", "-qam", "t2");
+  git(dir, "checkout", "-q", "main");
+  for (const head of ["docs/codify-tip~1", "docs/codify-tip^", "docs/codify-tip@{1}", git(dir, "rev-parse", "docs/codify-tip~1"),
+    "HEAD", "refs/heads/docs/codify-tip", "docs/codify-missing", "main:x"]) {
+    const r = check(dir, "main", head);
+    assert.equal(r.status, 2, `${head} is not a branch name and must be refused\n${out(r)}`);
+  }
+  const tip = check(dir, "main", "docs/codify-tip");
+  assert.equal(tip.status, 1, `control: the tip's rule edit is found\n${out(tip)}`);
+  assert.equal(judged(tip), git(dir, "rev-parse", "refs/heads/docs/codify-tip"), `the judged commit is printed\n${out(tip)}`);
+});
+
+test("with a remote, the head is the branch's tip on origin, fetched, not the local copy", (t) => {
+  const { dir } = repo(t);
+  withOrigin(t, dir);
+  git(dir, "checkout", "-q", "-b", "docs/codify-tip", "main");
+  put(dir, ".harness/backlog/harness-02-b.md", "item\n"); git(dir, "add", "-A"); git(dir, "commit", "-qm", "t1");
+  const good = git(dir, "rev-parse", "HEAD");
+  put(dir, ".claude/rules/security.md", "weakened rule\n"); git(dir, "commit", "-qam", "t2");
+  git(dir, "push", "-q", "origin", "docs/codify-tip");
+  const bad = git(dir, "rev-parse", "HEAD");
+  git(dir, "reset", "-q", "--keep", good); // the local branch lags origin's tip
+  git(dir, "checkout", "-q", "main");
+  const r = check(dir, "origin/main", "docs/codify-tip");
+  assert.equal(r.status, 1, `origin's tip carries the rule edit\n${out(r)}`);
+  assert.equal(judged(r), bad, `origin's tip is what is judged\n${out(r)}`);
+  git(dir, "branch", "-q", "docs/codify-local", good);
+  const unpushed = check(dir, "origin/main", "docs/codify-local");
+  assert.equal(unpushed.status, 2, `a branch not on origin cannot be judged\n${out(unpushed)}`);
+  assert.equal(check(dir, "origin/main", "origin/docs/codify-tip").status, 2, "a remote-tracking ref is not a branch name");
+});
+
+test("with a pull request number, gh's head commit must equal origin's branch tip", (t) => {
+  const { dir } = repo(t);
+  withOrigin(t, dir);
+  git(dir, "checkout", "-q", "-b", "docs/codify-pr", "main");
+  put(dir, ".harness/backlog/harness-02-b.md", "item\n"); git(dir, "add", "-A"); git(dir, "commit", "-qm", "p1");
+  git(dir, "push", "-q", "origin", "docs/codify-pr");
+  const tip = git(dir, "rev-parse", "HEAD");
+  git(dir, "checkout", "-q", "main");
+  const pr = { headRefName: "docs/codify-pr", headRefOid: tip, baseRefName: "main", isCrossRepository: false, state: "OPEN" };
+  const ok = fakeGh(t, pr);
+  const r = checkEnv(dir, ok.env, "origin/main", "--pr", "7");
+  assert.equal(r.status, 0, out(r));
+  assert.equal(judged(r), tip, out(r));
+  assert.match(ok.args(), /^pr view 7 --json /m);
+  for (const [why, over] of Object.entries({
+    "head commit differs from origin's tip": { headRefOid: git(dir, "rev-parse", "main") },
+    "merges into another branch": { baseRefName: "release/v1" },
+    "comes from a fork": { isCrossRepository: true },
+    "is not open": { state: "MERGED" },
+  })) {
+    const r2 = checkEnv(dir, fakeGh(t, { ...pr, ...over }).env, "origin/main", "--pr", "7");
+    assert.equal(r2.status, 2, `${why}\n${out(r2)}`);
+  }
+  assert.equal(checkEnv(dir, ok.env, "origin/main", "--pr", "7x").status, 2, "not a number");
+  const { dir: local } = repo(t);
+  assert.equal(checkEnv(local, ok.env, "main", "--pr", "7").status, 2, "a pull request needs an origin remote");
 });
 
 test("remotes without an origin, or an origin that cannot be reached, are a git error", (t) => {
@@ -131,11 +209,24 @@ test("the run's journal entry is judged by its front matter only", (t) => {
     "docs/codify-nofm": "author: agent\nsummary\n",
     "docs/codify-unclosed": "---\ntype: DECISION\nauthor: agent\nsummary\n",
     "docs/codify-agentish": "---\ntype: DECISION\nauthor: agent, human\n---\nsummary\n",
+    // Only plain unquoted `key: value` lines; one front-matter block in the whole file.
+    "docs/codify-quotedkey": "---\ntype: DECISION\nauthor: agent\n\"author\": \"hum\\u0061n\"\n---\nsummary\n",
+    "docs/codify-singlequotedkey": "---\ntype: DECISION\nauthor: agent\n'author': x\n---\nsummary\n",
+    "docs/codify-quotedvalue": "---\ntype: DECISION\nauthor: \"agent\"\n---\nsummary\n",
+    "docs/codify-escape": "---\ntype: DECISION\nauthor: agent\ntopic: a\\x20b\n---\nsummary\n",
+    "docs/codify-nospace": "---\ntype: DECISION\nauthor:agent\n---\nsummary\n",
+    "docs/codify-indented": "---\ntype: DECISION\nauthor: agent\nmeta:\n  author: x\n---\nsummary\n",
+    "docs/codify-secondafter": "---\ntype: DECISION\nauthor: agent\n---\n---\nauthor: x\n---\nsummary\n",
+    "docs/codify-secondlater": "---\ntype: DECISION\nauthor: agent\n---\nsummary\n\n---\nauthor: x\n---\n",
+    "docs/codify-docend": "---\ntype: DECISION\nauthor: agent\n---\nsummary\n...\n",
+    "docs/codify-emptyfirst": "---\n---\n---\ntype: DECISION\nauthor: agent\n---\nsummary\n",
   })) {
     const r = entry(name, text);
     assert.equal(r.status, 1, `${name}\n${out(r)}`);
-    assert.match(r.stdout, /author: agent/, name);
+    assert.match(r.stdout, /author: agent|front matter/, name);
   }
+  const full = entry("docs/codify-fullfm", "---\ntype: DECISION\ndate: 2026-10-08\nauthor: agent\nproject: demo\ntopic: codify run, the user's lessons\nphase: codify\ntags: [codify]\n---\nsummary\n");
+  assert.equal(full.status, 0, `control: the journal command's full front matter may merge\n${out(full)}`);
 });
 
 // ---- guides are instruction files (security M3) ------------------------------------------------
