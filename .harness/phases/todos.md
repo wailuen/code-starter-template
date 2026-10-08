@@ -40,7 +40,8 @@ measured work; do not apply an assumed universal 10x throughput multiplier.
 2. Declare `workspaces/<project>/todos/WAVE-SEQUENCE.md`, ordered by user value and dependencies. Every
    requirement has a roadmap owner, including testing, integration and deployment. The first
    wave of a new repository also owns its setup: a CI workflow that runs the project profile's
-   Local CI parity command on every pull request, plus — in standard mode —
+   Local CI parity command on every pull request (check out the full history, e.g. `fetch-depth: 0`,
+   because the harness checkers read git history), plus — in standard mode —
    `node .harness/bin/check-redteam-convergence-receipt.mjs --sweep workspaces` on pushes to
    `main` and pull requests into `main` only (todo and wave branches carry todos that are not
    converged yet); a health endpoint when the product will be deployed; and branch protection

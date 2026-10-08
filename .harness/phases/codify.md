@@ -67,11 +67,13 @@ over the workflow where they differ.
   answer); and the run's own evidence — its review report and round record (in
   `workspaces/<project>/04-validate/` or `.harness/reviews/`) and its `DECISION` journal summary.
   Before any merge without the user,
-  `node .harness/bin/check-codify-allowlist.mjs main <head-ref>` must exit 0 (0 may merge
+  `git fetch` then `node .harness/bin/check-codify-allowlist.mjs origin/main <head-ref>` (the
+  pull request's real base; with a remote, a local `main` that differs is refused) must exit 0 (0 may merge
   without the user, 1 findings — ask-first, 2 usage or git error; the reviewer still reviews).
   What an agent needs to know: name the evidence `codify-<slug>-<lens>-r<n>.md` and
-  `round-codify-<slug>-<n>.json`; only add or modify files (never delete or rename); and word
-  log rows without the user saying anything (write "waiting for the user"; the tool refuses any deciding word in a row — approve, confirm,
+  `round-codify-<slug>-<n>.json`; only add or modify files with plain ASCII names (never delete or rename, never a folder named like an
+  existing file); and word
+  log rows without the user saying anything (write "waiting for the user", with no quotation marks; the tool refuses any deciding word in a row — approve, confirm,
   accept, agree, OK, yes and the like — whoever it names), and never add a row for a lesson whose
   latest row is `awaiting user` (only the user's answer may). Everything else — skills, commands, rules, roles, phases, agents, adapters,
   the manifest, `.harness/bin/`, `.harness/lib/`, `.claude/CLAUDE.md`, `AGENTS.md`, settings,

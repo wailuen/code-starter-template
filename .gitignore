@@ -54,3 +54,5 @@ CLAUDE.local.md
 # Common dependency and build caches (add your language's own in the project)
 node_modules/
 __pycache__/
+*.keystore
+firebase-adminsdk-*.json

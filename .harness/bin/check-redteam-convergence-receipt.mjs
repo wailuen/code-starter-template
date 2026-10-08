@@ -1193,6 +1193,14 @@ function checkRoundBudget(c, validateRel) {
         invalid(`${p} was deleted and re-added with different content — a recorded round is never rewritten`);
     }
   }
+  // A record edited in place keeps its path, so the add-history above sees only its first
+  // version: compare that with the version the receipt was judged at.
+  for (const { rec, path: p } of byRound.values()) {
+    let now = null;
+    try { now = JSON.parse(showAt(repoRoot, receiptPin, p) ?? "null"); } catch { now = undefined; }
+    if (now !== null && JSON.stringify(now) !== JSON.stringify(rec))
+      invalid(`${p} was edited after it was first committed — a recorded round is never rewritten`);
+  }
   const rounds = [...byRound.keys()].sort((a, b) => a - b);
   if (rounds.length && rounds[0] !== 1) {
     invalid(`the recorded rounds of scope ${c.scope} / branch ${branch} start at round ${rounds[0]}, not round 1 — every round the recorder admitted must stay committed`);

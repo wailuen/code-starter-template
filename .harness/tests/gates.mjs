@@ -652,6 +652,16 @@ test("the rebuilt count follows the scope or the branch: a todo branch cut from 
   assert.match(sameScope.stderr, /already hold rounds 1-2/);
 });
 
+test("a light-mode wave round must include a security reviewer", (t) => {
+  const fx = recorderRepo(t);
+  put(fx.repo, ".harness/guides/project-profile.md", "| Key | Value |\n| --- | --- |\n| `delivery_mode` | `light` | light |\n");
+  const noSecurity = fx.record(1, "CLEAR", { expected_reviewers: ["correctness"], reviewers: [{ id: "correctness", verdict: "CLEAR", evidence: "workspaces/demo/04-validate/w01-correctness-r1.md" }] });
+  assert.equal(noSecurity.status, 1, noSecurity.stdout + noSecurity.stderr);
+  assert.match(noSecurity.stderr, /light-mode wave round always includes a security reviewer/);
+  const withSecurity = fx.record(1, "CLEAR");
+  assert.equal(withSecurity.status, 0, withSecurity.stdout + withSecurity.stderr);
+});
+
 test("a rebuilt count must start at round 1", (t) => {
   const fx = recorderRepo(t);
   assert.equal(fx.record(1, "NOT_CLEAR").status, 0);
@@ -706,6 +716,14 @@ test("the checker counts by scope or branch from round 1: inherited failed round
   });
   assert.equal(readded.status, 1, readded.stdout);
   assert.match(readded.stdout, /round-records-invalid — .*round-w01-1\.json was deleted and re-added with different content/);
+  // Edited in place (same path, no delete) before the receipt: refused too.
+  const edited = wave(t, ({ dir, ws, put: p }) => {
+    const file = `${ws}/04-validate/round-w01-1.json`;
+    const rec = JSON.parse(readFileSync(join(dir, file), "utf8"));
+    p(file, JSON.stringify({ ...rec, note: "edited" }));
+  });
+  assert.equal(edited.status, 1, edited.stdout);
+  assert.match(edited.stdout, /round-records-invalid — .*round-w01-1\.json was edited after it was first committed/);
   // Changed after the receipt: --scope reports it.
   const later = wave(t, () => {}, { after: ({ dir, ws }) => {
     const file = `${ws}/04-validate/round-w01-1.json`;
@@ -803,7 +821,7 @@ test("codify allowlist: allowlisted guide, backlog, appended log rows and eviden
 });
 
 test("codify allowlist: the -ask-review record-only branch (review report, round record, held log row) may merge without the user", (t) => {
-  const { dir, log, branch } = codifyRepo(t);
+  const { dir, log, branch, stageBlob } = codifyRepo(t);
   const askReview = branch("docs/codify-x-ask-review", () => {
     put(dir, ".harness/reviews/codify-x-ask-correctness-r1.md", "Verdict: CLEAR\n");
     put(dir, ".harness/reviews/round-codify-x-ask-1.json", "{}\n");
@@ -830,6 +848,16 @@ test("codify allowlist: the -ask-review record-only branch (review report, round
     put(dir, "workspaces/demo/journal/0009-DECISION-codify-h.md", "---\ntype: DECISION\nauthor: human\n---\nsummary\n");
   });
   assert.equal(humanJournal.status, 1, "the run's journal entry must be author: agent");
+  for (const name of ["taſk-delivery.md", "project-proﬁle.md", "guíde.md"]) {
+    const lookalike = branch(`docs/codify-l${name.length}`, () => { put(dir, `.harness/guides/${name}`, "text\n"); });
+    assert.equal(lookalike.status, 1, `non-ASCII names are ask-first: ${name}`);
+  }
+  const folder = branch("docs/codify-folder", () => stageBlob(".harness/guides/Project-Profile.md/notes.md", "text\n"));
+  assert.equal(folder.status, 1, "a folder named like an existing file is ask-first");
+  const quoted = branch("docs/codify-quoted", () => {
+    put(dir, ".harness/codify-log.md", log + '| 2026-10-08 | docs/codify-q | .harness/backlog/harness-01-a.md | declined | Jane: "no" |\n');
+  });
+  assert.equal(quoted.status, 1, "quoted speech in a row reads as someone's answer");
   const strayJson = branch("docs/codify-z-ask-review", () => {
     put(dir, ".harness/reviews/notes.json", "{}\n");
   });

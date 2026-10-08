@@ -88,7 +88,7 @@ function checkLog(baseText, headText) {
     const cells = line.trim().match(/^\|(.*)\|$/)?.[1].split("|").map((x) => x.trim());
     if (!cells || cells.length !== 5) { problems.push(`appended line is not a five-cell table row: ${JSON.stringify(line.slice(0, 80))}`); continue; }
     if (!OUTCOMES.has(cells[3].toLowerCase())) problems.push(`row outcome ${JSON.stringify(cells[3])} is not folded in / declined / deferred / awaiting user`);
-    if (USER_ANSWER_RE.test(line) || DECIDING_RE.test(`${cells[2]} ${cells[4]}`)) problems.push(`row records a decision or answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
+    if (USER_ANSWER_RE.test(line) || DECIDING_RE.test(`${cells[2]} ${cells[4]}`) || /["“”«»]/.test(cells[4])) problems.push(`row records a decision or answer, which only a session where the user answered may write: ${JSON.stringify(line.slice(0, 80))}`);
     if (awaiting.has(cells[2])) problems.push(`${cells[2]} is waiting for the user's answer; only that answer may add a row for it`);
   }
   return problems;
@@ -101,7 +101,7 @@ export function checkCodifyAllowlist(base, head, cwd = process.cwd()) {
   const tree = (ref) => git(["ls-tree", "-r", "-z", "--name-only", ref], cwd).split("\0").filter(Boolean);
   const all = [...new Set([...tree(mergeBase), ...tree(head)])];
   const byFold = new Map();
-  for (const p of all) byFold.set(p.toLowerCase(), [...(byFold.get(p.toLowerCase()) || []), p]);
+  for (const p of all) { const k = p.normalize("NFKC").toLowerCase(); byFold.set(k, [...(byFold.get(k) || []), p]); }
   const show = (ref, p) => { try { return git(["show", `${ref}:${p}`], cwd); } catch { return null; } };
   const findings = [];
   for (const { oldMode, newMode, status, paths } of entries) {
@@ -111,7 +111,14 @@ export function checkCodifyAllowlist(base, head, cwd = process.cwd()) {
     if (status === "R" || status === "C") { fail(`${status === "R" ? "renamed" : "copied"} — renames and copies are ask-first`); continue; }
     if (status === "T" || (status === "M" && oldMode !== newMode)) { fail(`mode or type changed (${oldMode} -> ${newMode})`); continue; }
     if (newMode !== "100644") { fail(`not a plain file (mode ${newMode}: symlink, submodule or executable)`); continue; }
-    const collisions = (byFold.get(p.toLowerCase()) || []).filter((q) => q !== p);
+    // Lookalike letters (a long s, a ligature, a Cyrillic a) fold onto a protected name on some
+    // filesystems; an automatic run only ever writes plain ASCII names.
+    if (/[^\x20-\x7e]/.test(p)) { fail("file name has characters outside plain ASCII — ask-first"); continue; }
+    const parts = p.split("/");
+    const shadow = parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join("/"))
+      .flatMap((d) => (byFold.get(d.normalize("NFKC").toLowerCase()) || []).filter((q) => q !== d && !all.some((x) => x.startsWith(`${q}/`))));
+    if (shadow.length) { fail(`a folder in this path has the same name as the file ${shadow.join(", ")} on a case-insensitive disk`); continue; }
+    const collisions = (byFold.get(p.normalize("NFKC").toLowerCase()) || []).filter((q) => q !== p);
     if (collisions.length) { fail(`differs only in letter case from ${collisions.join(", ")}`); continue; }
     if (EXCLUDED_GUIDES.includes(p.toLowerCase())) { fail("task-delivery.md and project-profile.md are ask-first"); continue; }
     if (p === LOG) {
@@ -135,6 +142,16 @@ function main(argv) {
     process.stderr.write("usage: check-codify-allowlist.mjs <base-ref> <head-ref>\nexit 0 may merge without the user · 1 findings (ask-first) · 2 usage or git error\n");
     return 2;
   }
+  // Judge against what the pull request merges into: when a remote copy of the base exists and
+  // the local one differs, the local base may hide changes (or carry unpublished ones).
+  try {
+    const remote = execFileSync("git", ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${argv[0]}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const local = execFileSync("git", ["rev-parse", "--verify", argv[0]], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (remote && remote !== local) {
+      process.stderr.write(`base ${argv[0]} (${local.slice(0, 12)}) differs from origin/${argv[0]} (${remote.slice(0, 12)}); run git fetch and pass origin/${argv[0]}, the pull request's real base\n`);
+      return 2;
+    }
+  } catch { /* no remote copy of this base: judge against it as given */ }
   let result;
   try { result = checkCodifyAllowlist(argv[0], argv[1]); }
   catch (error) { process.stderr.write(`${error.message.trim()}\n`); return 2; }
