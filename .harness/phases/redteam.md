@@ -93,11 +93,16 @@ Save each report verbatim, with secret values redacted (task-delivery § Review 
 circuit breaker), at `workspaces/<project>/04-validate/<scope>-<lens>-r<n>.md` and
 write `workspaces/<project>/04-validate/round-<scope>-<n>.json` in the format in
 task-delivery § Review protocol and circuit breaker, with one verdict and a
-repository-root-relative evidence path per expected reviewer. Run:
+repository-root-relative evidence path per expected reviewer. Each report states the commit it
+reviewed (the full head SHA, or at least its first 12 characters). `git add` the reports, then
+run:
 
 `node .harness/bin/record-review-round.mjs <round.json>`
 
-then commit the round file and its reports; the receipt is checked against them.
+then commit the round file and its reports; the receipt is checked against them. The recorder
+refuses evidence that is not a git-tracked report directly under `04-validate/` (or
+`.harness/reviews/` for codify) naming the reviewed commit
+(`.harness/guides/review-round-recorder.md`).
 
 Only complete rounds count. One lens's CLEAR cannot clear another lens's failure.
 Duplicate delivery cannot add a round. ERROR is never clean. The branch gets three rounds,
@@ -124,7 +129,10 @@ circuit breaker or reassessment is not convergence and never authorizes shipping
 
 Write the final receipt using
 `node .harness/bin/check-redteam-convergence-receipt.mjs --template <scope>`.
-Preserve its wave-base, ratified-acceptance, per-round launch identity, evidence,
+Its `wave_base` is the `main` commit the wave branch was cut from: `git merge-base main
+<verdict_head>`, unless `main` was merged into the wave (task-delivery § Branches, pull
+requests and merging step 7) — then the original fork point, which the checker's
+`wave-base-mismatch` message prints. Preserve its wave-base, ratified-acceptance, per-round launch identity, evidence,
 covered-todo, current-commit and named residual-acceptor requirements. Each reviewer's
 `evidence` is the repository-root path of its committed report; each round the receipt lists
 has its committed `round-<scope>-<n>.json` with the same head, lenses, evidence and verdicts;
@@ -147,6 +155,14 @@ commit (an uncommitted edit is refused as `receipt-rewritten`). If only the jour
 Never copy round records. Only when the acceptance list itself changed does the wave move to a
 new scope name (`.harness/phases/todos.md` § Changing or cancelling approved scope). After the
 merge into `main`, a receipt is immutable (`receipt-rewritten`).
+
+After the receipt, only bookkeeping goes on the wave branch (the preview, the user's answer,
+journal entries). Code committed after the receipt, a later review round of this branch under
+any file name, a conflict resolved or code edited inside the merge into `main`, or a
+fast-forward merge makes `--todo` and `--sweep` refuse the wave on `main` and at pull-request
+time (`landed-content-not-reviewed`, `round-record-after-receipt`, `merge-commit-changed-code`,
+`wave-merge-not-a-merge-commit`). New code means new review rounds and a corrected receipt
+before the merge.
 
 After the receipt check exits 0, in this order:
 

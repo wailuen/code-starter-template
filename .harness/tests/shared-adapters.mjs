@@ -185,9 +185,10 @@ for (const [file, marker] of [
     git(repo, ["init", "-q"]); git(repo, ["commit", "--allow-empty", "-qm", "base"]);
     const sample = JSON.parse(documentedRound(file, marker).replaceAll("<project>", "demo"));
     git(repo, ["checkout", "-q", "-b", sample.branch]);
-    for (const r of sample.reviewers) copy(repo, r.evidence, `Verdict: ${r.verdict}\n`);
-    git(repo, ["add", "-A"]); git(repo, ["commit", "-qm", "evidence"]);
+    git(repo, ["commit", "--allow-empty", "-qm", "reviewed work"]);
     const head = git(repo, ["rev-parse", "HEAD"]);
+    for (const r of sample.reviewers) copy(repo, r.evidence, `Verdict: ${r.verdict}\nCommit: ${head}\n`);
+    git(repo, ["add", "-A"]);
     const record = (round, name) => {
       copy(repo, `workspaces/demo/04-validate/${name}`, JSON.stringify({ ...round, head }));
       return spawnSync(process.execPath, [resolve(root, ".harness/bin/record-review-round.mjs"), `workspaces/demo/04-validate/${name}`], { cwd: repo, encoding: "utf8" });

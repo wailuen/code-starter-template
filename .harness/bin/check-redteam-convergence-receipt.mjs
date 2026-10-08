@@ -33,12 +33,22 @@
  * in the working tree". `--todo` and `--sweep` ask "was this todo ever PROPERLY closed" — they
  * judge each receipt AS OF its own commits (`historical`), skipping exactly those currency arms.
  * ANCHORING is never skipped: in every mode the verdict commit must be on the integration branch
- * or reachable from the invoking checkout's HEAD.
+ * or reachable from the invoking checkout's HEAD. In place of the currency arms the historical
+ * modes check WHAT LANDED (checkLanding): the merge commit that brought `verdict_head` into the
+ * integration branch (or into HEAD — a pull request's CI merge commit — when not merged yet) must
+ * merge in a commit that differs from `verdict_head` only in bookkeeping paths, must itself add
+ * no code beyond git's automatic merge of its parents, and must BE a merge commit (a
+ * fast-forwarded or rebased wave is refused). Round records of the receipt's scope or branch
+ * added after the receipt are refused in both modes.
  *
  * THE WAVE WINDOW is recorded ONCE, in the receipt, as `wave_base` — the integration-branch
  * commit the wave started from — and never recomputed from a moving reference afterwards:
- *   - pre-merge (the verdict is not yet on the integration branch) it MUST equal
- *     `git merge-base <integration> <verdict_head>`, which is deterministic at that moment;
+ *   - pre-merge (the verdict is not yet on the integration branch) it MUST equal the wave
+ *     branch's fork point: walk `verdict_head`'s FIRST-parent line back to the first commit on
+ *     the integration branch. That is `git merge-base <integration> <verdict_head>` unless the
+ *     integration branch was merged INTO the wave (task-delivery § Branches step 7), in which
+ *     case it stays the original fork point, so the wave's earlier todos and ledger stay inside
+ *     its window (and the security derivation also covers what that merge brought in);
  *   - always: it must be a real commit, a strict ancestor of `verdict_head`, on the integration
  *     branch, and older than every covered todo's completion and the wave's own ledger;
  *   - the receipt must be committed while its verdict is still current — only bookkeeping paths
@@ -89,17 +99,25 @@
  *       (c) the root `README` / `LICENSE` / `LICENCE` / `CHANGELOG` / `COPYING` / `NOTICE` files,
  *           with no extension or `.md` / `.markdown` / `.txt` / `.rst` / `.adoc` (`README.sh` is surface), and
  *       (d) plain documentation and raster images by extension — `*.md`, `*.markdown`, `*.rst`,
- *           `*.adoc`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.ico` — OUTSIDE `.claude/`,
- *           `.harness/`, `.github/`, `.agents/`, `.codex/` and `deploy/` (instructions an agent or
- *           a deploy follows are not plain documentation). `*.txt` and `*.svg` are surface.
+ *           `*.adoc`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.ico` — OUTSIDE any folder
+ *           named `.claude/`, `.harness/`, `.github/`, `.agents/`, `.codex/`, `.cursor/`,
+ *           `.windsurf/`, `.clinerules/` or `deploy/` AT ANY DEPTH (`apps/web/.claude/commands/x.md`
+ *           too: instructions an agent or a deploy follows are not plain documentation).
+ *           `*.txt` and `*.svg` are surface.
  *     The tests that put a path ON the surface ignore letter case (`.Claude/rules/x.md`,
  *     `CLAUDE.MD`, `Agents.md`), because case-insensitive filesystems load them as the real thing.
- *     `AGENTS.md` / `CLAUDE.md` are surface wherever they sit. So a migration, a middleware file,
+ *     Agent instruction files are surface wherever they sit: `AGENTS.md`, `CLAUDE.md`,
+ *     `CLAUDE.<anything>.md` (`CLAUDE.local.md`), `GEMINI.md`, any `*.override.md`
+ *     (`AGENTS.override.md`), and the files `.clinerules`, `.cursorrules`, `.windsurfrules`.
+ *     NOT detected: Markdown that a product loads at runtime from an ordinary folder
+ *     (`src/prompts/system-prompt.md`) — plan the security seat for it by judgment. So a migration, a middleware file,
  *     `.gitignore`, `.env.example`, `infra/*.tf` or a new top-level directory is surface without
  *     anyone listing it: a new directory is security surface by default, not by omission
  *       → `.harness/rules/agent-delegation.md` § Quality gates
  *   - `cap_hit` explicit and false → `completion-criterion.md` MUST-4
- *   - `acceptance_list.path` a tracked regular file inside the workspace, first committed in a
+ *   - `acceptance_list.path` a tracked regular file inside the workspace, first committed (in
+ *     `verdict_head`'s own history — a re-plan that also reached the integration branch by
+ *     another branch does not move it) in a
  *     STRICT ancestor of `verdict_head`, unchanged at `verdict_head`, RELEVANT (it names the
  *     scope, or every covered todo's id), ratified by a party that is not the agent → MUST-1
  *   - each residual INCREMENTAL, accepted by a named human with the four defer conditions and a
@@ -124,8 +142,22 @@
  *   - CI is a DETECTOR, not a gate, unless the repository enables branch protection with this
  *     check required — without it nothing stops a merge over a red result. Repository setting —
  *     the user's to change; not codeable around.
- *   - A live session can still simply never run this. CI's `--sweep` catches an unbacked "done"
- *     at PR time; nothing here can force the party it constrains to invoke it mid-session.
+ *   - A live session can still simply never run this. CI's `--sweep` catches an unbacked "done",
+ *     and code that rode a wave's merge in after its receipt, at PR time; nothing here can force
+ *     the party it constrains to invoke it mid-session.
+ *   - HONOUR-BASED, not checked here: what OTHER branches bring into the integration branch.
+ *     The landing check covers only the merge that brought each receipt's `verdict_head` in. A
+ *     record-only or docs branch (`docs/deploy-*`, `docs/<scope>-preview`, `release/v*`) that
+ *     also edits code, and any commit pushed straight to the integration branch, pass this check
+ *     — they are caught only by review and by branch protection. A PR-time job that classifies
+ *     each pull request by its head branch and refuses paths outside that branch kind's
+ *     allowlist would close it; it is not built.
+ *   - `--sweep` does not look inside `workspaces/instructions/` or underscore-prefixed folders
+ *     (`_archive`, `_template` — the phases' own workspace rule); it prints each one with the
+ *     number of completed todo files inside. A symlinked workspace, symlinked `todos/` or
+ *     `todos/completed/`, and any Markdown-looking file there that is not exactly
+ *     `todos/completed/<name>.md` (other letter case, `.markdown`, a subfolder, a symlink) FAIL
+ *     instead of being skipped.
  *   - GRANDFATHERING is pinned to a COMMIT (`grandfather_pin` in `.harness/manifest.json`, path + blob;
  *     null = nothing grandfathered), honoured by both
  *     `--sweep` and `--todo`. Editing a grandfathered todo re-opens it, with ONE allowance: a
@@ -210,9 +242,16 @@ const BOOKKEEPING_RE =
 const RUNTIME_STATE_RE = /^\.claude\/learning\//;
 const ROOT_DOC_RE = /^(?:README|LICEN[CS]E|CHANGELOG|COPYING|NOTICE)(?:\.(?:md|markdown|txt|rst|adoc))?$/i;
 const PLAIN_DOC_RE = /\.(?:md|markdown|rst|adoc|png|jpe?g|gif|webp|ico)$/i;
-// Instructions an agent or a deploy follows live here; a Markdown file under them is not plain documentation.
-const INSTRUCTION_DIR_RE = /^(?:\.claude|\.harness|\.github|\.agents|\.codex|deploy)\//i;
-const AGENT_INSTRUCTION_FILE_RE = /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/i;
+// Instructions an agent or a deploy follows live here — at ANY depth (`apps/web/.claude/`), since
+// agent runtimes load nested instruction folders too; a Markdown file under them is not plain
+// documentation. `.clinerules` may be a file or a folder.
+const INSTRUCTION_DIR_RE =
+  /(?:^|\/)(?:\.claude|\.harness|\.github|\.agents|\.codex|\.cursor|\.windsurf|deploy)\/|(?:^|\/)\.clinerules(?:\/|$)/i;
+// Agent instruction files wherever they sit: AGENTS.md, AGENTS.override.md (and any other
+// `*.override.md`), CLAUDE.md and CLAUDE.<anything>.md (CLAUDE.local.md), GEMINI.md, and the
+// single-file rule files `.cursorrules` / `.windsurfrules`.
+const AGENT_INSTRUCTION_FILE_RE =
+  /(?:^|\/)(?:(?:AGENTS|CLAUDE|GEMINI)\.md|CLAUDE\.[^/]+\.md|[^/]+\.override\.md|\.cursorrules|\.windsurfrules)$/i;
 export function isSecuritySurface(p) {
   if (RUNTIME_STATE_RE.test(p)) return false;
   if (AGENT_INSTRUCTION_FILE_RE.test(p) || INSTRUCTION_DIR_RE.test(p)) return true;
@@ -275,9 +314,10 @@ const isRealDir = (p) => {
     return false;
   }
 };
-function firstAddCommit(repoRoot, relPath) {
+/** The oldest commit that ADDED `relPath` in the history of `from` (default HEAD). */
+function firstAddCommit(repoRoot, relPath, from = "HEAD") {
   const out = git(
-    ["log", "--no-renames", "--diff-filter=A", "--format=%H", "--", relPath],
+    ["log", "--no-renames", "--diff-filter=A", "--format=%H", from, "--", relPath],
     repoRoot,
   );
   if (!out) return null;
@@ -286,6 +326,20 @@ function firstAddCommit(repoRoot, relPath) {
 }
 function lastChangeCommit(repoRoot, relPath) {
   return git(["log", "-1", "--format=%H", "--", relPath], repoRoot) || null;
+}
+/**
+ * The integration commit a branch was cut from: walk `tip`'s FIRST-parent chain (the branch's own
+ * line; `git merge main` into the branch puts `main` on the second parent) back to the first
+ * commit already on the integration branch. Without such a merge this is
+ * `git merge-base <integration> <tip>`; with one, it stays the original fork point, so the
+ * wave's earlier todos and ledger stay inside its window. null when git cannot answer.
+ */
+function forkPoint(repoRoot, integSha, tip) {
+  const own = git(["rev-list", "--first-parent", tip, `^${integSha}`], repoRoot);
+  if (own === null) return null;
+  const line = own.split("\n").filter(Boolean);
+  if (line.length === 0) return tip;
+  return git(["rev-parse", "--verify", "--quiet", `${line[line.length - 1]}^1`], repoRoot);
 }
 /** Non-bookkeeping paths that differ between two commits (null when git could not diff). */
 function surfaceMoved(repoRoot, a, b) {
@@ -628,11 +682,11 @@ function checkWindow(c) {
     );
   if (!c.onIntegration) {
     // Pre-merge the fork point is deterministic: the recorded base must BE it.
-    const computed = git(["merge-base", integ.sha, vh], repoRoot);
+    const computed = forkPoint(repoRoot, integ.sha, vh);
     if (computed && computed !== wb)
       return add(
         "wave-base-mismatch",
-        `wave_base ${wb.slice(0, 12)} is not git merge-base ${integ.ref} ${vh.slice(0, 12)} (= ${computed.slice(0, 12)}) — the window is recorded once, as the real fork point`,
+        `wave_base ${wb.slice(0, 12)} is not the commit of ${integ.ref} the wave branch was cut from (= ${computed.slice(0, 12)}; git merge-base ${integ.name} ${vh.slice(0, 12)} when ${integ.name} was never merged into the wave) — the window is recorded once, as the real fork point`,
       );
   }
   if (receiptPin) {
@@ -663,6 +717,110 @@ function checkWindow(c) {
       );
   }
   c.base = wb;
+}
+
+/** `git merge-tree --write-tree a b`: the tree a clean automatic merge would produce (conflicted files keep their markers), or null. */
+function autoMergeTree(repoRoot, a, b) {
+  let out;
+  try {
+    out = execFileSync("git", ["-C", repoRoot, "merge-tree", "--write-tree", "--no-messages", a, b], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch (e) {
+    // Exit 1 = conflicts: stdout still starts with the tree. Anything else (an old git) is unknown.
+    out = e && e.status === 1 && typeof e.stdout === "string" ? e.stdout : null;
+  }
+  const tree = out ? out.split("\n")[0].trim() : "";
+  return /^[0-9a-f]{40}$/.test(tree) ? tree : null;
+}
+
+/**
+ * HISTORICAL modes only (`--todo`, `--sweep`): what LANDED must be what was reviewed. `--scope`
+ * answers this with its staleness arm; once the wave has merged, `main` legitimately moves on,
+ * so instead find the commit that brought `verdict_head` in — on the integration branch, or on
+ * the checked-out HEAD when the verdict is not merged yet (a pull request's CI merge commit, a
+ * wave branch) — and require:
+ *   - it is a merge commit whose merged-in parent differs from `verdict_head` only in
+ *     bookkeeping paths (`landed-content-not-reviewed` otherwise: code committed after the
+ *     receipt rode the merge in);
+ *   - the merge commit itself changed no non-bookkeeping path beyond what git's automatic merge
+ *     of its two parents produces (`merge-commit-changed-code`: a conflict resolved, or code
+ *     edited, inside the merge — never reviewed);
+ *   - a wave never lands on the integration branch by fast-forward or rebase
+ *     (`wave-merge-not-a-merge-commit`: the merge-commit-only rule, task-delivery § Branches).
+ * Before the merge (HEAD is the wave branch itself) the tip must still match the verdict.
+ * Sets `c.landedTip` (the commit whose tree is what landed) for the round-record check.
+ */
+function checkLanding(c) {
+  const { add, repoRoot, vh, integ } = c;
+  c.landedTip = null;
+  if (!c.historical || !vh || !integ) return;
+  const anchorIsInteg = c.onIntegration;
+  const anchor = anchorIsInteg
+    ? integ.sha
+    : git(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], repoRoot);
+  if (!anchor || !isAncestor(vh, anchor, repoRoot)) return; // verdict-not-anchored already says so
+  const where = anchorIsInteg ? integ.name : "HEAD";
+  const chainOut = git(["rev-list", "--first-parent", anchor], repoRoot);
+  if (chainOut === null) return add("wave-merge-unverified", `could not read the history of ${where}`);
+  const chain = chainOut.split("\n").filter(Boolean); // newest first
+  // Containment of verdict_head is monotone along a first-parent chain: binary-search the oldest
+  // commit that contains it.
+  let lo = 0;
+  let hi = chain.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (isAncestor(vh, chain[mid], repoRoot)) lo = mid;
+    else hi = mid - 1;
+  }
+  const landing = chain[lo];
+  if (landing === vh) {
+    if (anchorIsInteg)
+      return add(
+        "wave-merge-not-a-merge-commit",
+        `verdict_head ${vh.slice(0, 12)} sits on ${integ.name}'s own first-parent line — the wave was fast-forwarded or rebased in, so what landed after it cannot be told apart from later work; a wave merges with a merge commit (task-delivery § Branches, pull requests and merging)`,
+      );
+    // Not merged yet: HEAD is (a descendant on) the wave branch itself.
+    const moved = surfaceMoved(repoRoot, vh, anchor);
+    if (moved === null) return add("wave-merge-unverified", `could not diff ${vh.slice(0, 12)}..HEAD`);
+    if (moved.length)
+      add(
+        "landed-content-not-reviewed",
+        `${moved.length} non-bookkeeping path(s) changed between the verdict and HEAD: ${moved.slice(0, 3).join(", ")} — code committed after the receipt was never reviewed`,
+      );
+    c.landedTip = anchor;
+    return;
+  }
+  const parents = (git(["rev-list", "--parents", "-n", "1", landing], repoRoot) || "").split(" ").slice(1);
+  const merged = parents.slice(1).filter((p) => isAncestor(vh, p, repoRoot));
+  if (parents.length !== 2 || merged.length !== 1)
+    return add(
+      "wave-merge-unverified",
+      `${landing.slice(0, 12)} brought verdict_head ${vh.slice(0, 12)} into ${where} but is not a two-parent merge of it (${parents.length} parent(s)) — what landed cannot be compared with what was reviewed`,
+    );
+  const tip = merged[0];
+  c.landedTip = tip;
+  const moved = surfaceMoved(repoRoot, vh, tip);
+  if (moved === null) add("wave-merge-unverified", `could not diff ${vh.slice(0, 12)}..${tip.slice(0, 12)}`);
+  else if (moved.length)
+    add(
+      "landed-content-not-reviewed",
+      `the merge ${landing.slice(0, 12)} into ${where} brought in ${tip.slice(0, 12)}, which differs from verdict_head ${vh.slice(0, 12)} in ${moved.length} non-bookkeeping path(s): ${moved.slice(0, 3).join(", ")} — code committed after the receipt was never reviewed`,
+    );
+  const auto = autoMergeTree(repoRoot, parents[0], tip);
+  if (!auto)
+    return add(
+      "wave-merge-unverified",
+      `could not recompute the automatic merge of ${parents[0].slice(0, 12)} and ${tip.slice(0, 12)} (git merge-tree --write-tree needs git 2.38 or later)`,
+    );
+  const edited = surfaceMoved(repoRoot, auto, landing);
+  if (edited === null) add("wave-merge-unverified", `could not diff the merge ${landing.slice(0, 12)} against its automatic result`);
+  else if (edited.length)
+    add(
+      "merge-commit-changed-code",
+      `the merge ${landing.slice(0, 12)} into ${where} differs from git's automatic merge of its parents in ${edited.length} non-bookkeeping path(s): ${edited.slice(0, 3).join(", ")} — a conflict resolved or code edited inside the merge was never reviewed (merge ${integ.name} into the wave branch and review again instead, task-delivery § Branches step 7)`,
+    );
 }
 
 function deriveSecurity(c) {
@@ -733,13 +891,18 @@ function checkArtifacts(c) {
         add("acceptance-list-untracked", `${ap} is not tracked`);
       else if (vh) {
         const relP = rel(repoRoot, real);
-        const added = firstAddCommit(repoRoot, relP);
-        if (!added)
+        // Read in verdict_head's own history: the list that governs is the one the reviewed work
+        // was built on. A re-plan (`wNNb`) may also have reached the integration branch by another
+        // branch; once both merged, the integration history can name THAT commit as the add,
+        // which is not an ancestor of the verdict and says nothing about whether the list
+        // predated the review.
+        const added = firstAddCommit(repoRoot, relP, vh);
+        if (!added && !firstAddCommit(repoRoot, relP))
           add(
             "acceptance-list-uncommitted",
             `${ap} is staged but has never been committed`,
           );
-        else if (!isStrictAncestor(added, vh, repoRoot))
+        else if (!added || !isStrictAncestor(added, vh, repoRoot))
           add(
             "acceptance-list-not-before-verdict",
             `${ap} was not committed in a strict ancestor of verdict_head — the acceptance list must predate the reviewed work (completion-criterion.md MUST-1)`,
@@ -1125,25 +1288,54 @@ function checkRoundRecords(c) {
         `${p} records round ${m[1]}, after the receipt's last round ${lastN} — a receipt must count every recorded round of its scope`,
       );
   }
-  // RIGHT NOW: a record of this scope committed (or left uncommitted) AFTER the receipt — any
-  // number, a later NOT_CLEAR re-review included — means the receipt no longer tells the whole story.
+  // A record of this scope, OR of the receipt's branch under any other file name
+  // (`round-w01-recheck-3.json`), committed (or left uncommitted) AFTER the receipt — any number,
+  // a later NOT_CLEAR re-review included — means the receipt no longer tells the whole story.
+  // RIGHT NOW (`--scope`) reads the working tree; the historical modes read the tree that landed
+  // (checkLanding's `landedTip`), so a re-check committed after the receipt cannot ride a merge in.
+  const branchName = nonEmpty(r.branch) ? r.branch.trim() : null;
+  const roundFileRe = /^round-[^/]+\.json$/;
+  const belongs = (relP, text) => {
+    if (scopeRecordRe.test(relP)) return true;
+    if (!branchName) return false;
+    try {
+      const rec = JSON.parse(text ?? "");
+      return !!rec && typeof rec === "object" && rec.branch === branchName;
+    } catch {
+      return false;
+    }
+  };
+  const judge = (relP, added, changed) => {
+    if (changed)
+      add(
+        "round-record-after-receipt",
+        `${relP} changed after the receipt's commit ${receiptPin.slice(0, 12)} — a recorded round is never rewritten`,
+      );
+    else if (!added || !isAncestor(added, receiptPin, repoRoot))
+      add(
+        "round-record-after-receipt",
+        `${relP} was ${added ? `first committed in ${added.slice(0, 12)}, after` : "not committed before"} the receipt's commit ${receiptPin.slice(0, 12)} — a round reviewed after the receipt reopens the scope`,
+      );
+  };
   if (!c.historical) {
     const dir = join(c.workspaceDir, "04-validate");
     for (const name of existsSync(dir) ? readdirSync(dir) : []) {
       const relP = `${validateRel}${name}`;
-      if (!scopeRecordRe.test(relP)) continue;
+      if (!roundFileRe.test(name) || !isRegularFile(join(dir, name))) continue;
+      let text = null;
+      try { text = readFileSync(join(dir, name), "utf8"); } catch { /* unreadable: judged by name only */ }
+      if (!belongs(relP, text)) continue;
       const added = isTracked(repoRoot, join(dir, name)) ? firstAddCommit(repoRoot, relP) : null;
       const pinned = blobAt(repoRoot, receiptPin, relP);
-      if (added && pinned && blobNow(repoRoot, join(dir, name)) !== pinned)
-        add(
-          "round-record-after-receipt",
-          `${relP} changed after the receipt's commit ${receiptPin.slice(0, 12)} — a recorded round is never rewritten`,
-        );
-      else if (!added || !isAncestor(added, receiptPin, repoRoot))
-        add(
-          "round-record-after-receipt",
-          `${relP} was ${added ? `first committed in ${added.slice(0, 12)}, after` : "not committed before"} the receipt's commit ${receiptPin.slice(0, 12)} — a round reviewed after the receipt reopens the scope`,
-        );
+      judge(relP, added, !!(added && pinned && blobNow(repoRoot, join(dir, name)) !== pinned));
+    }
+  } else if (c.landedTip) {
+    const tip = c.landedTip;
+    for (const relP of (git(["ls-tree", "--name-only", tip, "--", validateRel], repoRoot) || "").split("\n")) {
+      if (!relP || !roundFileRe.test(basename(relP)) || !belongs(relP, showAt(repoRoot, tip, relP))) continue;
+      const added = firstAddCommit(repoRoot, relP, tip);
+      const pinned = blobAt(repoRoot, receiptPin, relP);
+      judge(relP, added, !!(added && pinned && blobAt(repoRoot, tip, relP) !== pinned));
     }
   }
   checkRoundBudget(c, validateRel);
@@ -1406,6 +1598,7 @@ export function assessReceipt({
     vh: null,
     integ: null,
     onIntegration: false,
+    landedTip: null,
     base: null,
     launchRows: null,
     securityCritical: false,
@@ -1414,6 +1607,7 @@ export function assessReceipt({
   checkHead(c);
   checkCurrency(c);
   checkWindow(c);
+  checkLanding(c);
   deriveSecurity(c);
   checkArtifacts(c);
   checkRounds(c);
@@ -1436,7 +1630,7 @@ export function template(scope) {
     branch: "<the branch checked out when the verdict was reached>",
     integration_ref: "main",
     wave_base:
-      "<40-hex integration commit the wave started from — git merge-base main <verdict_head> before merging; recorded once>",
+      "<40-hex integration commit the wave branch was cut from — git merge-base main <verdict_head> before merging, unless main was merged into the wave: then the original fork point (the checker's wave-base-mismatch message prints it); recorded once>",
     verdict_head: "<40-hex commit the final two clean rounds reviewed>",
     verdict_at: "<ISO timestamp of the final clean verdict>",
     security_critical: true,
@@ -1691,6 +1885,23 @@ function runTodo(workspaceDir, repoRoot, id, pin) {
   return code;
 }
 
+/** Markdown-looking files (`.md` / `.markdown`, any letter case) under `dir`, relative, at any depth; symlinks included as entries. */
+function mdFilesUnder(dir, prefix = "") {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    const relP = `${prefix}${e.name}`;
+    if (e.isDirectory()) out.push(...mdFilesUnder(join(dir, e.name), `${relP}/`));
+    else if (/\.(?:md|markdown)$/i.test(e.name)) out.push(relP);
+  }
+  return out.sort();
+}
+
 function runSweep(root, pin) {
   if (!existsSync(root) || !statSync(root).isDirectory()) {
     process.stdout.write(
@@ -1707,26 +1918,51 @@ function runSweep(root, pin) {
   let failing = 0;
   let skippedDirs = 0;
   for (const w of readdirSync(root, { withFileTypes: true })) {
-    const isLink = w.isSymbolicLink();
-    if (
-      isLink ||
-      !w.isDirectory() ||
-      w.name.startsWith("_") ||
-      w.name === "instructions"
-    ) {
-      if (isLink || w.isDirectory()) {
-        skippedDirs++;
-        process.stdout.write(
-          `skip ${w.name}/: not swept (${isLink ? "symlinked directory" : w.name.startsWith("_") ? "underscore-prefixed" : "instructions"})\n`,
-        );
-      }
+    if (w.isSymbolicLink()) {
+      // A symlinked workspace can point anywhere, so its todos are never silently skipped.
+      todos++;
+      failing++;
+      process.stdout.write(
+        `FAIL ${w.name}/: workspace-symlinked — a workspace must be a real directory in this repository; its completed todos cannot be swept through a link\n`,
+      );
+      continue;
+    }
+    if (!w.isDirectory()) continue;
+    if (w.name.startsWith("_") || w.name === "instructions") {
+      // Documented exclusions (the phases' own workspace rule: `instructions/` and
+      // underscore-prefixed meta folders such as `_archive`, `_template`). Said out loud, with
+      // how many completed todo files they hold, so a project hidden there is visible.
+      skippedDirs++;
+      const inside = mdFilesUnder(join(root, w.name, "todos", "completed")).length;
+      process.stdout.write(
+        `skip ${w.name}/: not swept (${w.name.startsWith("_") ? "underscore-prefixed" : "instructions"}); ${inside} completed todo file(s) inside are not checked\n`,
+      );
       continue;
     }
     const workspaceDir = canon(join(root, w.name));
-    const done = join(workspaceDir, "todos", "completed");
+    const todosDir = join(workspaceDir, "todos");
+    const done = join(todosDir, "completed");
     if (!existsSync(done)) continue;
+    if (!isRealDir(todosDir) || !isRealDir(done)) {
+      todos++;
+      failing++;
+      process.stdout.write(
+        `FAIL ${w.name}/todos/completed: workspace-dir-symlinked — todos/ and todos/completed/ must be real directories, not symlinks\n`,
+      );
+      continue;
+    }
+    // A completed todo is `todos/completed/<name>.md`, exactly. Any other Markdown-looking file
+    // there — another letter case, `.markdown`, a nested folder — is reported, never skipped:
+    // no receipt can list it, so it can never be CLOSED.
+    for (const odd of mdFilesUnder(done).filter((p) => !/^[^/]+\.md$/.test(p) || !isRegularFile(join(done, p)))) {
+      todos++;
+      failing++;
+      process.stdout.write(
+        `FAIL ${w.name}/todos/completed/${odd}: todo-path-not-recognised — a completed todo is a regular file todos/completed/<id>-<slug>.md (lower-case .md, no subfolder, not a symlink); rename or move it so a receipt can cover it\n`,
+      );
+    }
     for (const f of readdirSync(done)
-      .filter((x) => x.endsWith(".md"))
+      .filter((x) => x.endsWith(".md") && isRegularFile(join(done, x)))
       .sort()) {
       const todoPath = `todos/completed/${f}`;
       const id = todoIdOf(f);

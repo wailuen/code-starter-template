@@ -368,6 +368,34 @@ function assertBranchAndHead(round, cwd) {
   catch { throw new Error(`head ${round.head} is not a commit on branch ${round.branch}`); }
 }
 
+// A NEW round's evidence is a saved review report, not any file in the checkout: it lives in a
+// workspace's `04-validate/` or in `.harness/reviews/` (directly, no subfolder), is tracked by git
+// (`git add` it before recording; committing it with the round record is enough afterwards), and
+// names the reviewed commit — the full head SHA or at least its first 12 characters. Single-CLEAR
+// gates (a light-mode wave, a todo checkpoint, /fix, planning, analysis, codify) have no
+// convergence receipt behind them, so this is where a report that never existed is caught.
+// Records already committed are replayed as written (rebuildFromHistory), never re-judged.
+const REPORT_PATH_RE = /^(?:workspaces\/[^/]+\/04-validate|\.harness\/reviews)\/[^/]+$/;
+function assertReviewReports(round, checkoutRoot) {
+  const short = round.head.slice(0, 12).toLowerCase();
+  for (const r of round.reviewers) {
+    const cited = r.evidence;
+    if (!REPORT_PATH_RE.test(cited)) {
+      throw new Error(`Evidence for ${r.id} must be a saved review report directly under workspaces/<project>/04-validate/ or .harness/reviews/, not ${cited}`);
+    }
+    try {
+      execFileSync("git", ["-c", "core.quotePath=false", "ls-files", "--error-unmatch", "--", cited],
+        { cwd: checkoutRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch {
+      throw new Error(`Evidence for ${r.id} (${cited}) is not tracked by git; git add the saved report, then record the round`);
+    }
+    const text = fs.readFileSync(path.join(checkoutRoot, cited), "utf8").toLowerCase();
+    if (!text.includes(short)) {
+      throw new Error(`Evidence for ${r.id} (${cited}) does not name the reviewed commit ${round.head.slice(0, 12)}; a report states the commit it reviewed (its full SHA or at least the first 12 characters)`);
+    }
+  }
+}
+
 function canonicalizeRound(round, ctx) {
   const reviewers = round.reviewers.map((r) => ({ ...r, evidence: resolveCitation(r.evidence, ctx) }));
   const replan = round.replan === undefined ? undefined : resolveCitation(round.replan, ctx);
@@ -509,6 +537,7 @@ function recordRound(repoDir, input, options = {}) {
   const normalized = normalizeRound(input);
   assertBranchAndHead(normalized, options.cwd || options.roundDir || repoDir);
   const round = canonicalizeRound(normalized, ctx);
+  assertReviewReports(round, ctx.checkoutRoot);
   // The CLI/lead is the normal writer. The lock also prevents lost updates if two
   // leads overlap. Busy and stale locks are LOUD, never resets. Containment is checked
   // BEFORE the directory is created, so a symlinked `.claude` never gets a directory
