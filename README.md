@@ -104,7 +104,7 @@ layout, the shared rules and what the harness deliberately does not include.
 
 ## Layout
 
-- `docs/` — the beginner tutorial (`tutorial.pdf` to share, `tutorial.md` to edit).
+- `docs/` — the beginner tutorial (`tutorial.pdf` to share, `tutorial.md` to read online). Both are built from `build_tutorial.py`: edit that file, then run `python3 docs/build_tutorial.py` (needs `pip install reportlab`).
 - `.claude/` — Claude Code entry point (`CLAUDE.md`), rules, agents, skills and commands.
 - `.harness/` — shared phases, roles, guides, rules and tools used by both Claude Code and Codex.
 - `AGENTS.md` — Codex entry point. Codex users run
